@@ -1,0 +1,16 @@
+{
+	"packageDirectories": [
+		{
+			"path": "ajp/src",
+			"default": true
+		},
+		{
+			"path": "ajp/test",
+			"default": false
+		}
+	],
+	"name": "async-processor",
+	"namespace": "",
+	"sfdcLoginUrl": "https://login.salesforce.com",
+	"sourceApiVersion": "64.0"
+}
