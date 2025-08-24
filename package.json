@@ -1,39 +1,106 @@
 {
-  "name": "salesforce-app",
-  "private": true,
-  "version": "1.0.0",
-  "description": "Salesforce App",
-  "scripts": {
-    "lint": "eslint **/{aura,lwc}/**/*.js",
-    "test": "npm run test:unit",
-    "test:unit": "sfdx-lwc-jest",
-    "test:unit:watch": "sfdx-lwc-jest --watch",
-    "test:unit:debug": "sfdx-lwc-jest --debug",
-    "test:unit:coverage": "sfdx-lwc-jest --coverage",
-    "prettier": "prettier --write \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",
-    "prettier:verify": "prettier --check \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",
-    "postinstall": "husky install",
-    "precommit": "lint-staged"
-  },
-  "devDependencies": {
-    "@lwc/eslint-plugin-lwc": "^3.1.0",
-    "@prettier/plugin-xml": "^3.4.1",
-    "@salesforce/eslint-config-lwc": "^4.0.0",
-    "@salesforce/eslint-plugin-aura": "^3.0.0",
-    "@salesforce/eslint-plugin-lightning": "^2.0.0",
-    "@salesforce/sfdx-lwc-jest": "^7.0.1",
-    "eslint": "^9.29.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-jest": "^28.14.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^16.1.2",
-    "prettier": "^3.5.3",
-    "prettier-plugin-apex": "^2.2.6",
-    "ts-jest-mock-import-meta": "^1.3.0"
-  },
-  "lint-staged": {
-    "**/*.{cls,xml}": [
-      "prettier --write"
-    ]
-  }
+	"name": "salesforce-app",
+	"private": true,
+	"version": "1.0.0",
+	"description": "Salesforce App",
+	"scripts": {
+		"build": "wireit",
+		"dependencies:upgrade": "npm update ; npm audit fix",
+		"lint": "wireit",
+		"postinstall": "npm install --global @salesforce/cli && sf plugins install code-analyzer",
+		"precommit": "lint-staged",
+		"prepare": "husky",
+		"prettier": "wireit",
+		"test": "wireit",
+		"test:functional:load-data": "sf sfdmu run --sourceusername csvfile --targetusername dev -n -p apex-job/test/functional/data",
+		"test:functional:prepare-metadata": "wireit",
+		"test:functional:start": "sf apex run -f apex-job/test/functional/script/launch-functional-test.apex",
+		"test:functional:stop": "sf apex run -f apex-job/test/functional/script/stop-functional-test.apex",
+		"test:integration": "wireit",
+		"test:unit": "wireit",
+		"test:unit:coverage": "npm run test:unit -- -c -v"
+	},
+	"devDependencies": {
+		"@prettier/plugin-xml": "^3.4.2",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.1.4",
+		"prettier": "^3.6.2",
+		"prettier-plugin-apex": "^2.2.6",
+		"wireit": "^0.14.12"
+	},
+	"lint-staged": {
+		"**/*.{cls,xml}": [
+			"npm run lint -- -t"
+		]
+	},
+	"wireit": {
+		"build": {
+			"command": "sf project deploy start -d apex-job",
+			"files": [
+				"apex-job/**/*"
+			],
+			"output": [],
+			"dependencies": [
+				"lint"
+			]
+		},
+		"lint": {
+			"command": "sf code-analyzer run",
+			"files": [
+				"apex-job/**/*.{cls,xml}",
+				"code-analyzer.yml",
+				"apex-ruleset.xml"
+			],
+			"output": [],
+			"dependencies": [
+				"prettier"
+			]
+		},
+		"prettier": {
+			"command": "prettier --write apex-job/**/*.{cls,xml}",
+			"files": [
+				"apex-job/**/*.{cls,xml}"
+			],
+			"output": []
+		},
+		"test": {
+			"files": [
+				"apex-job/**/*"
+			],
+			"dependencies": [
+				"test:unit",
+				"test:integration"
+			]
+		},
+		"test:functional:prepare-metadata": {
+			"command": "sf project deploy start -d apex-job/test/functional && sf org assign permset -n AdminAsyncJob || true",
+			"files": [
+				"apex-job/test/functional"
+			],
+			"output": [],
+			"dependencies": [
+				"build"
+			]
+		},
+		"test:integration": {
+			"command": "sf apex test run -w 10 -t \"$(find apex-job/test/integration -name \"*.cls\" -exec basename {} .cls \\; | tr '\n' ',' | sed 's/,$//')\" -c -v",
+			"files": [
+				"apex-job/**/*"
+			],
+			"output": [],
+			"dependencies": [
+				"build"
+			]
+		},
+		"test:unit": {
+			"command": "sf apex test run -w 10 -t \"$(find apex-job/test/unit -name \"*.cls\" -exec basename {} .cls \\; | tr '\n' ',' | sed 's/,$//')\"",
+			"files": [
+				"apex-job/**/*"
+			],
+			"output": [],
+			"dependencies": [
+				"build"
+			]
+		}
+	}
 }

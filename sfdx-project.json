@@ -1,11 +1,11 @@
 {
 	"packageDirectories": [
 		{
-			"path": "ajp/src",
+			"path": "apex-job/src",
 			"default": true
 		},
 		{
-			"path": "ajp/test",
+			"path": "apex-job/test",
 			"default": false
 		}
 	],

@@ -1,0 +1,16 @@
+{
+	"alwaysUseRestApiToUpdateRecords": true,
+	"excludeIdsFromCSVFiles": true,
+	"objects": [
+		{
+			"query": "SELECT Name, ProcessorName__c, Enabled__c, isHighPriority__c, isRecurrent__c, MaxChunkSize__c, MaxExecutionAttempt__c, MinJobInterval__c, CalloutConsumption__c, CalloutTimeConsumption__c, CpuTimeConsumption__c, DmlRowsConsumption__c, DmlStatementsConsumption__c, FutureCallsConsumption__c, HeapSizeConsumption__c FROM JobDescription__c",
+			"operation": "Upsert",
+			"externalId": "ProcessorName__c"
+		},
+		{
+			"query": "SELECT Name, JobDescription__c, JobDescription__r.ProcessorName__c, Argument__c, Enabled__c, Status__c, NextExecutionDateTime__c, AttemptNumber__c FROM JobRequest__c",
+			"operation": "Upsert",
+			"externalId": "Name"
+		}
+	]
+}

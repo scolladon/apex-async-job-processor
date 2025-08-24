@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ruleset
+  xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  name="Custom Apex Ruleset"
+  xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 http://pmd.sourceforge.net/ruleset_2_0_0.xsd"
+>
+    <description>Custom Ruleset to use with Apex PMD</description>
+
+    <rule ref="category/apex/bestpractices.xml/ApexUnitTestClassShouldHaveAsserts" message="Test should have assert or expect">
+        <properties>
+            <property name="additionalAssertMethodPattern" value="(Expect\.that)" />
+        </properties>
+    </rule>
+
+    <rule ref="category/apex/codestyle.xml/MethodNamingConventions">
+        <properties>
+            <property name="testPattern" value="given[A-Z][a-zA-Z0-9]*_when[A-Z][a-zA-Z0-9]*_then[A-Z][a-zA-Z0-9]*" />
+            <property name="staticPattern" value="[a-z][a-zA-Z0-9]*" />
+            <property name="instancePattern" value="[a-z][a-zA-Z0-9]*" />
+        </properties>
+    </rule>
+
+</ruleset>

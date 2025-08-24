@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>EnqueueDelayOutsideBusinessHours__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Contains the job reenqueue delay when outside business hours</description>
+    <externalId>false</externalId>
+    <inlineHelpText>Can be between 0 and 10</inlineHelpText>
+    <label>Enqueue delay outside business hours</label>
+    <precision>2</precision>
+    <required>true</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
