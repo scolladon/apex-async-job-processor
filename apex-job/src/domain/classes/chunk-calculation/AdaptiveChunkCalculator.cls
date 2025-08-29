@@ -69,7 +69,7 @@ public without sharing class AdaptiveChunkCalculator implements ChunkSizeCalcula
 
     // If we have usable capacity, calculate the maximum chunk size
     // Formula: (usable_capacity * safety_factor / per_item_cost) + 1
-    // The +1 accounts for rounding down and ensures we can process at least one item
+    // The +1 accounts for the base execution
     // If no usable capacity remains, return 0 (cannot process any items)
     return usable > 0 ? (usable * safety / perItem) + 1 : 0;
   }

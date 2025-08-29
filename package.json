@@ -1,8 +1,8 @@
 {
-	"name": "salesforce-app",
+	"name": "apex-async-job-processor",
 	"private": true,
 	"version": "1.0.0",
-	"description": "Salesforce App",
+	"description": "Performant job selection and execution utilities for Apex with governor limit safety.",
 	"scripts": {
 		"build": "wireit",
 		"dependencies:upgrade": "npm update ; npm audit fix",

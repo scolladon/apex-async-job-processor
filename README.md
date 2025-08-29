@@ -1,7 +1,3 @@
-# Salesforce DX Project: Next Steps
-
-Now that you’ve created a Salesforce DX project, what’s next? Here are some documentation resources to get you started.
-
 <div align="center">
 	<h1>Async Processor</h1>
 	<p>Performant job selection and execution utilities for Apex with governor limit safety.</p>
@@ -43,10 +39,10 @@ The library aims to be:
 
 ## Installation
 
-Requirements: Node.js 18+, npm 9+, Salesforce CLI.
+Requirements: `Node.js 18+`, `npm 9+`, `Salesforce CLI`.
 
 ```bash
-npm ci
+npm install
 sf org create scratch -f config/project-scratch-def.json -a dev -d 1
 npm run build
 ```
