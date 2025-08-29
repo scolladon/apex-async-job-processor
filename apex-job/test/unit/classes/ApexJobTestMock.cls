@@ -1,4 +1,5 @@
 @IsTest
+@SuppressWarnings('PMD.ExcessivePublicCount')
 public class ApexJobTestMock {
   // Stubs
   public ApexJobFactory factoryStub { get; private set; }
@@ -9,6 +10,8 @@ public class ApexJobTestMock {
   public JobExecutorFinalizerAttacher finalizerAttacherStub { get; private set; }
   public ApexJobConfigService configServiceStub { get; private set; }
   public LimitService limitServiceStub { get; private set; }
+  public ChunkSizeCalculator chunkSizeCalculatorStub { get; private set; }
+  public ConsumptionLearner consumptionLearnerStub { get; private set; }
 
   // Spies
   public MethodSpy errorSpy { get; private set; }
@@ -28,12 +31,13 @@ public class ApexJobTestMock {
   public MethodSpy limitServiceSpy { get; private set; }
   public MethodSpy startSnapshotSpy { get; private set; }
   public MethodSpy stopSnapshotSpy { get; private set; }
-  public MethodSpy updateUsageSpy { get; private set; }
-  public MethodSpy resetUsageSpy { get; private set; }
   public MethodSpy getAvailableLimitsSpy { get; private set; }
-  public MethodSpy getConsumedLimitsSpy { get; private set; }
-  public MethodSpy computeMaxChunkSizeForTransactionSpy { get; private set; }
+  public MethodSpy getMaxPossibleSpy { get; private set; }
+  public MethodSpy adjustFromSuccessSpy { get; private set; }
+  public MethodSpy adjustFromFailureSpy { get; private set; }
+  public MethodSpy adjustFromKillSpy { get; private set; }
 
+  @SuppressWarnings('PMD.NcssConstructorCount')
   public ApexJobTestMock() {
     // Mocks
     Mock factoryMock = Mock.forType(ApexJobFactory.class);
@@ -44,6 +48,8 @@ public class ApexJobTestMock {
     Mock finalizerAttacherMock = Mock.forType(JobExecutorFinalizerAttacher.class);
     Mock configServiceMock = Mock.forType(ApexJobConfigService.class);
     Mock limitServiceMock = Mock.forType(LimitService.class);
+    Mock chunkSizeCalculatorMock = Mock.forType(ChunkSizeCalculator.class);
+    Mock consumptionLearnerMock = Mock.forType(ConsumptionLearner.class);
 
     // Stubs
     this.factoryStub = (ApexJobFactory) factoryMock.stub;
@@ -54,6 +60,8 @@ public class ApexJobTestMock {
     this.finalizerAttacherStub = (JobExecutorFinalizerAttacher) finalizerAttacherMock.stub;
     this.configServiceStub = (ApexJobConfigService) configServiceMock.stub;
     this.limitServiceStub = (LimitService) limitServiceMock.stub;
+    this.chunkSizeCalculatorStub = (ChunkSizeCalculator) chunkSizeCalculatorMock.stub;
+    this.consumptionLearnerStub = (ConsumptionLearner) consumptionLearnerMock.stub;
 
     // Factory Spies
     factoryMock.spyOn('getLogger').returns(this.loggerStub);
@@ -63,6 +71,8 @@ public class ApexJobTestMock {
     factoryMock.spyOn('getFinalizerAttacher').returns(this.finalizerAttacherStub);
     factoryMock.spyOn('getConfigService').returns(this.configServiceStub);
     factoryMock.spyOn('getLimitService').returns(this.limitServiceStub);
+    factoryMock.spyOn('getChunkSizeCalculator').returns(this.chunkSizeCalculatorStub);
+    factoryMock.spyOn('getConsumptionLearner').returns(this.consumptionLearnerStub);
 
     // Logger Spies
     this.errorSpy = loggerMock.spyOn('error');
@@ -88,10 +98,14 @@ public class ApexJobTestMock {
     // Limit Spies
     this.startSnapshotSpy = limitServiceMock.spyOn('startSnapshot');
     this.stopSnapshotSpy = limitServiceMock.spyOn('stopSnapshot');
-    this.updateUsageSpy = limitServiceMock.spyOn('updateUsage');
-    this.resetUsageSpy = limitServiceMock.spyOn('resetUsage');
     this.getAvailableLimitsSpy = limitServiceMock.spyOn('getAvailableLimits');
-    this.getConsumedLimitsSpy = limitServiceMock.spyOn('getConsumedLimits');
-    this.computeMaxChunkSizeForTransactionSpy = limitServiceMock.spyOn('computeMaxChunkSizeForTransaction');
+
+    // ChunkSizeCalculator Spies
+    this.getMaxPossibleSpy = chunkSizeCalculatorMock.spyOn('getMaxPossible');
+
+    // ConsumptionLearner Spies
+    this.adjustFromSuccessSpy = consumptionLearnerMock.spyOn('adjustFromSuccess');
+    this.adjustFromFailureSpy = consumptionLearnerMock.spyOn('adjustFromFailure');
+    this.adjustFromKillSpy = consumptionLearnerMock.spyOn('adjustFromKill');
   }
 }

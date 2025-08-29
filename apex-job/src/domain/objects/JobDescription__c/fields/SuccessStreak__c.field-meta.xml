@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>CpuTimeConsumption__c</fullName>
-    <defaultValue>-1</defaultValue>
-    <description>Expected CPU time consumption in milliseconds for this job type. Used for governor limit planning and tracking. -1 indicates no measurement available.</description>
+    <fullName>SuccessStreak__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Number of consecutive successful executions. Used to control ramp-up factor.</description>
     <externalId>false</externalId>
-    <label>CPU Time Consumption</label>
+    <label>Success Streak</label>
     <precision>18</precision>
     <required>false</required>
     <scale>0</scale>

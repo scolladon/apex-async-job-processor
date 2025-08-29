@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>QueryRowsConsumption__c</fullName>
+    <fullName>Priority__c</fullName>
     <defaultValue>-1</defaultValue>
-    <description>Expected number of query rows retrieved for this job type. Used for governor limit planning and tracking. -1 indicates no measurement available.</description>
+    <description>Priority of the job description. The higher the priority, the more likely the job will be executed first.</description>
     <externalId>false</externalId>
-    <label>Query Rows Consumption</label>
+    <label>Priority</label>
     <precision>18</precision>
     <required>false</required>
     <scale>0</scale>

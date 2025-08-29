@@ -1,6 +1,6 @@
-CalloutConsumption__c,CalloutTimeConsumption__c,CpuTimeConsumption__c,DmlRowsConsumption__c,DmlStatementsConsumption__c,Enabled__c,FutureCallsConsumption__c,HeapSizeConsumption__c,isHighPriority__c,isRecurrent__c,MaxChunkSize__c,MaxExecutionAttempt__c,MinJobInterval__c,Name,ProcessorName__c
--1,-1,-1,-1,-1,true,-1,-1,false,false,-1,-1,0,Functional Test Job 3,ApexJobFunctional3Test
--1,-1,-1,-1,-1,true,-1,-1,false,false,-1,-1,0,Functional Test Job 1,ApexJobFunctional1Test
--1,-1,-1,-1,-1,true,-1,-1,false,false,-1,-1,0,Functional Test Job 4,ApexJobFunctional4Test
--1,-1,-1,-1,-1,true,-1,-1,false,false,-1,-1,0,Functional Test Job 2,ApexJobFunctional2Test
--1,-1,-1,-1,-1,true,-1,-1,false,false,-1,-1,0,Functional Test Job 5,ApexJobFunctional5Test
+Name,ProcessorName__c
+Functional Test Job 3,ApexJobFunctional3Test
+Functional Test Job 1,ApexJobFunctional1Test
+Functional Test Job 4,ApexJobFunctional4Test
+Functional Test Job 2,ApexJobFunctional2Test
+Functional Test Job 5,ApexJobFunctional5Test

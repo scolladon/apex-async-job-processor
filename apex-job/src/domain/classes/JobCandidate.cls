@@ -2,17 +2,17 @@ public class JobCandidate {
   private Integer calculatedChunkSize;
   private final JobDescription__c jobDescription;
   public final List<JobRequest__c> jobRequests;
-  private final LimitService limitService;
+  private final ChunkSizeCalculator chunkSizeCalculator;
 
   public JobCandidate(final List<JobRequest__c> jobRequests) {
-    this(new ApexJobFactoryImpl().getLimitService(), jobRequests);
+    this(new ApexJobFactoryImpl().getChunkSizeCalculator(), jobRequests);
   }
 
   @TestVisible
-  private JobCandidate(final LimitService limitService, final List<JobRequest__c> jobRequests) {
+  private JobCandidate(final ChunkSizeCalculator chunkSizeCalculator, final List<JobRequest__c> jobRequests) {
     this.jobRequests = jobRequests;
     this.jobDescription = jobRequests[0].JobDescription__r;
-    this.limitService = limitService;
+    this.chunkSizeCalculator = chunkSizeCalculator;
   }
 
   public Boolean isExecutable() {
@@ -35,7 +35,7 @@ public class JobCandidate {
     }
 
     // Define max possible chunk size for current transaction
-    chunkSize = this.limitService.computeMaxChunkSizeForTransaction(this.jobDescription);
+    chunkSize = this.chunkSizeCalculator.getMaxPossible(this.jobDescription);
     return Math.min(chunkSize, this.jobRequests.size());
   }
 }

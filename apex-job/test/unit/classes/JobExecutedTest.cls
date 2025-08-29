@@ -25,7 +25,7 @@ private class JobExecutedTest {
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
     jobResult.setConsumedLimits(consumedLimits);
-    final JobExecuted sut = new JobExecuted(mocks.limitServiceStub, jobExecutable, jobResult);
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
     sut.stageExecution();
@@ -36,17 +36,14 @@ private class JobExecutedTest {
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be null for success');
     Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'Last execution message should be empty for success');
-    Assert.areEqual(2, jobDescription.MaxChunkSize__c, 'Max chunk size should be set to 2');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
-    Expect.that(mocks.updateUsageSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalledTimes(1);
   }
 
   @IsTest
   static void givenStageExecution_whenJobFails_thenRecordsFailure() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    final MethodSpy resetUsageSpy = mocks.resetUsageSpy;
-
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
       .withName('FailingTestApexJob')
       .withProcessorName('JobExecutedTest.FailingTestApexJob')
@@ -59,7 +56,7 @@ private class JobExecutedTest {
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(new TestException('Test failure'));
-    final JobExecuted sut = new JobExecuted(mocks.limitServiceStub, jobExecutable, jobResult);
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
     sut.stageExecution();
@@ -70,16 +67,45 @@ private class JobExecutedTest {
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNotNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be set for retry');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Test failure'), 'Last execution message should contain error');
-    Assert.areEqual(-1, jobDescription.MaxChunkSize__c, 'Max chunk size should be set to -1');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
-    Expect.that(resetUsageSpy).hasBeenCalled();
+    Expect.that(mocks.adjustFromFailureSpy).hasBeenCalled();
+  }
+
+  @IsTest
+  static void givenStageExecution_whenJobKilled_thenRecordsKilled() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('KillingTestApexJob')
+      .withProcessorName('JobExecutedTest.KillingTestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionAttempt(3)
+      .withMinJobInterval(5)
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    jobRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
+    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError('Test killed', ''));
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.KILLED.name(), jobRequest.Status__c, 'Job request status should be KILLED');
+    Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number should be incremented');
+    Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
+    Assert.isNotNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be set for retry');
+    Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Test killed'), 'Last execution message should contain error');
+    Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
+    Expect.that(mocks.adjustFromKillSpy).hasBeenCalled();
   }
 
   @IsTest
   static void givenStageExecution_whenJobFailsTooMuch_thenRecordsAbort() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    final MethodSpy resetUsageSpy = mocks.resetUsageSpy;
 
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
       .withName('FailingTestApexJob')
@@ -92,7 +118,7 @@ private class JobExecutedTest {
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(new TestException('Test failure'));
-    final JobExecuted sut = new JobExecuted(mocks.limitServiceStub, jobExecutable, jobResult);
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
     sut.stageExecution();
@@ -104,16 +130,14 @@ private class JobExecutedTest {
     Assert.isNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be null for abort');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Max execution attempt reached'), 'Should contain max attempt message');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Test failure'), 'Should contain error message');
-    Assert.areEqual(-1, jobDescription.MaxChunkSize__c, 'Max chunk size should be set to -1');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
-    Expect.that(resetUsageSpy).hasBeenCalled();
+    Expect.that(mocks.adjustFromFailureSpy).hasBeenCalled();
   }
 
   @IsTest
   static void givenStageExecution_whenMultipleJobRequests_thenStagesAll() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    final MethodSpy updateUsageSpy = mocks.updateUsageSpy;
     final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage()
       .withCpuTime(100)
       .withHeapSize(1000)
@@ -139,7 +163,7 @@ private class JobExecutedTest {
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
     jobResult.setConsumedLimits(consumedLimits);
-    final JobExecuted sut = new JobExecuted(mocks.limitServiceStub, jobExecutable, jobResult);
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
     sut.stageExecution();
@@ -154,14 +178,13 @@ private class JobExecutedTest {
     Assert.areEqual(1, jobRequests[0].AttemptNumber__c, 'First job request attempt should be 1');
     Assert.areEqual(2, jobRequests[1].AttemptNumber__c, 'Second job request attempt should be 2');
     Assert.areEqual(1, jobRequests[2].AttemptNumber__c, 'Third job request attempt should be 1');
-    Expect.that(updateUsageSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalled();
   }
 
   @IsTest
-  static void givenStageExecution_whenAborted_thenResetsUsage() {
+  static void givenStageExecution_whenAborted_thenAdjustsFromFailure() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    final MethodSpy resetUsageSpy = mocks.resetUsageSpy;
 
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestApexJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
@@ -169,7 +192,7 @@ private class JobExecutedTest {
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.ABORTED);
-    final JobExecuted sut = new JobExecuted(mocks.limitServiceStub, jobExecutable, jobResult);
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
     sut.stageExecution();
@@ -180,16 +203,14 @@ private class JobExecutedTest {
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be null for abort');
     Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'Last execution message should be empty for direct abort');
-    Assert.areEqual(-1, jobDescription.MaxChunkSize__c, 'Max chunk size should be set to -1');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
-    Expect.that(resetUsageSpy).hasBeenCalled();
+    Expect.that(mocks.adjustFromFailureSpy).hasBeenCalled();
   }
 
   @IsTest
   static void givenStageExecution_whenRecurrentJobEnds_thenRecordsExecutionAndMarkReady() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    final MethodSpy updateUsageSpy = mocks.updateUsageSpy;
     final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage()
       .withCpuTime(100)
       .withHeapSize(1000)
@@ -211,7 +232,7 @@ private class JobExecutedTest {
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
     jobResult.setConsumedLimits(consumedLimits);
-    final JobExecuted sut = new JobExecuted(mocks.limitServiceStub, jobExecutable, jobResult);
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
     sut.stageExecution();
@@ -222,9 +243,8 @@ private class JobExecutedTest {
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution date time should be set');
     Assert.isNotNull(jobRequest.NextExecutionDateTime__c, 'Next execution date time should be set');
     Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'Last execution message should be empty for success');
-    Assert.areEqual(2, jobDescription.MaxChunkSize__c, 'Max chunk size should be set to 2');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
-    Expect.that(updateUsageSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalled();
   }
 
   // Test exception class

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>FetchCallsOnApexCursorPerItemConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Per item consumption of fetch calls on apex cursor for this job type</description>
+    <externalId>false</externalId>
+    <label>Fetch Calls On Apex Cursor Per Item Cons</label>
+    <precision>18</precision>
+    <scale>6</scale>
+    <type>Number</type>
+</CustomField>

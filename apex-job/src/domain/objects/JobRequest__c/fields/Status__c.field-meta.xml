@@ -20,6 +20,11 @@
                 <label>Failure</label>
             </value>
             <value>
+                <fullName>KILLED</fullName>
+                <default>false</default>
+                <label>Killed</label>
+            </value>
+            <value>
                 <fullName>READY</fullName>
                 <default>true</default>
                 <label>Ready</label>

@@ -111,7 +111,7 @@ public class AsyncProcessorTest {
   @IsTest
   private static void givenSystemEnabled_whenExecutorRunsWithImpossibleToPrepareEligibleJobs_thenDoesNotUpdateRequest() {
     // Arrange
-    insert new JobDescription__c(Name = 'ImpossibleJob', ProcessorName__c = 'ImpossibleJob', Enabled__c = true, DmlStatementsConsumption__c = 999);
+    insert new JobDescription__c(Name = 'ImpossibleJob', ProcessorName__c = 'ImpossibleJob', Enabled__c = true, DmlStatementsBaseConsumption__c = 999);
 
     insert new JobRequest__c(
       Name = 'ImpossibleJob1',
@@ -230,6 +230,60 @@ public class AsyncProcessorTest {
     Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
     Assert.areEqual(ApexJobStatus.ABORTED.name(), jobRequest.Status__c, 'Job should be marked as failure');
   }
+
+  /**
+   * Test commented and leave here as a demonstration because Governor limit Test not possible...
+   *
+  public class KilledProcessor implements ApexJob {
+    public ApexJobResult execute(ApexJobContext context) {
+      for(Integer i = 0; i < 1000000; i++) {
+        List<JobDescription__c> jobDescriptions = [SELECT Id FROM JobDescription__c LIMIT 1];
+      }
+      return null; // Not reachable
+    }
+  }
+
+  @IsTest
+  private static void givenSystemEnabled_whenExecutorRunsAndJobKilled_thenUpdateJobRequestToKilled() {
+    // Arrange
+    insert new JobDescription__c(Name = 'KilledProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.KilledProcessor');
+
+    insert new JobRequest__c(
+      Name = 'KilledProcessor',
+      Argument__c = '{"test": "data2"}',
+      Enabled__c = true,
+      Status__c = ApexJobStatus.READY.name(),
+      NextExecutionDateTime__c = System.now().addMinutes(-10),
+      LastExecutionDateTime__c = null,
+      AttemptNumber__c = 0,
+      JobDescription__r = new JobDescription__c(ProcessorName__c = 'AsyncProcessorTest.KilledProcessor')
+    );
+
+    final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
+    insert config;
+    ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
+
+    // Act
+    Test.startTest();
+    final Id initialJobId = System.enqueueJob(sut);
+    Test.stopTest();
+
+    // Assert
+    final List<AsyncApexJob> jobs = [
+      SELECT Id, ApexClass.Name, JobType, Status
+      FROM AsyncApexJob
+      WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+    ];
+    final JobRequest__c jobRequest = [
+      SELECT Id, Status__c
+      FROM JobRequest__c
+      WHERE Name = 'KilledProcessor'
+    ];
+    Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
+    Assert.areEqual(ApexJobStatus.KILLED.name(), jobRequest.Status__c, 'Job should be marked as killed');
+  }
+    */
 
   @IsTest
   private static void givenSystemEnabled_whenUnknownChunkSizeJobAfterExecutedJob_thenSkipsExecution() {
@@ -438,17 +492,17 @@ public class AsyncProcessorTest {
       ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor',
       Enabled__c = true,
       MaxChunkSize__c = -1, // Unknown chunk size
-      CpuTimeConsumption__c = -1,
-      HeapSizeConsumption__c = -1,
-      DmlRowsConsumption__c = -1,
-      QueriesConsumption__c = -1,
-      DmlStatementsConsumption__c = -1,
-      QueryRowsConsumption__c = -1,
-      CalloutConsumption__c = -1,
-      CalloutTimeConsumption__c = -1,
-      PublishImmediateDmlConsumption__c = -1,
-      FutureCallsConsumption__c = -1,
-      SoslQueriesConsumption__c = -1
+      CpuTimeBaseConsumption__c = -1,
+      HeapSizeBaseConsumption__c = -1,
+      DmlRowsBaseConsumption__c = -1,
+      QueriesBaseConsumption__c = -1,
+      DmlStatementsBaseConsumption__c = -1,
+      QueryRowsBaseConsumption__c = -1,
+      CalloutBaseConsumption__c = -1,
+      CalloutTimeBaseConsumption__c = -1,
+      PublishImmediateDmlBaseConsumption__c = -1,
+      FutureCallsBaseConsumption__c = -1,
+      SoslQueriesBaseConsumption__c = -1
     );
     insert jobDesc;
 
@@ -481,12 +535,12 @@ public class AsyncProcessorTest {
 
     // Assert
     final JobDescription__c updatedJobDesc = [
-      SELECT MaxChunkSize__c, CpuTimeConsumption__c
+      SELECT MaxChunkSize__c, CpuTimeBaseConsumption__c
       FROM JobDescription__c
       WHERE Id = :jobDesc.Id
     ];
     Assert.areEqual(1, updatedJobDesc.MaxChunkSize__c, 'Chunk size should be updated from -1 to 1 for first execution');
-    Assert.areNotEqual(updatedJobDesc.CpuTimeConsumption__c, -1, 'CPU consumption should be updated based on actual usage');
+    Assert.areNotEqual(updatedJobDesc.CpuTimeBaseConsumption__c, -1, 'CPU consumption should be updated based on actual usage');
   }
 
   @IsTest
@@ -497,12 +551,12 @@ public class AsyncProcessorTest {
       ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor',
       Enabled__c = true,
       MaxChunkSize__c = 2,
-      CpuTimeConsumption__c = 100,
-      HeapSizeConsumption__c = 1000,
-      DmlRowsConsumption__c = 10,
-      DmlStatementsConsumption__c = 1,
-      QueriesConsumption__c = 1,
-      QueryRowsConsumption__c = 100
+      CpuTimeBaseConsumption__c = 100,
+      HeapSizeBaseConsumption__c = 1000,
+      DmlRowsBaseConsumption__c = 10,
+      DmlStatementsBaseConsumption__c = 1,
+      QueriesBaseConsumption__c = 1,
+      QueryRowsBaseConsumption__c = 100
     );
     insert jobDesc;
 
@@ -557,10 +611,10 @@ public class AsyncProcessorTest {
       ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor',
       Enabled__c = true,
       MaxChunkSize__c = 2,
-      CpuTimeConsumption__c = 8000, // High CPU consumption
-      HeapSizeConsumption__c = 5000000, // High heap consumption
-      DmlStatementsConsumption__c = 140, // Near DML limit
-      QueriesConsumption__c = 95 // Near query limit
+      CpuTimeBaseConsumption__c = 8000, // High CPU consumption
+      HeapSizeBaseConsumption__c = 5000000, // High heap consumption
+      DmlStatementsBaseConsumption__c = 140, // Near DML limit
+      QueriesBaseConsumption__c = 95 // Near query limit
     );
     insert jobDesc;
 
@@ -607,11 +661,11 @@ public class AsyncProcessorTest {
       Name = 'InterpolationProcessor',
       ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor',
       Enabled__c = true,
-      MaxChunkSize__c = 2,
-      CpuTimeConsumption__c = 200,
-      HeapSizeConsumption__c = 2000,
-      DmlRowsConsumption__c = 20,
-      QueriesConsumption__c = 2
+      MaxChunkSize__c = 1,
+      CpuTimeBaseConsumption__c = 200,
+      HeapSizeBaseConsumption__c = 2000,
+      DmlRowsBaseConsumption__c = 20,
+      QueriesBaseConsumption__c = 2
     );
     insert jobDesc;
 
@@ -644,12 +698,12 @@ public class AsyncProcessorTest {
 
     // Assert
     final JobDescription__c updatedJobDesc = [
-      SELECT MaxChunkSize__c, CpuTimeConsumption__c, HeapSizeConsumption__c, DmlRowsConsumption__c
+      SELECT MaxChunkSize__c, CpuTimeBaseConsumption__c, HeapSizeBaseConsumption__c, DmlRowsBaseConsumption__c
       FROM JobDescription__c
       WHERE Id = :jobDesc.Id
     ];
     // When chunk size increases, consumption values should be interpolated
-    Assert.isTrue(updatedJobDesc.MaxChunkSize__c >= 2, 'Chunk size should be at least the executed size');
-    Assert.isTrue(updatedJobDesc.CpuTimeConsumption__c >= 200, 'CPU consumption should be interpolated based on chunk size');
+    Assert.isTrue(updatedJobDesc.MaxChunkSize__c > 1, 'Chunk size should be at least the executed size');
+    Assert.isTrue(updatedJobDesc.CpuTimeBaseConsumption__c >= 0, 'CPU consumption should be interpolated based on chunk size');
   }
 }

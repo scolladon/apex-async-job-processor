@@ -4,6 +4,8 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
   private ApexJobFactory factory;
 
   @TestVisible
+  private JobExecutable lastExecutableJob;
+  @TestVisible
   private List<JobExecuted> jobExecutionResults = new List<JobExecuted>();
   public AsyncApexJobExecutor() {
     this(new ApexJobFactoryImpl());
@@ -33,18 +35,18 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       if (jobCandidatesNumber == 0) {
         break;
       }
-      JobExecutable executableJob;
       for (Integer i = 0; i < jobCandidatesNumber; ++i) {
         final JobCandidate jobCandidate = jobCandidates[i];
         if (jobCandidate.isExecutable() == true) {
-          executableJob = jobCandidate.getExecutableChunk();
+          this.lastExecutableJob = jobCandidate.getExecutableChunk();
           break;
         }
       }
-      if (executableJob == null) {
+      if (this.lastExecutableJob == null) {
         break;
       }
-      final JobExecuted executionResult = executableJob.executeChunk();
+      final JobExecuted executionResult = this.lastExecutableJob.executeChunk();
+      this.lastExecutableJob = null;
       this.jobExecutionResults.add(executionResult);
       this.logger.debug('Job executed: ' + executionResult);
     }
@@ -52,6 +54,11 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
 
   public void execute(FinalizerContext ctx) {
     try {
+      // In case the last job has been killed we need to record it
+      if (this.shouldTreatException(ctx)) {
+        final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(ctx.getException()));
+        this.jobExecutionResults.add(new JobExecuted(this.lastExecutableJob, killedJobResult));
+      }
       this.factory.getRepository().recordJobExecution(this.jobExecutionResults);
     } catch (Exception e) {
       this.logger.debug('AsyncJob: Error while recording job execution');
@@ -69,6 +76,10 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       this.logger.debug('AsyncJob: Error while enqueuing AsyncApexJobExecutor, engine killed');
       this.logger.error(e.getMessage());
     }
+  }
+
+  private Boolean shouldTreatException(FinalizerContext ctx) {
+    return ctx?.getResult() == ParentJobResult.UNHANDLED_EXCEPTION && this.lastExecutableJob != null;
   }
 
   private Integer getDelayInMinutes() {

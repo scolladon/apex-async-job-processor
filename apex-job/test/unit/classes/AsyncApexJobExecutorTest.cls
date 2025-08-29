@@ -111,6 +111,38 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
   }
 
+  class KilledFinalizerContext implements FinalizerContext {
+    public Id getAsyncApexJobId() {
+      return null;
+    }
+    public Id getRequestId() {
+      return null;
+    }
+    public System.ParentJobResult getResult() {
+      return ParentJobResult.UNHANDLED_EXCEPTION;
+    }
+    public Exception getException() {
+      return new TestException('Killed');
+    }
+  }
+
+  @isTest
+  static void givenFinalizerContext_whenExceptionOccurs_thenItRecordsJobExecutionAndReenqueue() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    sut.lastExecutableJob = (JobExecutable) Mock.forType(JobExecutable.class).stub;
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    Expect.that(mocks.recordJobExecutionSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.errorSpy).hasNotBeenCalled();
+    Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
+  }
   @isTest
   static void givenQueueableContext_whenExecuteWithSystemDisabled_thenNoExecution() {
     // Arrange
@@ -182,9 +214,15 @@ private class AsyncApexJobExecutorTest {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
-    final MethodSpy executeChunkSpy = jobExecutedMock.spyOn('executeChunk');
-    jobExecutedMock.spyOn('prepareChunk').returns(false);
+    final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
+    final MethodSpy executeChunkSpy = jobExecutableMock.spyOn('executeChunk');
+    executeChunkSpy.returns(jobExecutedMock.stub);
 
+    final Mock jobCandidateMock = Mock.forType(JobCandidate.class);
+    jobCandidateMock.spyOn('isExecutable').returns(false);
+
+    mocks.getJobCandidatesSpy.returnsOnce(new List<JobCandidate>{ (JobCandidate) jobCandidateMock.stub });
+    mocks.getJobCandidatesSpy.returns(new List<JobCandidate>());
     mocks.isSystemEnabledSpy.returns(true);
 
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);

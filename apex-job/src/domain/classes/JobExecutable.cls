@@ -1,7 +1,7 @@
 public without sharing class JobExecutable {
+  private final LimitService limitService;
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
-  private final LimitService limitService;
 
   public JobExecutable(final List<JobRequest__c> jobRequests) {
     this(new ApexJobFactoryImpl().getLimitService(), jobRequests);
@@ -23,12 +23,10 @@ public without sharing class JobExecutable {
     ApexJobResult apexJobResult;
     try {
       apexJobResult = jobProcessor.execute(jobContext);
-      if (apexJobResult.status == ApexJobStatus.SUCCESS) {
-        apexJobResult.setConsumedLimits(this.limitService.stopSnapshot());
-      }
     } catch (final Exception ex) {
       apexJobResult = new ApexJobResult(ex);
     }
+    apexJobResult.setConsumedLimits(this.limitService.stopSnapshot());
 
     ApexJobTransactionContext.getInstance().markExecutedJobs();
     return new JobExecuted(this, apexJobResult);

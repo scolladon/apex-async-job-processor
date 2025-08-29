@@ -6,4 +6,6 @@ public interface ApexJobFactory {
   JobExecutorFinalizerAttacher getFinalizerAttacher();
   ApexJobConfigService getConfigService();
   LimitService getLimitService();
+  ChunkSizeCalculator getChunkSizeCalculator();
+  ConsumptionLearner getConsumptionLearner(JobDescription__c jobDescription);
 }

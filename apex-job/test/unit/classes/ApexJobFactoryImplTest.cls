@@ -188,4 +188,44 @@ private class ApexJobFactoryImplTest {
     // Assert
     Assert.areEqual(result1, result2, 'LimitService should return the same singleton instance');
   }
+
+  @isTest
+  static void givenFactoryImpl_whenGetChunkSizeCalculator_thenReturnsChunkSizeCalculatorImpl() {
+    // Arrange
+    ApexJobFactory sut = new ApexJobFactoryImpl();
+
+    // Act
+    ChunkSizeCalculator result = sut.getChunkSizeCalculator();
+
+    // Assert
+    Assert.isNotNull(result, 'ChunkSizeCalculator should not be null');
+    Assert.isInstanceOfType(result, AdaptiveChunkCalculator.class, 'ChunkSizeCalculator should be of type AdaptiveChunkCalculator');
+  }
+
+  @isTest
+  static void givenFactoryImpl_whenGetChunkSizeCalculatorCalledTwice_thenReturnsSameInstance() {
+    // Arrange
+    ApexJobFactory sut = new ApexJobFactoryImpl();
+    ApexJobFactory sut2 = new ApexJobFactoryImpl();
+
+    // Act
+    ChunkSizeCalculator result1 = sut.getChunkSizeCalculator();
+    ChunkSizeCalculator result2 = sut2.getChunkSizeCalculator();
+
+    // Assert
+    Assert.areEqual(result1, result2, 'ChunkSizeCalculator should return the same singleton instance');
+  }
+
+  @isTest
+  static void givenFactoryImpl_whenGetConsumptionLearner_thenReturnsConsumptionLearnerImpl() {
+    // Arrange
+    ApexJobFactory sut = new ApexJobFactoryImpl();
+
+    // Act
+    ConsumptionLearner result = sut.getConsumptionLearner(null);
+
+    // Assert
+    Assert.isNotNull(result, 'ConsumptionLearner should not be null');
+    Assert.isInstanceOfType(result, AdaptativeConsumptionLearner.class, 'ConsumptionLearner should be of type AdaptativeConsumptionLearner');
+  }
 }

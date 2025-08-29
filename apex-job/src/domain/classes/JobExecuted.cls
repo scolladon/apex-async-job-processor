@@ -1,23 +1,22 @@
 public with sharing class JobExecuted {
-  private static final List<ApexJobStatus> RETRYABLE_STATUS = new List<ApexJobStatus>{ ApexJobStatus.FAILURE };
-  private static final List<ApexJobStatus> RESETABLE_STATUS = new List<ApexJobStatus>{ ApexJobStatus.FAILURE, ApexJobStatus.ABORTED };
+  private static final List<ApexJobStatus> RETRYABLE_STATUS = new List<ApexJobStatus>{ ApexJobStatus.FAILURE, ApexJobStatus.KILLED };
   private static final String MAX_EXECUTION_ATTEMPT_REACHED = 'Max execution attempt reached';
   private static final Integer MAX_EXECUTION_ATTEMPT_NUMBER = 9999999;
   private static final Integer MAX_LONG_TEXT_LENGTH = 131072;
 
   @TestVisible
   private final ApexJobResult jobExecutionResult;
-  private final LimitService limitService;
+  private final ApexJobFactory factory;
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
 
   public JobExecuted(final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
-    this(new ApexJobFactoryImpl().getLimitService(), jobExecutable, jobExecutionResult);
+    this(new ApexJobFactoryImpl(), jobExecutable, jobExecutionResult);
   }
 
   @TestVisible
-  private JobExecuted(final LimitService limitService, final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
-    this.limitService = limitService;
+  private JobExecuted(final ApexJobFactory factory, final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
+    this.factory = factory;
     this.jobDescription = jobExecutable.jobDescription;
     this.jobRequests = jobExecutable.jobRequests;
     this.jobExecutionResult = jobExecutionResult;
@@ -30,9 +29,6 @@ public with sharing class JobExecuted {
 
   private void stageJobRequestsChunkExecution() {
     final Integer jobChunkNumber = this.jobRequests.size();
-    if (jobChunkNumber == 0) {
-      return;
-    }
     final JobRequestExecutionStagingInfo stagingInfo = new JobRequestExecutionStagingInfo(this.jobExecutionResult, this.jobDescription);
     for (Integer i = 0; i < jobChunkNumber; ++i) {
       this.stageJobRequestExecution(this.jobRequests[i], stagingInfo);
@@ -51,7 +47,7 @@ public with sharing class JobExecuted {
         lastExecutionMessage.add(stagingInfo.errorMessage);
       }
       job.LastExecutionMessage__c = String.join(lastExecutionMessage, '\n').left(MAX_LONG_TEXT_LENGTH);
-      // Failure
+      // Failure or Killed
     } else if (stagingInfo.candidateStatusRetryable) {
       job.Status__c = this.jobExecutionResult.status.name();
       job.NextExecutionDateTime__c = stagingInfo.nextTry;
@@ -70,12 +66,14 @@ public with sharing class JobExecuted {
   }
 
   private void stageJobDescriptionExecution() {
+    final ConsumptionLearner consumptionLearner = this.factory.getConsumptionLearner(this.jobDescription);
     this.jobDescription.LastExecutionDateTime__c = System.now();
-    if (RESETABLE_STATUS.contains(this.jobExecutionResult.status)) {
-      this.jobDescription.MaxChunkSize__c = ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE;
-      this.limitService.resetUsage(this.jobDescription);
+    if (this.jobExecutionResult.status == ApexJobStatus.FAILURE || this.jobExecutionResult.status == ApexJobStatus.ABORTED) {
+      consumptionLearner.adjustFromFailure(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
     } else if (this.jobExecutionResult.status == ApexJobStatus.SUCCESS) {
-      this.limitService.updateUsage(this.jobDescription, this.jobExecutionResult.consumedLimits, this.jobRequests.size());
+      consumptionLearner.adjustFromSuccess(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
+    } else if (this.jobExecutionResult.status == ApexJobStatus.KILLED) {
+      consumptionLearner.adjustFromKill(this.jobRequests.size());
     }
   }
 

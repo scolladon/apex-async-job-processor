@@ -1,4 +1,6 @@
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ApexJobManager {
+  private static ApexJobRepository repository = new ApexJobManager.DefaultApexJobRepository();
   public interface ApexJobRepository {
     JobRequest__c insertJobRequest(final JobRequest__c jobRequest);
     JobRequest__c updateJobRequest(final JobRequest__c jobRequest);
@@ -8,7 +10,7 @@ public without sharing class ApexJobManager {
     JobDescription__c upsertJobDescriptionByProcessorName(final JobDescription__c jobDescription);
   }
 
-  private class DefaultApexJobRepository implements ApexJobRepository {
+  private with sharing class DefaultApexJobRepository implements ApexJobRepository {
     public JobRequest__c insertJobRequest(final JobRequest__c jobRequest) {
       insert jobRequest;
       return jobRequest;
@@ -34,8 +36,6 @@ public without sharing class ApexJobManager {
       return jobDescription;
     }
   }
-
-  private static ApexJobRepository repository = new ApexJobManager.DefaultApexJobRepository();
 
   @TestVisible
   static void setRepository(final ApexJobRepository repo) {
@@ -128,17 +128,39 @@ public without sharing class ApexJobManager {
     final JobDescription__c jobDescription = new JobDescription__c(
       ProcessorName__c = processorName,
       MaxChunkSize__c = -1,
-      CpuTimeConsumption__c = -1,
-      HeapSizeConsumption__c = -1,
-      CalloutConsumption__c = -1,
-      CalloutTimeConsumption__c = -1,
-      DmlRowsConsumption__c = -1,
-      DmlStatementsConsumption__c = -1,
-      FutureCallsConsumption__c = -1,
-      PublishImmediateDmlConsumption__c = -1,
-      QueryRowsConsumption__c = -1,
-      QueriesConsumption__c = -1,
-      SoslQueriesConsumption__c = -1
+      CpuTimeBaseConsumption__c = -1,
+      CpuTimePerItemConsumption__c = -1,
+      CpuTimeSafety__c = 1,
+      HeapSizeBaseConsumption__c = -1,
+      HeapSizePerItemConsumption__c = -1,
+      HeapSizeSafety__c = 1,
+      CalloutBaseConsumption__c = -1,
+      CalloutPerItemConsumption__c = -1,
+      CalloutSafety__c = 1,
+      CalloutTimeBaseConsumption__c = -1,
+      CalloutTimePerItemConsumption__c = -1,
+      CalloutTimeSafety__c = 1,
+      DmlRowsBaseConsumption__c = -1,
+      DmlRowsPerItemConsumption__c = -1,
+      DmlRowsSafety__c = 1,
+      DmlStatementsBaseConsumption__c = -1,
+      DmlStatementsPerItemConsumption__c = -1,
+      DmlStatementsSafety__c = 1,
+      FutureCallsBaseConsumption__c = -1,
+      FutureCallsPerItemConsumption__c = -1,
+      FutureCallsSafety__c = 1,
+      PublishImmediateDmlBaseConsumption__c = -1,
+      PublishImmediateDmlPerItemConsumption__c = -1,
+      PublishImmediateDmlSafety__c = 1,
+      QueryRowsBaseConsumption__c = -1,
+      QueryRowsPerItemConsumption__c = -1,
+      QueryRowsSafety__c = 1,
+      QueriesBaseConsumption__c = -1,
+      QueriesPerItemConsumption__c = -1,
+      QueriesSafety__c = 1,
+      SoslQueriesBaseConsumption__c = -1,
+      SoslQueriesPerItemConsumption__c = -1,
+      SoslQueriesSafety__c = 1
     );
     repository.upsertJobDescriptionByProcessorName(jobDescription);
   }
@@ -151,8 +173,8 @@ public without sharing class ApexJobManager {
       this.jobDescription.Enabled__c = true;
     }
 
-    public JobDescriptionBuilder highPriority() {
-      this.jobDescription.isHighPriority__c = true;
+    public JobDescriptionBuilder priority(final Integer priority) {
+      this.jobDescription.Priority__c = priority;
       return this;
     }
 

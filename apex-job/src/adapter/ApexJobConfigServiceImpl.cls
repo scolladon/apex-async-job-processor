@@ -1,3 +1,4 @@
+@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ApexJobConfigServiceImpl implements ApexJobConfigService {
   private static final Integer MAX_ENQUEUE_DELAY_IN_MINUTES = 10;
   private static final Integer MIN_ENQUEUE_DELAY_IN_MINUTES = 0;

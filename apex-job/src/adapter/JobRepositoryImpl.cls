@@ -65,7 +65,6 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     if (executedJobsSize == 0) {
       return;
     }
-    final String successStatus = ApexJobStatus.SUCCESS.name();
     final List<JobRequest__c> jobsToDelete = new List<JobRequest__c>();
     final List<JobRequest__c> jobsToUpdate = new List<JobRequest__c>();
     final List<SObject> recordsToUpdate = new List<SObject>();
@@ -73,9 +72,6 @@ public without sharing class JobRepositoryImpl implements JobRepository {
       final JobExecuted executedJob = executedJobs[i];
       final List<JobRequest__c> executedJobRequests = executedJob.jobRequests;
       final Integer executedJobRequestsSize = executedJobRequests.size();
-      if (executedJobRequestsSize == 0) {
-        continue;
-      }
       executedJob.stageExecution();
       for (Integer j = 0; j < executedJobRequestsSize; ++j) {
         final JobRequest__c job = executedJobRequests[j];

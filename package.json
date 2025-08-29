@@ -57,9 +57,9 @@
 			]
 		},
 		"prettier": {
-			"command": "prettier --write apex-job/**/*.{cls,xml}",
+			"command": "prettier --write apex-job/**/*.cls",
 			"files": [
-				"apex-job/**/*.{cls,xml}"
+				"apex-job/**/*.cls"
 			],
 			"output": []
 		},
@@ -93,7 +93,7 @@
 			]
 		},
 		"test:unit": {
-			"command": "sf apex test run -w 10 -t \"$(find apex-job/test/unit -name \"*.cls\" -exec basename {} .cls \\; | tr '\n' ',' | sed 's/,$//')\"",
+			"command": "sf apex test run -w 10 -t \"$(find apex-job/test/unit -name '*.cls' -exec basename {} .cls \\; | tr '\n' ',' | sed 's/,$//')\"",
 			"files": [
 				"apex-job/**/*"
 			],

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>CalloutTimeConsumption__c</fullName>
-    <defaultValue>-1</defaultValue>
-    <description>Expected callout time consumption in milliseconds for this job type. Used for governor limit planning and tracking. -1 indicates no measurement available.</description>
+    <fullName>MaxChunkSizeLimit__c</fullName>
+    <defaultValue>50</defaultValue>
+    <description>Upper cap for the computed chunk size. If set, the final chunk size will not exceed this value.</description>
     <externalId>false</externalId>
-    <label>Callout Time Consumption</label>
+    <label>Max Chunk Size Limit</label>
     <precision>18</precision>
     <required>false</required>
     <scale>0</scale>

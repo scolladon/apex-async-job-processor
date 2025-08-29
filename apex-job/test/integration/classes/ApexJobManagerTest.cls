@@ -59,17 +59,17 @@ private class ApexJobManagerTest {
       ProcessorName__c = processorName,
       Enabled__c = true,
       MaxChunkSize__c = 10,
-      CpuTimeConsumption__c = 1,
-      HeapSizeConsumption__c = 1,
-      CalloutConsumption__c = 1,
-      CalloutTimeConsumption__c = 1,
-      DmlRowsConsumption__c = 1,
-      DmlStatementsConsumption__c = 1,
-      FutureCallsConsumption__c = 1,
-      PublishImmediateDmlConsumption__c = 1,
-      QueryRowsConsumption__c = 1,
-      QueriesConsumption__c = 1,
-      SoslQueriesConsumption__c = 1
+      CpuTimeBaseConsumption__c = 1,
+      HeapSizeBaseConsumption__c = 1,
+      CalloutBaseConsumption__c = 1,
+      CalloutTimeBaseConsumption__c = 1,
+      DmlRowsBaseConsumption__c = 1,
+      DmlStatementsBaseConsumption__c = 1,
+      FutureCallsBaseConsumption__c = 1,
+      PublishImmediateDmlBaseConsumption__c = 1,
+      QueryRowsBaseConsumption__c = 1,
+      QueriesBaseConsumption__c = 1,
+      SoslQueriesBaseConsumption__c = 1
     );
 
     // Act
@@ -80,33 +80,77 @@ private class ApexJobManagerTest {
       SELECT
         ProcessorName__c,
         MaxChunkSize__c,
-        CpuTimeConsumption__c,
-        HeapSizeConsumption__c,
-        CalloutConsumption__c,
-        CalloutTimeConsumption__c,
-        DmlRowsConsumption__c,
-        DmlStatementsConsumption__c,
-        FutureCallsConsumption__c,
-        PublishImmediateDmlConsumption__c,
-        QueryRowsConsumption__c,
-        QueriesConsumption__c,
-        SoslQueriesConsumption__c
+        CpuTimeBaseConsumption__c,
+        CpuTimePerItemConsumption__c,
+        CpuTimeSafety__c,
+        HeapSizeBaseConsumption__c,
+        HeapSizePerItemConsumption__c,
+        HeapSizeSafety__c,
+        CalloutBaseConsumption__c,
+        CalloutPerItemConsumption__c,
+        CalloutSafety__c,
+        CalloutTimeBaseConsumption__c,
+        CalloutTimePerItemConsumption__c,
+        CalloutTimeSafety__c,
+        DmlRowsBaseConsumption__c,
+        DmlRowsPerItemConsumption__c,
+        DmlRowsSafety__c,
+        DmlStatementsBaseConsumption__c,
+        DmlStatementsPerItemConsumption__c,
+        DmlStatementsSafety__c,
+        FutureCallsBaseConsumption__c,
+        FutureCallsPerItemConsumption__c,
+        FutureCallsSafety__c,
+        PublishImmediateDmlBaseConsumption__c,
+        PublishImmediateDmlPerItemConsumption__c,
+        PublishImmediateDmlSafety__c,
+        QueryRowsBaseConsumption__c,
+        QueryRowsPerItemConsumption__c,
+        QueryRowsSafety__c,
+        QueriesBaseConsumption__c,
+        QueriesPerItemConsumption__c,
+        QueriesSafety__c,
+        SoslQueriesBaseConsumption__c,
+        SoslQueriesPerItemConsumption__c,
+        SoslQueriesSafety__c
       FROM JobDescription__c
       WHERE ProcessorName__c = :processorName
       LIMIT 1
     ];
     Assert.areEqual(-1, jd.MaxChunkSize__c, 'MaxChunkSize must be reset');
-    Assert.areEqual(-1, jd.CpuTimeConsumption__c);
-    Assert.areEqual(-1, jd.HeapSizeConsumption__c);
-    Assert.areEqual(-1, jd.CalloutConsumption__c);
-    Assert.areEqual(-1, jd.CalloutTimeConsumption__c);
-    Assert.areEqual(-1, jd.DmlRowsConsumption__c);
-    Assert.areEqual(-1, jd.DmlStatementsConsumption__c);
-    Assert.areEqual(-1, jd.FutureCallsConsumption__c);
-    Assert.areEqual(-1, jd.PublishImmediateDmlConsumption__c);
-    Assert.areEqual(-1, jd.QueryRowsConsumption__c);
-    Assert.areEqual(-1, jd.QueriesConsumption__c);
-    Assert.areEqual(-1, jd.SoslQueriesConsumption__c);
+    Assert.areEqual(-1, jd.CpuTimeBaseConsumption__c);
+    Assert.areEqual(-1, jd.CpuTimePerItemConsumption__c);
+    Assert.areEqual(1, jd.CpuTimeSafety__c);
+    Assert.areEqual(-1, jd.HeapSizeBaseConsumption__c);
+    Assert.areEqual(-1, jd.HeapSizePerItemConsumption__c);
+    Assert.areEqual(1, jd.HeapSizeSafety__c);
+    Assert.areEqual(-1, jd.CalloutBaseConsumption__c);
+    Assert.areEqual(-1, jd.CalloutPerItemConsumption__c);
+    Assert.areEqual(1, jd.CalloutSafety__c);
+    Assert.areEqual(-1, jd.CalloutTimeBaseConsumption__c);
+    Assert.areEqual(-1, jd.CalloutTimePerItemConsumption__c);
+    Assert.areEqual(1, jd.CalloutTimeSafety__c);
+    Assert.areEqual(-1, jd.DmlRowsBaseConsumption__c);
+    Assert.areEqual(-1, jd.DmlRowsPerItemConsumption__c);
+    Assert.areEqual(1, jd.DmlRowsSafety__c);
+    Assert.areEqual(-1, jd.DmlStatementsBaseConsumption__c);
+    Assert.areEqual(-1, jd.DmlStatementsPerItemConsumption__c);
+    Assert.areEqual(1, jd.DmlStatementsSafety__c);
+    Assert.areEqual(-1, jd.FutureCallsBaseConsumption__c);
+    Assert.areEqual(-1, jd.FutureCallsPerItemConsumption__c);
+    Assert.areEqual(1, jd.FutureCallsSafety__c);
+    Assert.areEqual(-1, jd.PublishImmediateDmlBaseConsumption__c);
+    Assert.areEqual(-1, jd.PublishImmediateDmlPerItemConsumption__c);
+    Assert.areEqual(1, jd.PublishImmediateDmlSafety__c);
+    Assert.areEqual(-1, jd.QueryRowsBaseConsumption__c);
+    Assert.areEqual(-1, jd.QueryRowsPerItemConsumption__c);
+    Assert.areEqual(1, jd.QueryRowsSafety__c);
+    Assert.areEqual(-1, jd.QueriesBaseConsumption__c);
+    Assert.areEqual(-1, jd.QueriesPerItemConsumption__c);
+    Assert.areEqual(1, jd.QueriesSafety__c);
+    Assert.areEqual(-1, jd.SoslQueriesBaseConsumption__c);
+    Assert.areEqual(-1, jd.SoslQueriesPerItemConsumption__c);
+    Assert.areEqual(1, jd.SoslQueriesSafety__c);
   }
 
   @IsTest
@@ -128,7 +172,7 @@ private class ApexJobManagerTest {
     // Act
     final ApexJobManager.JobDescriptionBuilder sut = ApexJobManager.define()
       .processor(processorName)
-      .highPriority()
+      .priority(10)
       .recurrent()
       .allowedOn(allowedDays)
       .allowedBetween(startTime, endTime)
@@ -138,13 +182,13 @@ private class ApexJobManagerTest {
 
     // Assert
     final JobDescription__c jd = [
-      SELECT ProcessorName__c, Enabled__c, isHighPriority__c, isRecurrent__c, AllowedDays__c, AllowedStartTime__c, AllowedEndTime__c, MaxExecutionAttempt__c, MinJobInterval__c
+      SELECT ProcessorName__c, Enabled__c, Priority__c, isRecurrent__c, AllowedDays__c, AllowedStartTime__c, AllowedEndTime__c, MaxExecutionAttempt__c, MinJobInterval__c
       FROM JobDescription__c
       WHERE Id = :created.Id
     ];
     Assert.areEqual(processorName, jd.ProcessorName__c);
     Assert.isTrue(jd.Enabled__c, 'JobDescription must be enabled by default');
-    Assert.isTrue(jd.isHighPriority__c, 'High priority must be set');
+    Assert.areEqual(10, jd.Priority__c, 'Priority must be set');
     Assert.isTrue(jd.isRecurrent__c, 'Recurrent must be set');
     Assert.areEqual(expectedAllowedDays, jd.AllowedDays__c, 'Allowed days must be semicolon-joined');
     Assert.areEqual(startTime, jd.AllowedStartTime__c, 'Start time must match');

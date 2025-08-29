@@ -7,6 +7,7 @@
   ,JobDescription__r.Enabled__c
   ,OR(
     ISPICKVAL(Status__c, &quot;FAILURE&quot;),
+    ISPICKVAL(Status__c, &quot;KILLED&quot;),
     ISPICKVAL(Status__c, &quot;READY&quot;)
   )
   ,OR( NOW() &gt;= NextExecutionDateTime__c , ISNULL(NextExecutionDateTime__c) )

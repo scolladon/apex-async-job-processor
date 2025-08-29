@@ -51,7 +51,6 @@ private class ApexJobWatcherTest {
   @IsTest
   static void givenSchedule_whenNoExistingJobs_thenSchedulesTwelveJobs() {
     // Arrange
-    // none
 
     // Act
     Test.startTest();

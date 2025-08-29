@@ -162,8 +162,23 @@ private class JobRepositoryImplTest {
     insert testJobRequests;
 
     // Mock JobCandidates interface for each group
+    ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
+    final LimitsUsage limitsUsage = ApexJobTestFixture.aLimitsUsage()
+      .withCpuTime(1)
+      .withHeapSize(1)
+      .withCallout(1)
+      .withCalloutTime(1)
+      .withPublishImmediateDml(1)
+      .withDmlRows(1)
+      .withDmlStatements(1)
+      .withQueryRows(1)
+      .withQueries(1)
+      .withSoslQueries(1)
+      .withFutureCalls(1)
+      .build();
+    mockResult.setConsumedLimits(limitsUsage);
     for (Integer i = 0; i < 11; i++) {
-      testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), new ApexJobResult(ApexJobStatus.FAILURE)));
+      testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
 
     // Create system under test with real factory
@@ -226,23 +241,23 @@ private class JobRepositoryImplTest {
       ApexJobResult mockResult;
       if (Math.mod(i, 2) == 0) {
         mockResult = new ApexJobResult(ApexJobStatus.SUCCESS);
-        final LimitsUsage successLimits = ApexJobTestFixture.aLimitsUsage()
-          .withCpuTime(1)
-          .withHeapSize(1)
-          .withCallout(1)
-          .withCalloutTime(1)
-          .withPublishImmediateDml(1)
-          .withDmlRows(1)
-          .withDmlStatements(1)
-          .withQueryRows(1)
-          .withQueries(1)
-          .withSoslQueries(1)
-          .withFutureCalls(1)
-          .build();
-        mockResult.setConsumedLimits(successLimits);
       } else {
         mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
       }
+      final LimitsUsage successLimits = ApexJobTestFixture.aLimitsUsage()
+        .withCpuTime(1)
+        .withHeapSize(1)
+        .withCallout(1)
+        .withCalloutTime(1)
+        .withPublishImmediateDml(1)
+        .withDmlRows(1)
+        .withDmlStatements(1)
+        .withQueryRows(1)
+        .withQueries(1)
+        .withSoslQueries(1)
+        .withFutureCalls(1)
+        .build();
+      mockResult.setConsumedLimits(successLimits);
       testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
 

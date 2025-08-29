@@ -19,11 +19,11 @@ private class JobCandidateTest {
   static void givenIsExecutable_whenCalculatedChunkSizeIsBelow1_thenReturnsFalse() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    mocks.computeMaxChunkSizeForTransactionSpy.returns(0);
+    mocks.getMaxPossibleSpy.returns(0);
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(0).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
-    final JobCandidate sut = new JobCandidate(mocks.limitServiceStub, new List<JobRequest__c>{ jobRequest });
+    final JobCandidate sut = new JobCandidate(mocks.chunkSizeCalculatorStub, new List<JobRequest__c>{ jobRequest });
 
     // Act
     final Boolean result = sut.isExecutable();
@@ -36,10 +36,10 @@ private class JobCandidateTest {
   static void givenGetExecutableChunk_whenMultipleJobRequests_thenReturnsChunkWithCalculatedSize() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    mocks.computeMaxChunkSizeForTransactionSpy.returns(2);
+    mocks.getMaxPossibleSpy.returns(2);
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(2).build();
     final List<JobRequest__c> jobRequests = ApexJobTestFixture.aJobRequest().withJobDescription(jobDescription).buildMany(3);
-    final JobCandidate sut = new JobCandidate(mocks.limitServiceStub, jobRequests);
+    final JobCandidate sut = new JobCandidate(mocks.chunkSizeCalculatorStub, jobRequests);
     sut.isExecutable(); // Must call isExecutable first to calculate chunk size
 
     // Act
@@ -55,10 +55,10 @@ private class JobCandidateTest {
   static void givenIsExecutable_whenCanIncreaseChunk_thenReturnsIncreasedChunkSize() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    mocks.computeMaxChunkSizeForTransactionSpy.returns(6);
+    mocks.getMaxPossibleSpy.returns(6);
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(5).build();
     final List<JobRequest__c> jobRequests = ApexJobTestFixture.aJobRequest().withJobDescription(jobDescription).buildMany(10);
-    final JobCandidate sut = new JobCandidate(mocks.limitServiceStub, jobRequests);
+    final JobCandidate sut = new JobCandidate(mocks.chunkSizeCalculatorStub, jobRequests);
 
     // Act
     final Boolean result = sut.isExecutable();
@@ -67,17 +67,17 @@ private class JobCandidateTest {
     // Assert
     Assert.isTrue(result, 'Should be executable');
     Assert.areEqual(6, chunk.jobRequests.size(), 'Should return increased chunk size');
-    Expect.that(mocks.computeMaxChunkSizeForTransactionSpy).hasBeenCalledWith(jobDescription);
+    Expect.that(mocks.getMaxPossibleSpy).hasBeenCalledWith(jobDescription);
   }
 
   @IsTest
   static void givenIsExecutable_whenCannotProcessMuch_thenReturnsPossibleChunkSize() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    mocks.computeMaxChunkSizeForTransactionSpy.returns(1);
+    mocks.getMaxPossibleSpy.returns(1);
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(3).build();
     final List<JobRequest__c> jobRequests = ApexJobTestFixture.aJobRequest().withJobDescription(jobDescription).buildMany(5);
-    final JobCandidate sut = new JobCandidate(mocks.limitServiceStub, jobRequests);
+    final JobCandidate sut = new JobCandidate(mocks.chunkSizeCalculatorStub, jobRequests);
 
     // Act
     final Boolean result = sut.isExecutable();
@@ -86,6 +86,6 @@ private class JobCandidateTest {
     // Assert
     Assert.isTrue(result, 'Should be executable');
     Assert.areEqual(1, chunk.jobRequests.size(), 'Should return possible chunk size');
-    Expect.that(mocks.computeMaxChunkSizeForTransactionSpy).hasBeenCalledWith(jobDescription);
+    Expect.that(mocks.getMaxPossibleSpy).hasBeenCalledWith(jobDescription);
   }
 }

@@ -1,5 +1,6 @@
 /**
- * @description Functional test implementation of ApexJob that consumes 25% of max CPU time
+ * @description Functional test implementation of ApexJob that consumes x% of max CPU time
+ * 20% of the time, the consumption is halved up or down to bring more variability
  * and logs the nextExecutionDateTime from the JobRequest argument
  */
 public without sharing abstract class ApexJobFunctionalBaseTest implements ApexJob {
@@ -8,9 +9,11 @@ public without sharing abstract class ApexJobFunctionalBaseTest implements ApexJ
 
   public ApexJobResult execute(final ApexJobContext apexJobContext) {
     final String instanceName = String.valueOf(this).split(':')[0];
+    // 20% of the time, the consumption is halved up or down to bring more variability
+    final Decimal entropicMultiplier = Math.random() < 0.2 ? (Math.random() < 0.5 ? 0.9 : 1.1) : 1;
 
     // Burn time
-    final Integer targetCpuTime = (Integer) (Limits.getLimitCpuTime() * this.consumptionPercentage) * ApexJobContext.arguments.size();
+    final Integer targetCpuTime = (Integer) (Limits.getLimitCpuTime() * this.consumptionPercentage * entropicMultiplier) * ApexJobContext.arguments.size();
     final Integer startCpuTime = Limits.getCpuTime();
     while ((Limits.getCpuTime() - startCpuTime) < targetCpuTime) {
       for (Integer i = 0; i < 1000; i++) {

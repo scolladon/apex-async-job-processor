@@ -67,7 +67,7 @@ private class JobExecutableTest {
     Assert.areEqual(jobDescription, result.jobDescription, 'JobExecuted should have same job description');
     Assert.areEqual(jobRequests, result.jobRequests, 'JobExecuted should have same job requests');
     Expect.that(mocks.startSnapshotSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.stopSnapshotSpy).hasBeenCalledTimes(0);
+    Expect.that(mocks.stopSnapshotSpy).hasBeenCalledTimes(1);
     Assert.isTrue(ApexJobTransactionContext.getInstance().hasExecutedJobs, 'Should have executed jobs');
   }
 
@@ -95,7 +95,7 @@ private class JobExecutableTest {
     Assert.areEqual(jobDescription, result.jobDescription, 'JobExecuted should have same job description');
     Assert.areEqual(jobRequests, result.jobRequests, 'JobExecuted should have same job requests');
     Expect.that(mocks.startSnapshotSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.stopSnapshotSpy).hasBeenCalledTimes(0);
+    Expect.that(mocks.stopSnapshotSpy).hasBeenCalledTimes(1);
     Assert.isTrue(ApexJobTransactionContext.getInstance().hasExecutedJobs, 'Should have executed jobs');
   }
 

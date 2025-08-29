@@ -14,7 +14,7 @@ private class ApexJobTransactionContextTest {
   }
 
   @IsTest
-  static void givenNewTransaction_whenhasExecutedJobs_thenReturnsFalse() {
+  static void givenNewTransaction_whenHasExecutedJobs_thenReturnsFalse() {
     // Arrange
     ApexJobTransactionContext.reset();
     final ApexJobTransactionContext sut = ApexJobTransactionContext.getInstance();
@@ -27,7 +27,7 @@ private class ApexJobTransactionContextTest {
   }
 
   @IsTest
-  static void givenTransactionContext_whenmarkExecutedJobs_thenFlagIsSet() {
+  static void givenTransactionContext_whenMarkExecutedJobs_thenFlagIsSet() {
     // Arrange
     ApexJobTransactionContext.reset();
     final ApexJobTransactionContext sut = ApexJobTransactionContext.getInstance();
@@ -56,7 +56,7 @@ private class ApexJobTransactionContextTest {
   }
 
   @IsTest
-  static void givenMultipleCalls_whenmarkExecutedJobs_thenRemainsTrue() {
+  static void givenMultipleCalls_whenMarkExecutedJobs_thenRemainsTrue() {
     // Arrange
     ApexJobTransactionContext.reset();
     final ApexJobTransactionContext sut = ApexJobTransactionContext.getInstance();
