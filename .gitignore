@@ -47,3 +47,8 @@ $RECYCLE.BIN/
 **/venv/
 
 .wireit
+
+# SFDMU run files
+MissingParentRecordsReport.csv
+*_source.csv
+*_target.csv
