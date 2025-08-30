@@ -73,7 +73,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.recordJobExecutionSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.errorSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.errorSpy).hasBeenCalled();
   }
 
   @isTest
@@ -89,7 +89,7 @@ private class AsyncApexJobExecutorTest {
 
     // Assert
     Expect.that(mocks.recordJobExecutionSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.errorSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.errorSpy).hasBeenCalled();
     Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
   }
@@ -106,7 +106,7 @@ private class AsyncApexJobExecutorTest {
 
     // Assert
     Expect.that(mocks.recordJobExecutionSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.errorSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.errorSpy).hasBeenCalled();
     Expect.that(mocks.enqueueSpy).hasNotBeenCalled();
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
   }

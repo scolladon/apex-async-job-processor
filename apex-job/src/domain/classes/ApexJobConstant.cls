@@ -4,5 +4,5 @@ public without sharing class ApexJobConstant {
 
   public static final Decimal UNKNOWN_BASE_CONSUMPTION = 0;
   public static final Decimal UNKNOWN_PERITEM_CONSUMPTION = 0;
-  public static final Decimal UNKNOWN_SAFETY = 1;
+  public static final Decimal UNKNOWN_SAFETY = 0.98;
 }

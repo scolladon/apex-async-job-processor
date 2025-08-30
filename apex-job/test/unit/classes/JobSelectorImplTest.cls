@@ -224,7 +224,7 @@ private class JobSelectorImplTest {
   }
 
   // TODO Fix flaky test
-  /*@IsTest
+  @IsTest
   static void givenValidJobs_whenGetJobs_thenReturnsAllRequiredFields() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -239,8 +239,8 @@ private class JobSelectorImplTest {
       'Enabled__c',
       'Status__c',
       'NextExecutionDateTime__c',
-      'LastExecutionDateTime__c',
-      'LastExecutionMessage__c',
+      //'LastExecutionDateTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
+      //'LastExecutionMessage__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       'AttemptNumber__c',
       'JobDescription__c',
       // Include all JobDescription fields
@@ -254,7 +254,7 @@ private class JobSelectorImplTest {
       'JobDescription__r.MinJobInterval__c',
       'JobDescription__r.Priority__c',
       'JobDescription__r.isRecurrent__c',
-      'JobDescription__r.LastExecutionDateTime__c',
+      //'JobDescription__r.LastExecutionDateTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       'JobDescription__r.ConsecutiveFailures__c',
       'JobDescription__r.SmallestFailingChunk__c',
       'JobDescription__r.SuccessStreak__c',
@@ -291,7 +291,25 @@ private class JobSelectorImplTest {
       'JobDescription__r.SoslQueriesSafety__c',
       'JobDescription__r.FutureCallsBaseConsumption__c',
       'JobDescription__r.FutureCallsPerItemConsumption__c',
-      'JobDescription__r.FutureCallsSafety__c'
+      'JobDescription__r.FutureCallsSafety__c',
+      'JobDescription__r.AggregateQueriesBaseConsumption__c',
+      'JobDescription__r.AggregateQueriesPerItemConsumption__c',
+      'JobDescription__r.AggregateQueriesSafety__c',
+      'JobDescription__r.ApexCursorRowsBaseConsumption__c',
+      'JobDescription__r.ApexCursorRowsPerItemConsumption__c',
+      'JobDescription__r.ApexCursorRowsSafety__c',
+      'JobDescription__r.FetchCallsOnApexCursorBaseConsumption__c',
+      'JobDescription__r.FetchCallsOnApexCursorPerItemConsumption__c',
+      'JobDescription__r.FetchCallsOnApexCursorSafety__c',
+      'JobDescription__r.EmailInvocationsBaseConsumption__c',
+      'JobDescription__r.EmailInvocationsPerItemConsumption__c',
+      'JobDescription__r.EmailInvocationsSafety__c',
+      'JobDescription__r.MobilePushApexCallsBaseConsumption__c',
+      'JobDescription__r.MobilePushApexCallsPerItemConsumption__c',
+      'JobDescription__r.MobilePushApexCallsSafety__c',
+      'JobDescription__r.QueryLocatorRowsBaseConsumption__c',
+      'JobDescription__r.QueryLocatorRowsPerItemConsumption__c',
+      'JobDescription__r.QueryLocatorRowsSafety__c'
     };
 
     // Act
@@ -311,7 +329,7 @@ private class JobSelectorImplTest {
       Assert.isTrue(populatedFields.isEmpty(), 'Unexpected extra fields found: ' + String.join(new List<String>(populatedFields), ', '));
       Assert.isTrue(remainingExpectedFields.isEmpty(), 'Missing expected fields: ' + String.join(new List<String>(remainingExpectedFields), ', '));
     }
-  }*/
+  }
 
   private static Set<String> getPopulatedFieldNames(SObject record) {
     Set<String> fieldNames = new Set<String>();

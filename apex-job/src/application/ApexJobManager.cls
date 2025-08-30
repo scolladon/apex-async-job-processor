@@ -125,43 +125,16 @@ public without sharing class ApexJobManager {
   }
 
   public static void resetUsage(final String processorName) {
-    final JobDescription__c jobDescription = new JobDescription__c(
-      ProcessorName__c = processorName,
-      MaxChunkSize__c = -1,
-      CpuTimeBaseConsumption__c = -1,
-      CpuTimePerItemConsumption__c = -1,
-      CpuTimeSafety__c = 1,
-      HeapSizeBaseConsumption__c = -1,
-      HeapSizePerItemConsumption__c = -1,
-      HeapSizeSafety__c = 1,
-      CalloutBaseConsumption__c = -1,
-      CalloutPerItemConsumption__c = -1,
-      CalloutSafety__c = 1,
-      CalloutTimeBaseConsumption__c = -1,
-      CalloutTimePerItemConsumption__c = -1,
-      CalloutTimeSafety__c = 1,
-      DmlRowsBaseConsumption__c = -1,
-      DmlRowsPerItemConsumption__c = -1,
-      DmlRowsSafety__c = 1,
-      DmlStatementsBaseConsumption__c = -1,
-      DmlStatementsPerItemConsumption__c = -1,
-      DmlStatementsSafety__c = 1,
-      FutureCallsBaseConsumption__c = -1,
-      FutureCallsPerItemConsumption__c = -1,
-      FutureCallsSafety__c = 1,
-      PublishImmediateDmlBaseConsumption__c = -1,
-      PublishImmediateDmlPerItemConsumption__c = -1,
-      PublishImmediateDmlSafety__c = 1,
-      QueryRowsBaseConsumption__c = -1,
-      QueryRowsPerItemConsumption__c = -1,
-      QueryRowsSafety__c = 1,
-      QueriesBaseConsumption__c = -1,
-      QueriesPerItemConsumption__c = -1,
-      QueriesSafety__c = 1,
-      SoslQueriesBaseConsumption__c = -1,
-      SoslQueriesPerItemConsumption__c = -1,
-      SoslQueriesSafety__c = 1
-    );
+    final JobDescription__c jobDescription = new JobDescription__c(ProcessorName__c = processorName);
+    for (ConsumptionModel model : ConsumptionModel.asList()) {
+      jobDescription.put(model.base, ApexJobConstant.UNKNOWN_BASE_CONSUMPTION);
+      jobDescription.put(model.perItem, ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION);
+      jobDescription.put(model.safety, ApexJobConstant.UNKNOWN_SAFETY);
+    }
+    jobDescription.MaxChunkSize__c = ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE;
+    jobDescription.ConsecutiveFailures__c = 0;
+    jobDescription.SuccessStreak__c = 0;
+    jobDescription.SmallestFailingChunk__c = 0;
     repository.upsertJobDescriptionByProcessorName(jobDescription);
   }
 

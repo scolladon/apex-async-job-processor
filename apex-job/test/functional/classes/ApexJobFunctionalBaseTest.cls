@@ -34,6 +34,14 @@ public without sharing abstract class ApexJobFunctionalBaseTest implements ApexJ
       final String serializedDatetimeArgument = '' + argument;
       nextExecutionDateTimes.add((Datetime) JSON.deserialize(serializedDatetimeArgument, Datetime.class));
     }
+
+    // Kill the job 5% of the time
+    if (Math.random() < 0.05) {
+      for (;;) {
+        Math.sqrt(2 * 2 + 1);
+      }
+    }
+
     this.logger.debug(instanceName + '(' + UUID.randomUUID() + ') - Job completed successfully ' + nextExecutionDateTimes);
     return new ApexJobResult(ApexJobStatus.SUCCESS);
   }

@@ -79,23 +79,7 @@ private class JobRepositoryImplTest {
     final List<JobExecuted> testJobsExecuted = new List<JobExecuted>();
 
     for (Integer i = 0; i < 11; i++) {
-      final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription()
-        .withName('TestProcessor' + i)
-        .withProcessorName('TestProcessor' + i)
-        .enabled()
-        .withMaxChunkSize(-1)
-        .withCpuTimeConsumption(1000)
-        .withHeapSizeConsumption(512000)
-        .withCalloutConsumption(1)
-        .withCalloutTimeConsumption(5000)
-        .withPublishImmediateDmlConsumption(1)
-        .withDmlRowsConsumption(50)
-        .withDmlStatementsConsumption(200)
-        .withQueryRowsConsumption(100)
-        .withQueriesConsumption(5)
-        .withSoslQueriesConsumption(1)
-        .withFutureCallsConsumption(1)
-        .build();
+      final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor' + i).withProcessorName('TestProcessor' + i).enabled().withMaxChunkSize(-1).build();
       testJobDescs.add(jobDesc);
     }
     insert testJobDescs;

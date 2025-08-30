@@ -2,96 +2,125 @@ public without sharing class AdaptativeConsumptionLearner implements Consumption
   private static final Decimal SAFETY_STEP = 0.05;
   private static final Decimal MIN_SAFETY = 0.5;
   private static final Decimal MAX_SAFETY = 0.98;
-  private static final Decimal KILL_PENALTY = 0.1;
+  private static final Decimal KILL_PENALTY = 1.1;
   private static final Decimal VARIATION_RESET_THRESHOLD = 0.3;
 
   private final JobDescription__c job;
-  private Boolean shouldResetConsumptionModel = false;
 
   public AdaptativeConsumptionLearner(final JobDescription__c jobDescription) {
     this.job = jobDescription;
   }
 
   public void adjustFromSuccess(final LimitsUsage consumed, final Integer chunkSize) {
-    this.job.ConsecutiveFailures__c = 0;
-    this.job.SuccessStreak__c = (this.job.SuccessStreak__c ?? 0) + 1;
-    this.job.SmallestFailingChunk__c = 0;
-    this.job.MaxChunkSize__c = Math.min(Math.max(this.job.MaxChunkSize__c ?? 0, chunkSize), this.job.MaxChunkSizeLimit__c ?? ApexJobConstant.DEFAULT_MAX_CHUNK_SIZE);
-    this.adjustStats(consumed, chunkSize, SAFETY_STEP);
+    this.updateFieldsOnSuccess(chunkSize);
+    this.updateModel(consumed, chunkSize, SAFETY_STEP);
   }
 
   public void adjustFromFailure(final LimitsUsage consumed, final Integer chunkSize) {
-    this.job.ConsecutiveFailures__c = (this.job.ConsecutiveFailures__c ?? 0) + 1;
-    this.job.SuccessStreak__c = 0;
-    this.calculateSmallestFailingChunk(chunkSize);
-    this.adjustStats(consumed, chunkSize, -SAFETY_STEP);
+    this.updateFieldsOnFailure(chunkSize);
+    this.updateModel(consumed, chunkSize, -SAFETY_STEP);
   }
 
   public void adjustFromKill(final Integer chunkSize) {
-    this.job.ConsecutiveFailures__c = (this.job.ConsecutiveFailures__c ?? 0) + 1;
-    this.job.SuccessStreak__c = 0;
-    this.calculateSmallestFailingChunk(chunkSize);
-    if (this.shouldResetConsumptionModelOnKill()) {
+    this.updateFieldsOnFailure(chunkSize);
+    if (this.requiresResetOnKill()) {
       this.resetConsumptionModel();
     } else {
       this.inflateConsumptionModel();
     }
   }
 
-  private void adjustStats(final LimitsUsage consumed, final Integer chunkSize, final Decimal safetyStep) {
+  private void updateModel(final LimitsUsage consumed, final Integer chunkSize, final Decimal safetyStep) {
+    for (ConsumptionModel model : ConsumptionModel.asList()) {
+      final Decimal usage = consumed.get(model.dimension);
+      if (processDimension(usage, model, chunkSize, safetyStep)) {
+        resetConsumptionModel();
+        break;
+      }
+    }
+  }
+
+  @SuppressWarnings('PMD.ExcessiveParameterList')
+  private Boolean processDimension(final Decimal usage, final ConsumptionModel model, final Integer chunkSize, final Decimal safetyStep) {
+    if (adjustSafetyModel(model, safetyStep)) {
+      return true;
+    }
     if (chunkSize == 1) {
-      this.recordInitialStats(consumed);
-    } else {
-      this.recordConsumption(consumed, chunkSize);
+      return adjustBaseConsumptionModel(usage, model);
     }
-    this.adjustSafetyFactors(safetyStep);
-    if (this.shouldResetConsumptionModel) {
-      this.resetConsumptionModel();
+    return adjustPerItemConsumptionModel(usage, model, chunkSize);
+  }
+
+  private Boolean adjustBaseConsumptionModel(final Decimal usage, final ConsumptionModel model) {
+    final Decimal currentBase = (Decimal) this.job.get(model.base);
+    this.job.put(model.base, Math.max(currentBase, usage));
+    return false;
+  }
+
+  private Boolean adjustPerItemConsumptionModel(final Decimal usage, final ConsumptionModel model, final Integer chunkSize) {
+    final Decimal currentPerItem = (Decimal) this.job.get(model.perItem);
+    final Decimal newPerItem = calculateNewPerItem(usage, model, chunkSize);
+
+    if (currentPerItem > 0) {
+      final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
+      if (variation > VARIATION_RESET_THRESHOLD) {
+        return true; // Variation too large
+      }
+    }
+
+    this.job.put(model.perItem, Math.max(currentPerItem, newPerItem));
+    return false;
+  }
+
+  private Decimal calculateNewPerItem(final Decimal usage, final ConsumptionModel model, final Integer chunkSize) {
+    final Decimal base = (Decimal) this.job.get(model.base);
+    return (usage - base) / (chunkSize - 1);
+  }
+
+  private Boolean adjustSafetyModel(final ConsumptionModel model, final Decimal safetyStep) {
+    if (this.job.ConsecutiveFailures__c <= 1 && this.job.SuccessStreak__c <= 1) {
+      return false; // No safety adjustment needed
+    }
+
+    final Decimal currentSafety = (Decimal) this.job.get(model.safety);
+    final Decimal newSafety = Math.min(MAX_SAFETY, currentSafety + safetyStep);
+
+    if (newSafety < MIN_SAFETY) {
+      return true; // Safety too low
+    }
+
+    this.job.put(model.safety, newSafety);
+    return false;
+  }
+
+  private void inflateConsumptionModel() {
+    for (ConsumptionModel model : ConsumptionModel.asList()) {
+      if (processDimensionForInflation(model)) {
+        resetConsumptionModel();
+        return;
+      }
     }
   }
 
-  private void recordInitialStats(final LimitsUsage consumed) {
-    for (ConsumptionModel model : ConsumptionModel.asList()) {
-      final Decimal usage = consumed.get(model.dimension);
-      final Decimal base = (Decimal) this.job.get(model.base) ?? 0;
-      this.job.put(model.base, Math.max(base, usage));
+  private Boolean processDimensionForInflation(final ConsumptionModel model) {
+    final Decimal currentSafety = (Decimal) this.job.get(model.safety);
+    final Decimal newSafety = Math.min(MAX_SAFETY, currentSafety - SAFETY_STEP);
+
+    if (newSafety < MIN_SAFETY) {
+      return true; // Safety too low - reset required
     }
+
+    penalizeModelValues(model, newSafety);
+    return false;
   }
 
-  private void recordConsumption(final LimitsUsage consumed, final Integer chunkSize) {
-    Decimal maxVariation = 0;
-    for (ConsumptionModel model : ConsumptionModel.asList()) {
-      final Decimal base = (Decimal) this.job.get(model.base);
-      final Decimal usage = consumed.get(model.dimension);
-      final Decimal perItem = (Decimal) this.job.get(model.perItem);
-      final Decimal calculatedPerItem = (usage - base) / (chunkSize - 1);
-      if (perItem > 0) {
-        maxVariation = Math.max(maxVariation, Math.abs((calculatedPerItem - perItem) / perItem));
-      }
+  private void penalizeModelValues(final ConsumptionModel model, final Decimal newSafety) {
+    final Decimal base = (Decimal) this.job.get(model.base);
+    final Decimal perItem = (Decimal) this.job.get(model.perItem);
 
-      if (maxVariation > VARIATION_RESET_THRESHOLD) {
-        this.shouldResetConsumptionModel = true;
-        break;
-      }
-      this.job.put(model.perItem, Math.max(perItem, calculatedPerItem));
-    }
-  }
-
-  private void adjustSafetyFactors(final Decimal step) {
-    if (this.shouldResetConsumptionModel) {
-      return;
-    }
-
-    for (ConsumptionModel model : ConsumptionModel.asList()) {
-      Decimal newSafety = (Decimal) this.job.get(model.safety);
-      newSafety = Math.min(MAX_SAFETY, newSafety + step);
-      // Means metrics are changing, we should recalculate
-      if (newSafety < MIN_SAFETY) {
-        this.shouldResetConsumptionModel = true;
-        break;
-      }
-      this.job.put(model.safety, newSafety);
-    }
+    this.job.put(model.base, base * KILL_PENALTY);
+    this.job.put(model.perItem, perItem * KILL_PENALTY);
+    this.job.put(model.safety, newSafety);
   }
 
   private void resetConsumptionModel() {
@@ -106,21 +135,20 @@ public without sharing class AdaptativeConsumptionLearner implements Consumption
     this.job.SmallestFailingChunk__c = 0;
   }
 
-  private void inflateConsumptionModel() {
-    final Decimal penalty = 1 + KILL_PENALTY;
-    for (ConsumptionModel model : ConsumptionModel.asList()) {
-      Decimal base = (Decimal) this.job.get(model.base) ?? 0;
-      Decimal perItem = (Decimal) this.job.get(model.perItem) ?? 0;
-      this.job.put(model.base, base * penalty);
-      this.job.put(model.perItem, perItem * penalty);
-    }
-  }
-
-  private Boolean shouldResetConsumptionModelOnKill() {
+  private Boolean requiresResetOnKill() {
     return this.job.MaxExecutionAttempt__c != -1 && this.job.ConsecutiveFailures__c >= this.job.MaxExecutionAttempt__c;
   }
 
-  private void calculateSmallestFailingChunk(final Integer chunkSize) {
+  private void updateFieldsOnFailure(final Integer chunkSize) {
+    this.job.ConsecutiveFailures__c = this.job.ConsecutiveFailures__c + 1;
+    this.job.SuccessStreak__c = 0;
     this.job.SmallestFailingChunk__c = Math.min(this.job.SmallestFailingChunk__c == 0 ? ApexJobConstant.DEFAULT_MAX_CHUNK_SIZE : this.job.SmallestFailingChunk__c, chunkSize);
+  }
+
+  private void updateFieldsOnSuccess(final Integer chunkSize) {
+    this.job.ConsecutiveFailures__c = 0;
+    this.job.SuccessStreak__c = this.job.SuccessStreak__c + 1;
+    this.job.SmallestFailingChunk__c = 0;
+    this.job.MaxChunkSize__c = Math.min(Math.max(this.job.MaxChunkSize__c, chunkSize), this.job.MaxChunkSizeLimit__c);
   }
 }

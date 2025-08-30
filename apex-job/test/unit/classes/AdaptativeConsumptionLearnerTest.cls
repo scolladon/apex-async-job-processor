@@ -3,7 +3,7 @@ private class AdaptativeConsumptionLearnerTest {
   @IsTest
   private static void givenSingleChunkSuccess_whenAdjustFromSuccess_thenTrackBaseConsumption() {
     // Arrange
-    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(1).build();
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().build();
 
     final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).build();
 
@@ -57,9 +57,27 @@ private class AdaptativeConsumptionLearnerTest {
   }
 
   @IsTest
+  private static void givenSuccess_whenAdjustFromSuccess_thenSetBaseConsumptionOnly() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().build();
+
+    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromSuccess(ApexJobTestFixture.aLimitsUsage().withCpuTime(200).build(), 1);
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(200, job.CpuTimeBaseConsumption__c, 'Should set base consumption');
+    Assert.areEqual(0, job.CpuTimePerItemConsumption__c, 'Should not set per item consumption');
+    Assert.areEqual(0.98, job.CpuTimeSafety__c, 'Should not set safety factor');
+  }
+
+  @IsTest
   private static void givenFailure_whenAdjustFromFailure_thenDecreaseSafety() {
     // Arrange
-    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.9).build();
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(1).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.9).build();
 
     final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
 
@@ -75,7 +93,7 @@ private class AdaptativeConsumptionLearnerTest {
   @IsTest
   private static void givenFailure_whenAdjustFromFailureAndSafetyTooLow_thenResetModel() {
     // Arrange
-    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.5).build();
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(1).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.5).build();
 
     final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
 
@@ -87,7 +105,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Assert
     Assert.areEqual(0, job.CpuTimeBaseConsumption__c, 'Should reset base consumption');
     Assert.areEqual(0, job.CpuTimePerItemConsumption__c, 'Should reset per item consumption');
-    Assert.areEqual(1, job.CpuTimeSafety__c, 'Should decrease safety factor');
+    Assert.areEqual(0.98, job.CpuTimeSafety__c, 'Should reset safety factor');
   }
 
   @IsTest
@@ -105,6 +123,25 @@ private class AdaptativeConsumptionLearnerTest {
     // Assert
     Assert.areEqual(0, job.CpuTimeBaseConsumption__c, 'Should reset on max attempts');
     Assert.areEqual(0, job.CpuTimePerItemConsumption__c, 'Should reset on max attempts');
+    Assert.areEqual(0.98, job.CpuTimeSafety__c, 'Should reset on max attempts');
+  }
+
+  @IsTest
+  private static void givenKill_whenAdjustFromKillAndSafetyTooLow_thenResetModel() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(0).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.5).build();
+
+    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(5);
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(0, job.CpuTimeBaseConsumption__c, 'Should reset on max attempts');
+    Assert.areEqual(0, job.CpuTimePerItemConsumption__c, 'Should reset on max attempts');
+    Assert.areEqual(0.98, job.CpuTimeSafety__c, 'Should reset on max attempts');
   }
 
   @IsTest
