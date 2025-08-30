@@ -6,7 +6,7 @@ public without sharing class AdaptiveChunkCalculator implements ChunkSizeCalcula
   private final LimitService limitService;
 
   public AdaptiveChunkCalculator() {
-    this(new LimitServiceImpl());
+    this(new ApexJobFactoryImpl().getLimitService());
   }
 
   @TestVisible
@@ -36,13 +36,13 @@ public without sharing class AdaptiveChunkCalculator implements ChunkSizeCalcula
   private Decimal calculateFromModel(final JobDescription__c job, final LimitsUsage availableLimits) {
     Decimal minChunk; //  Do not set value in case no dimension are calculable
     for (ConsumptionModel model : ConsumptionModel.asList()) {
-      final Decimal base = (Decimal) job.get(model.base) ?? 0;
+      final Decimal base = (Decimal) job.get(model.base);
 
       // Only calculate if we have a known base consumption
       if (base > 0) {
-        final Decimal dbPerItem = (Decimal) job.get(model.perItem) ?? 0;
+        final Decimal dbPerItem = (Decimal) job.get(model.perItem);
         final Decimal perItem = dbPerItem > 0 ? dbPerItem : base;
-        final Decimal safety = (Decimal) job.get(model.safety) ?? 1.0;
+        final Decimal safety = (Decimal) job.get(model.safety);
         final Integer availableLimit = availableLimits.get(model.dimension);
         final Decimal dimensionChunk = calculateForDimension(base, perItem, safety, availableLimit);
 

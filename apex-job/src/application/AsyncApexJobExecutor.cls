@@ -63,6 +63,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     } catch (Exception e) {
       this.logger.debug('AsyncJob: Error while recording job execution');
       this.logger.error(e.getMessage());
+      this.logger.error(e.getStackTraceString());
     }
 
     try {
@@ -75,6 +76,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     } catch (Exception e) {
       this.logger.debug('AsyncJob: Error while enqueuing AsyncApexJobExecutor, engine killed');
       this.logger.error(e.getMessage());
+      this.logger.error(e.getStackTraceString());
     }
   }
 

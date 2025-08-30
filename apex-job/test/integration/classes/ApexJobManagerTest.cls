@@ -52,24 +52,67 @@ private class ApexJobManagerTest {
   }
 
   @IsTest
-  static void givenProcessorName_whenResetUsage_thenAllConsumptionsSetToMinusOne() {
+  static void givenProcessorName_whenResetUsage_thenAllConsumptionsAAreReset() {
     // Arrange
     final String processorName = 'Proc_E';
     insert new JobDescription__c(
       ProcessorName__c = processorName,
       Enabled__c = true,
       MaxChunkSize__c = 10,
+      ConsecutiveFailures__c = 2,
+      SuccessStreak__c = 8,
+      SmallestFailingChunk__c = 7,
       CpuTimeBaseConsumption__c = 1,
+      CpuTimePerItemConsumption__c = 1,
+      CpuTimeSafety__c = 1,
+      HeapSizePerItemConsumption__c = 1,
+      HeapSizeSafety__c = 1,
       HeapSizeBaseConsumption__c = 1,
       CalloutBaseConsumption__c = 1,
+      CalloutPerItemConsumption__c = 1,
+      CalloutSafety__c = 1,
       CalloutTimeBaseConsumption__c = 1,
+      CalloutTimePerItemConsumption__c = 1,
+      CalloutTimeSafety__c = 1,
       DmlRowsBaseConsumption__c = 1,
+      DmlRowsPerItemConsumption__c = 1,
+      DmlRowsSafety__c = 1,
       DmlStatementsBaseConsumption__c = 1,
+      DmlStatementsPerItemConsumption__c = 1,
+      DmlStatementsSafety__c = 1,
       FutureCallsBaseConsumption__c = 1,
+      FutureCallsPerItemConsumption__c = 1,
+      FutureCallsSafety__c = 1,
       PublishImmediateDmlBaseConsumption__c = 1,
+      PublishImmediateDmlPerItemConsumption__c = 1,
+      PublishImmediateDmlSafety__c = 1,
       QueryRowsBaseConsumption__c = 1,
+      QueryRowsPerItemConsumption__c = 1,
+      QueryRowsSafety__c = 1,
       QueriesBaseConsumption__c = 1,
-      SoslQueriesBaseConsumption__c = 1
+      QueriesPerItemConsumption__c = 1,
+      QueriesSafety__c = 1,
+      SoslQueriesBaseConsumption__c = 1,
+      SoslQueriesPerItemConsumption__c = 1,
+      SoslQueriesSafety__c = 1,
+      AggregateQueriesBaseConsumption__c = 1,
+      AggregateQueriesPerItemConsumption__c = 1,
+      AggregateQueriesSafety__c = 1,
+      ApexCursorRowsBaseConsumption__c = 1,
+      ApexCursorRowsPerItemConsumption__c = 1,
+      ApexCursorRowsSafety__c = 1,
+      FetchCallsOnApexCursorBaseConsumption__c = 1,
+      FetchCallsOnApexCursorPerItemConsumption__c = 1,
+      FetchCallsOnApexCursorSafety__c = 1,
+      EmailInvocationsBaseConsumption__c = 1,
+      EmailInvocationsPerItemConsumption__c = 1,
+      EmailInvocationsSafety__c = 1,
+      MobilePushApexCallsBaseConsumption__c = 1,
+      MobilePushApexCallsPerItemConsumption__c = 1,
+      MobilePushApexCallsSafety__c = 1,
+      QueryLocatorRowsBaseConsumption__c = 1,
+      QueryLocatorRowsPerItemConsumption__c = 1,
+      QueryLocatorRowsSafety__c = 1
     );
 
     // Act
@@ -112,45 +155,84 @@ private class ApexJobManagerTest {
         QueriesSafety__c,
         SoslQueriesBaseConsumption__c,
         SoslQueriesPerItemConsumption__c,
-        SoslQueriesSafety__c
+        SoslQueriesSafety__c,
+        AggregateQueriesBaseConsumption__c,
+        AggregateQueriesPerItemConsumption__c,
+        AggregateQueriesSafety__c,
+        ApexCursorRowsBaseConsumption__c,
+        ApexCursorRowsPerItemConsumption__c,
+        ApexCursorRowsSafety__c,
+        FetchCallsOnApexCursorBaseConsumption__c,
+        FetchCallsOnApexCursorPerItemConsumption__c,
+        FetchCallsOnApexCursorSafety__c,
+        EmailInvocationsBaseConsumption__c,
+        EmailInvocationsPerItemConsumption__c,
+        EmailInvocationsSafety__c,
+        MobilePushApexCallsBaseConsumption__c,
+        MobilePushApexCallsPerItemConsumption__c,
+        MobilePushApexCallsSafety__c,
+        QueryLocatorRowsBaseConsumption__c,
+        QueryLocatorRowsPerItemConsumption__c,
+        QueryLocatorRowsSafety__c
       FROM JobDescription__c
       WHERE ProcessorName__c = :processorName
       LIMIT 1
     ];
     Assert.areEqual(-1, jd.MaxChunkSize__c, 'MaxChunkSize must be reset');
-    Assert.areEqual(-1, jd.CpuTimeBaseConsumption__c);
-    Assert.areEqual(-1, jd.CpuTimePerItemConsumption__c);
-    Assert.areEqual(1, jd.CpuTimeSafety__c);
-    Assert.areEqual(-1, jd.HeapSizeBaseConsumption__c);
-    Assert.areEqual(-1, jd.HeapSizePerItemConsumption__c);
-    Assert.areEqual(1, jd.HeapSizeSafety__c);
-    Assert.areEqual(-1, jd.CalloutBaseConsumption__c);
-    Assert.areEqual(-1, jd.CalloutPerItemConsumption__c);
-    Assert.areEqual(1, jd.CalloutSafety__c);
-    Assert.areEqual(-1, jd.CalloutTimeBaseConsumption__c);
-    Assert.areEqual(-1, jd.CalloutTimePerItemConsumption__c);
-    Assert.areEqual(1, jd.CalloutTimeSafety__c);
-    Assert.areEqual(-1, jd.DmlRowsBaseConsumption__c);
-    Assert.areEqual(-1, jd.DmlRowsPerItemConsumption__c);
-    Assert.areEqual(1, jd.DmlRowsSafety__c);
-    Assert.areEqual(-1, jd.DmlStatementsBaseConsumption__c);
-    Assert.areEqual(-1, jd.DmlStatementsPerItemConsumption__c);
-    Assert.areEqual(1, jd.DmlStatementsSafety__c);
-    Assert.areEqual(-1, jd.FutureCallsBaseConsumption__c);
-    Assert.areEqual(-1, jd.FutureCallsPerItemConsumption__c);
-    Assert.areEqual(1, jd.FutureCallsSafety__c);
-    Assert.areEqual(-1, jd.PublishImmediateDmlBaseConsumption__c);
-    Assert.areEqual(-1, jd.PublishImmediateDmlPerItemConsumption__c);
-    Assert.areEqual(1, jd.PublishImmediateDmlSafety__c);
-    Assert.areEqual(-1, jd.QueryRowsBaseConsumption__c);
-    Assert.areEqual(-1, jd.QueryRowsPerItemConsumption__c);
-    Assert.areEqual(1, jd.QueryRowsSafety__c);
-    Assert.areEqual(-1, jd.QueriesBaseConsumption__c);
-    Assert.areEqual(-1, jd.QueriesPerItemConsumption__c);
-    Assert.areEqual(1, jd.QueriesSafety__c);
-    Assert.areEqual(-1, jd.SoslQueriesBaseConsumption__c);
-    Assert.areEqual(-1, jd.SoslQueriesPerItemConsumption__c);
-    Assert.areEqual(1, jd.SoslQueriesSafety__c);
+    Assert.areEqual(0, jd.CpuTimeBaseConsumption__c);
+    Assert.areEqual(0, jd.CpuTimePerItemConsumption__c);
+    Assert.areEqual(0.98, jd.CpuTimeSafety__c);
+    Assert.areEqual(0, jd.HeapSizeBaseConsumption__c);
+    Assert.areEqual(0, jd.HeapSizePerItemConsumption__c);
+    Assert.areEqual(0.98, jd.HeapSizeSafety__c);
+    Assert.areEqual(0, jd.CalloutBaseConsumption__c);
+    Assert.areEqual(0, jd.CalloutPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.CalloutSafety__c);
+    Assert.areEqual(0, jd.CalloutTimeBaseConsumption__c);
+    Assert.areEqual(0, jd.CalloutTimePerItemConsumption__c);
+    Assert.areEqual(0.98, jd.CalloutTimeSafety__c);
+    Assert.areEqual(0, jd.DmlRowsBaseConsumption__c);
+    Assert.areEqual(0, jd.DmlRowsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.DmlRowsSafety__c);
+    Assert.areEqual(0, jd.DmlStatementsBaseConsumption__c);
+    Assert.areEqual(0, jd.DmlStatementsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.DmlStatementsSafety__c);
+    Assert.areEqual(0, jd.FutureCallsBaseConsumption__c);
+    Assert.areEqual(0, jd.FutureCallsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.FutureCallsSafety__c);
+    Assert.areEqual(0, jd.PublishImmediateDmlBaseConsumption__c);
+    Assert.areEqual(0, jd.PublishImmediateDmlPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.PublishImmediateDmlSafety__c);
+    Assert.areEqual(0, jd.QueryRowsBaseConsumption__c);
+    Assert.areEqual(0, jd.QueryRowsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.QueryRowsSafety__c);
+    Assert.areEqual(0, jd.QueriesBaseConsumption__c);
+    Assert.areEqual(0, jd.QueriesPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.QueriesSafety__c);
+    Assert.areEqual(0, jd.SoslQueriesBaseConsumption__c);
+    Assert.areEqual(0, jd.SoslQueriesPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.SoslQueriesSafety__c);
+    Assert.areEqual(0, jd.futureCallsBaseConsumption__c);
+    Assert.areEqual(0, jd.futureCallsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.futureCallsSafety__c);
+    Assert.areEqual(0, jd.AggregateQueriesBaseConsumption__c);
+    Assert.areEqual(0, jd.AggregateQueriesPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.AggregateQueriesSafety__c);
+    Assert.areEqual(0, jd.ApexCursorRowsBaseConsumption__c);
+    Assert.areEqual(0, jd.ApexCursorRowsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.ApexCursorRowsSafety__c);
+    Assert.areEqual(0, jd.FetchCallsOnApexCursorBaseConsumption__c);
+    Assert.areEqual(0, jd.FetchCallsOnApexCursorPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.FetchCallsOnApexCursorSafety__c);
+    Assert.areEqual(0, jd.EmailInvocationsBaseConsumption__c);
+    Assert.areEqual(0, jd.EmailInvocationsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.EmailInvocationsSafety__c);
+    Assert.areEqual(0, jd.MobilePushApexCallsBaseConsumption__c);
+    Assert.areEqual(0, jd.MobilePushApexCallsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.MobilePushApexCallsSafety__c);
+    Assert.areEqual(0, jd.QueryLocatorRowsBaseConsumption__c);
+    Assert.areEqual(0, jd.QueryLocatorRowsPerItemConsumption__c);
+    Assert.areEqual(0.98, jd.QueryLocatorRowsSafety__c);
   }
 
   @IsTest
