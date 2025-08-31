@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>CalloutTimeSafety__c</fullName>
-    <defaultValue>0.98</defaultValue>
-    <description>Safety multiplier applied to Callout Time estimations.</description>
+    <fullName>QueueableJobsBaseConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Expected number of queueable jobs for this job type. Used for governor limit planning and tracking.</description>
     <externalId>false</externalId>
-    <label>Callout Time Safety</label>
+    <label>Queueable Jobs Consumption</label>
     <precision>18</precision>
     <required>false</required>
     <scale>6</scale>

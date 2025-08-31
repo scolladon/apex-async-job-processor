@@ -235,6 +235,14 @@
             </layoutItems>
             <layoutItems>
                 <behavior>Readonly</behavior>
+                <field>QueueableJobsBaseConsumption__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>QueueableJobsPerItemConsumption__c</field>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
                 <field>SoslQueriesBaseConsumption__c</field>
             </layoutItems>
             <layoutItems>
@@ -351,6 +359,13 @@
             <layoutItems>
                 <behavior>Readonly</behavior>
                 <field>QueryRowsSafety__c</field>
+            </layoutItems>
+            <layoutItems>
+                <emptySpace>true</emptySpace>
+            </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>QueueableJobsSafety__c</field>
             </layoutItems>
             <layoutItems>
                 <emptySpace>true</emptySpace>

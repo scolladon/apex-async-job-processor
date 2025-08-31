@@ -42,6 +42,7 @@ public with sharing class LimitServiceImpl implements LimitService {
     result.emailInvocations = consumedUsage.emailInvocations - this.startSnapshot.emailInvocations;
     result.mobilePushApexCalls = consumedUsage.mobilePushApexCalls - this.startSnapshot.mobilePushApexCalls;
     result.queryLocatorRows = consumedUsage.queryLocatorRows - this.startSnapshot.queryLocatorRows;
+    result.queueableJobs = consumedUsage.queueableJobs - this.startSnapshot.queueableJobs;
     return result;
   }
 
@@ -68,6 +69,7 @@ public with sharing class LimitServiceImpl implements LimitService {
     result.emailInvocations = Limits.getLimitEmailInvocations() - Limits.getEmailInvocations();
     result.mobilePushApexCalls = Limits.getLimitMobilePushApexCalls() - Limits.getMobilePushApexCalls();
     result.queryLocatorRows = Limits.getLimitQueryLocatorRows() - Limits.getQueryLocatorRows();
+    result.queueableJobs = Limits.getLimitQueueableJobs() - Limits.getQueueableJobs();
     return result;
   }
 
@@ -90,6 +92,7 @@ public with sharing class LimitServiceImpl implements LimitService {
     result.emailInvocations = Limits.getEmailInvocations();
     result.mobilePushApexCalls = Limits.getMobilePushApexCalls();
     result.queryLocatorRows = Limits.getQueryLocatorRows();
+    result.queueableJobs = Limits.getQueueableJobs();
     return result;
   }
 }

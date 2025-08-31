@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>QueryRowsSafety__c</fullName>
     <defaultValue>0.98</defaultValue>
-    <description>Safety multiplier applied to SOQL Query Rows estimations (0..1]. 1 means no reduction.</description>
+    <description>Safety multiplier applied to SOQL Query Rows estimations.</description>
     <externalId>false</externalId>
     <label>Query Rows Safety</label>
     <precision>18</precision>

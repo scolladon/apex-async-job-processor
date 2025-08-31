@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>CalloutTimeBaseConsumption__c</fullName>
     <defaultValue>0</defaultValue>
-    <description>Expected callout time consumption in milliseconds for this job type. Used for governor limit planning and tracking. -1 indicates no measurement available.</description>
+    <description>Expected callout time consumption in milliseconds for this job type. Used for governor limit planning and tracking.</description>
     <externalId>false</externalId>
     <label>Callout Time Consumption</label>
     <precision>18</precision>

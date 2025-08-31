@@ -337,6 +337,21 @@ public class ApexJobTestFixture {
       return this;
     }
 
+    public JobDescriptionBuilder withQueueableJobsConsumption(final Integer value) {
+      this.record.QueueableJobsBaseConsumption__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withQueueableJobsPerItemConsumption(final Decimal value) {
+      this.record.QueueableJobsPerItemConsumption__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withQueueableJobsSafety(final Decimal value) {
+      this.record.QueueableJobsSafety__c = value;
+      return this;
+    }
+
     public JobDescription__c build() {
       return this.record;
     }
@@ -506,6 +521,7 @@ public class ApexJobTestFixture {
       this.usage.emailInvocations = 0;
       this.usage.mobilePushApexCalls = 0;
       this.usage.queryLocatorRows = 0;
+      this.usage.queueableJobs = 0;
     }
 
     public LimitsUsageBuilder withCpuTime(final Integer value) {
@@ -593,6 +609,11 @@ public class ApexJobTestFixture {
       return this;
     }
 
+    public LimitsUsageBuilder withQueueableJobs(final Integer value) {
+      this.usage.queueableJobs = value;
+      return this;
+    }
+
     public LimitsUsage build() {
       return this.usage;
     }
@@ -630,6 +651,7 @@ public class ApexJobTestFixture {
       .withEmailInvocations(Limits.getLimitEmailInvocations())
       .withMobilePushApexCalls(Limits.getLimitMobilePushApexCalls())
       .withQueryLocatorRows(Limits.getLimitQueryLocatorRows())
+      .withQueueableJobs(Limits.getLimitQueueableJobs())
       .build();
   }
   // Common test scenarios

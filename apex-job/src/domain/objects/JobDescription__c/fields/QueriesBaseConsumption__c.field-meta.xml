@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>QueriesBaseConsumption__c</fullName>
     <defaultValue>0</defaultValue>
-    <description>Expected number of SOQL queries for this job type. Used for governor limit planning and tracking. -1 indicates no measurement available.</description>
+    <description>Expected number of SOQL queries for this job type. Used for governor limit planning and tracking.</description>
     <externalId>false</externalId>
     <label>Queries Consumption</label>
     <precision>18</precision>

@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>DmlStatementsPerItemConsumption__c</fullName>
     <defaultValue>0</defaultValue>
-    <description>DML statements consumed per item for this job type. Used with BaseConsumption and Safety to estimate total DML statements. -1 indicates no measurement available.</description>
+    <description>DML statements consumed per item for this job type. Used with BaseConsumption and Safety to estimate total DML statements.</description>
     <externalId>false</externalId>
     <label>DML Statements Per Item Consumption</label>
     <precision>18</precision>

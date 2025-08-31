@@ -16,6 +16,7 @@ public class LimitsUsage {
   private static final String EMAIL_INVOCATIONS_DIMENSION = 'emailInvocations';
   private static final String MOBILE_PUSH_APEX_CALLS_DIMENSION = 'mobilePushApexCalls';
   private static final String QUERY_LOCATOR_ROWS_DIMENSION = 'queryLocatorRows';
+  private static final String QUEUEABLE_JOBS_DIMENSION = 'queueableJobs';
 
   private static final List<String> ALL_DIMENSIONS = new List<String>{
     CPU_TIME_DIMENSION,
@@ -34,7 +35,8 @@ public class LimitsUsage {
     FETCH_CALLS_ON_APEX_CURSOR_DIMENSION,
     EMAIL_INVOCATIONS_DIMENSION,
     MOBILE_PUSH_APEX_CALLS_DIMENSION,
-    QUERY_LOCATOR_ROWS_DIMENSION
+    QUERY_LOCATOR_ROWS_DIMENSION,
+    QUEUEABLE_JOBS_DIMENSION
   };
 
   private Map<String, Integer> store = new Map<String, Integer>();
@@ -177,6 +179,14 @@ public class LimitsUsage {
     }
     set {
       this.store.put(QUERY_LOCATOR_ROWS_DIMENSION, value);
+    }
+  }
+  public Integer queueableJobs {
+    get {
+      return this.get(QUEUEABLE_JOBS_DIMENSION);
+    }
+    set {
+      this.store.put(QUEUEABLE_JOBS_DIMENSION, value);
     }
   }
 

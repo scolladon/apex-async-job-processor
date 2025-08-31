@@ -283,6 +283,21 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.QueueableJobsBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueueableJobsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueueableJobsSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.SmallestFailingChunk__c</field>
         <readable>true</readable>
     </fieldPermissions>

@@ -101,7 +101,10 @@ public without sharing class JobSelectorImpl implements JobSelector {
         JobDescription__r.MobilePushApexCallsSafety__c,
         JobDescription__r.QueryLocatorRowsBaseConsumption__c,
         JobDescription__r.QueryLocatorRowsPerItemConsumption__c,
-        JobDescription__r.QueryLocatorRowsSafety__c
+        JobDescription__r.QueryLocatorRowsSafety__c,
+        JobDescription__r.QueueableJobsBaseConsumption__c,
+        JobDescription__r.QueueableJobsPerItemConsumption__c,
+        JobDescription__r.QueueableJobsSafety__c
       FROM JobRequest__c
       WHERE
         JobDescription__c NOT IN :jobDescriptionIdsToExclude
@@ -124,6 +127,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
         AND JobDescription__r.EmailInvocationsBaseConsumption__c <= :availableLimits.emailInvocations
         AND JobDescription__r.MobilePushApexCallsBaseConsumption__c <= :availableLimits.mobilePushApexCalls
         AND JobDescription__r.QueryLocatorRowsBaseConsumption__c <= :availableLimits.queryLocatorRows
+        AND JobDescription__r.QueueableJobsBaseConsumption__c <= :availableLimits.queueableJobs
       ORDER BY
         JobDescription__r.Priority__c DESC,
         JobDescription__r.MaxChunkSize__c ASC,

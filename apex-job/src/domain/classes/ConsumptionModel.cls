@@ -19,8 +19,9 @@ public without sharing class ConsumptionModel {
       for (String dimension : LimitsUsage.dimensions()) {
         String prefix = dimension.capitalize();
         // Do not validate against the schema because :
-        // 1. it is costly and not open to consumer
-        // 2. it is tested during unit test so we are pretty safe
+        // 1. it is costly
+        // 2. it is not open to end user
+        // 3. it is tested during unit test so we are pretty safe
         String base = prefix + 'BaseConsumption__c';
         String perItem = prefix + 'PerItemConsumption__c';
         String safety = prefix + 'Safety__c';

@@ -3,7 +3,7 @@
     <fullName>PublishImmediateDmlPerItemConsumption__c</fullName>
     <defaultValue>0</defaultValue>
     <description
-  >Publish Immediate DML consumed per item for this job type. Used with BaseConsumption and Safety to estimate total DML publish immediate usage. -1 indicates no measurement available.</description>
+  >Publish Immediate DML consumed per item for this job type. Used with BaseConsumption and Safety to estimate total DML publish immediate usage.</description>
     <externalId>false</externalId>
     <label>Publish Immediate DML Per-Item Cons.</label>
     <precision>18</precision>

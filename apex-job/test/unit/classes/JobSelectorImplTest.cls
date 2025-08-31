@@ -310,7 +310,10 @@ private class JobSelectorImplTest {
       'JobDescription__r.MobilePushApexCallsSafety__c',
       'JobDescription__r.QueryLocatorRowsBaseConsumption__c',
       'JobDescription__r.QueryLocatorRowsPerItemConsumption__c',
-      'JobDescription__r.QueryLocatorRowsSafety__c'
+      'JobDescription__r.QueryLocatorRowsSafety__c',
+      'JobDescription__r.QueueableJobsBaseConsumption__c',
+      'JobDescription__r.QueueableJobsPerItemConsumption__c',
+      'JobDescription__r.QueueableJobsSafety__c'
     };
 
     // Act
