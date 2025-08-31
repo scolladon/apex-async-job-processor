@@ -1,9 +1,49 @@
-<?xml version="1.0" encoding="UTF-8" ?>
+<?xml version="1.0" encoding="UTF-8"?>
 <PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
     <description>Provide access to all fields for Async Job objects</description>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.AggregateQueriesBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.AggregateQueriesPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.AggregateQueriesSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.ApexCursorRowsBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.ApexCursorRowsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.ApexCursorRowsSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.CalloutBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.CalloutPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.CalloutSafety__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -13,7 +53,32 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.CalloutTimePerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.CalloutTimeSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.ConsecutiveFailures__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.CpuTimeBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.CpuTimePerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.CpuTimeSafety__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -23,7 +88,42 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.DmlRowsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.DmlRowsSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.DmlStatementsBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.DmlStatementsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.DmlStatementsSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.EmailInvocationsBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.EmailInvocationsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.EmailInvocationsSafety__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -33,7 +133,32 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.FetchCallsOnApexCursorBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.FetchCallsOnApexCursorPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.FetchCallsOnApexCursorSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.FutureCallsBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.FutureCallsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.FutureCallsSafety__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -43,17 +168,27 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.HeapSizePerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.HeapSizeSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.LastExecutionDateTime__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.MaxChunkSize__c</field>
+        <field>JobDescription__c.MaxChunkSizeLimit__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.MaxChunkSizeLimit__c</field>
+        <field>JobDescription__c.MaxChunkSize__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -68,17 +203,22 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.ConsecutiveFailures__c</field>
+        <field>JobDescription__c.MobilePushApexCallsBaseConsumption__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.SmallestFailingChunk__c</field>
+        <field>JobDescription__c.MobilePushApexCallsPerItemConsumption__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.SuccessStreak__c</field>
+        <field>JobDescription__c.MobilePushApexCallsSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.Priority__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -88,7 +228,42 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.PublishImmediateDmlPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.PublishImmediateDmlSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.QueriesBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueriesPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueriesSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueryLocatorRowsBaseConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueryLocatorRowsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueryLocatorRowsSafety__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -98,12 +273,42 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.QueryRowsPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.QueryRowsSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.SmallestFailingChunk__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.SoslQueriesBaseConsumption__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.Priority__c</field>
+        <field>JobDescription__c.SoslQueriesPerItemConsumption__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.SoslQueriesSafety__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.SuccessStreak__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.VariationResetThreashold__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>
@@ -144,208 +349,6 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>JobRequest__c.Status__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <!-- New PerItemConsumption fields -->
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.CpuTimePerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.HeapSizePerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueryRowsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.DmlRowsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.CalloutTimePerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.CalloutPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.DmlStatementsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.FutureCallsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.PublishImmediateDmlPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueriesPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.SoslQueriesPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <!-- New Safety fields -->
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.CpuTimeSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.HeapSizeSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueryRowsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.DmlRowsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.CalloutTimeSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.CalloutSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.DmlStatementsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.FutureCallsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.PublishImmediateDmlSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueriesSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.SoslQueriesSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.AggregateQueriesBaseConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.AggregateQueriesPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.AggregateQueriesSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.ApexCursorRowsBaseConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.ApexCursorRowsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.ApexCursorRowsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.FetchCallsOnApexCursorBaseConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.FetchCallsOnApexCursorPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.FetchCallsOnApexCursorSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.EmailInvocationsBaseConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.EmailInvocationsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.EmailInvocationsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.MobilePushApexCallsBaseConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.MobilePushApexCallsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.MobilePushApexCallsSafety__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueryLocatorRowsBaseConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueryLocatorRowsPerItemConsumption__c</field>
-        <readable>true</readable>
-    </fieldPermissions>
-    <fieldPermissions>
-        <editable>true</editable>
-        <field>JobDescription__c.QueryLocatorRowsSafety__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <hasActivationRequired>false</hasActivationRequired>

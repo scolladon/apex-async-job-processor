@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>VariationResetThreashold__c</fullName>
+    <defaultValue>0.3</defaultValue>
+    <description>Percentage variation threshold to reset the consumption model [0..1]. Trigger a reset of consumption model when Per Item consumption variation is above this threshold. 0.3 means 30% variation. </description>
+    <externalId>false</externalId>
+    <label>Variation Reset Threashold</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>6</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

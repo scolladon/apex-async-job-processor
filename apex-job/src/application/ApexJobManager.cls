@@ -124,7 +124,7 @@ public without sharing class ApexJobManager {
     }
   }
 
-  public static void resetUsage(final String processorName) {
+  public static void resetConsumptionModel(final String processorName) {
     final JobDescription__c jobDescription = new JobDescription__c(ProcessorName__c = processorName);
     for (ConsumptionModel model : ConsumptionModel.asList()) {
       jobDescription.put(model.base, ApexJobConstant.UNKNOWN_BASE_CONSUMPTION);

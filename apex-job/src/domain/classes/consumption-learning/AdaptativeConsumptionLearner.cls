@@ -3,7 +3,6 @@ public without sharing class AdaptativeConsumptionLearner implements Consumption
   private static final Decimal MIN_SAFETY = 0.5;
   private static final Decimal MAX_SAFETY = 0.98;
   private static final Decimal KILL_PENALTY = 1.1;
-  private static final Decimal VARIATION_RESET_THRESHOLD = 0.3;
 
   private final JobDescription__c job;
 
@@ -63,7 +62,7 @@ public without sharing class AdaptativeConsumptionLearner implements Consumption
 
     if (currentPerItem > 0) {
       final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
-      if (variation > VARIATION_RESET_THRESHOLD) {
+      if (variation > this.job.VariationResetThreashold__c) {
         return true; // Variation too large
       }
     }

@@ -52,7 +52,7 @@ private class ApexJobManagerTest {
   }
 
   @IsTest
-  static void givenProcessorName_whenResetUsage_thenAllConsumptionsAAreReset() {
+  static void givenProcessorName_whenResetConsumptionModel_thenAllConsumptionsAAreReset() {
     // Arrange
     final String processorName = 'Proc_E';
     insert new JobDescription__c(
@@ -116,7 +116,7 @@ private class ApexJobManagerTest {
     );
 
     // Act
-    ApexJobManager.resetUsage(processorName);
+    ApexJobManager.resetConsumptionModel(processorName);
 
     // Assert
     final JobDescription__c jd = [

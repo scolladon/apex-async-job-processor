@@ -86,7 +86,7 @@ JobDescriptionService.enable(jobDescriptionId);
 JobDescriptionService.disable(jobDescriptionId);
 
 // Reset governor limit learning data
-JobDescriptionService.resetUsage(jobDescriptionId);
+JobDescriptionService.resetConsumptionModel(jobDescriptionId);
 ```
 
 ### Job Request Management

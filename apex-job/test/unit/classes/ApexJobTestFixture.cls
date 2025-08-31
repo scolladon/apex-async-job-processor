@@ -20,7 +20,8 @@ public class ApexJobTestFixture {
         isRecurrent__c = false,
         ConsecutiveFailures__c = 0,
         SmallestFailingChunk__c = 0,
-        SuccessStreak__c = 0
+        SuccessStreak__c = 0,
+        VariationResetThreashold__c = 0.3
       );
       for (ConsumptionModel model : ConsumptionModel.asList()) {
         this.record.put(model.base, ApexJobConstant.UNKNOWN_BASE_CONSUMPTION);
@@ -86,6 +87,11 @@ public class ApexJobTestFixture {
 
     public JobDescriptionBuilder withMinJobInterval(final Integer minutes) {
       this.record.MinJobInterval__c = minutes;
+      return this;
+    }
+
+    public JobDescriptionBuilder withVariationResetThreashold(final Decimal value) {
+      this.record.VariationResetThreashold__c = value;
       return this;
     }
 
