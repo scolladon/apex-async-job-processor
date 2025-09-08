@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>IsCandidat__c</fullName>
+    <description>Define if the job can be executed</description>
+    <formula>AND(
+  Enabled__c
+  ,JobDescription__r.Enabled__c
+  ,OR(
+    ISPICKVAL(Status__c, &quot;FAILURE&quot;),
+    ISPICKVAL(Status__c, &quot;KILLED&quot;),
+    ISPICKVAL(Status__c, &quot;READY&quot;)
+  )
+  ,OR( NOW() &gt;= NextExecutionDateTime__c , ISNULL(NextExecutionDateTime__c) )
+  ,OR( ISNULL(AttemptNumber__c), JobDescription__r.MaxExecutionAttempt__c = -1, AttemptNumber__c &lt; JobDescription__r.MaxExecutionAttempt__c )
+  ,OR(ISBLANK(JobDescription__r.AllowedDays__c) ,
+    CASE(WEEKDAY(TODAY())
+      ,1 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;1&apos; ),1,0)
+      ,2 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;2&apos; ),1,0)
+      ,3 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;3&apos; ),1,0)
+      ,4 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;4&apos; ),1,0)
+      ,5 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;5&apos; ),1,0)
+      ,6 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;6&apos; ),1,0)
+      ,7 , IF(INCLUDES(JobDescription__r.AllowedDays__c,&apos;7&apos; ),1,0)
+      ,0) &gt; 0)
+  ,OR (ISNULL(JobDescription__r.AllowedStartTime__c), TIMENOW() &gt;= JobDescription__r.AllowedStartTime__c)
+  ,OR (ISNULL(JobDescription__r.AllowedEndTime__c), TIMENOW() &lt;= JobDescription__r.AllowedEndTime__c)
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Is Candidat</label>
+    <trackTrending>false</trackTrending>
+    <type>Checkbox</type>
+</CustomField>

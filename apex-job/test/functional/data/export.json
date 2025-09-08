@@ -1,0 +1,18 @@
+{
+	"alwaysUseRestApiToUpdateRecords": true,
+	"excludeIdsFromCSVFiles": true,
+	"objects": [
+		{
+			"query": "SELECT Name, ProcessorName__c FROM JobDescription__c",
+			"operation": "Upsert",
+			"externalId": "ProcessorName__c",
+			"deleteOldData": true
+		},
+		{
+			"query": "SELECT Name, JobDescription__c, JobDescription__r.ProcessorName__c, Argument__c, NextExecutionDateTime__c FROM JobRequest__c",
+			"operation": "Upsert",
+			"externalId": "Name",
+			"deleteOldData": true
+		}
+	]
+}

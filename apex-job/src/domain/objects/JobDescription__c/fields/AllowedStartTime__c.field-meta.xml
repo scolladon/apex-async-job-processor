@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>AllowedStartTime__c</fullName>
+    <description>Define the start time when job can be executed during the day</description>
+    <label>Allowed Start Time</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>Time</type>
+</CustomField>

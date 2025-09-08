@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>HeapSizePerItemConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Heap size consumed per item in bytes for this job type. Used with BaseConsumption and Safety to estimate total heap size.</description>
+    <externalId>false</externalId>
+    <label>Heap Size Per Item Consumption</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>6</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

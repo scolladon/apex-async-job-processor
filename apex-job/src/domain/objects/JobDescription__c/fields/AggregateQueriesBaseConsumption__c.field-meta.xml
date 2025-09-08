@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>AggregateQueriesBaseConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Base consumption of aggregate queries for this job type</description>
+    <externalId>false</externalId>
+    <label>Aggregate Queries Base Consumption</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>6</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

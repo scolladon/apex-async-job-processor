@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>AggregateQueriesSafety__c</fullName>
+    <defaultValue>0.74</defaultValue>
+    <description>Safety factor for aggregate queries consumption</description>
+    <externalId>false</externalId>
+    <label>Aggregate Queries Safety</label>
+    <precision>18</precision>
+    <scale>6</scale>
+    <type>Number</type>
+</CustomField>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>AggregateQueriesPerItemConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Per item consumption of aggregate queries for this job type</description>
+    <externalId>false</externalId>
+    <label>Aggregate Queries Per Item Consumption</label>
+    <precision>18</precision>
+    <scale>6</scale>
+    <type>Number</type>
+</CustomField>

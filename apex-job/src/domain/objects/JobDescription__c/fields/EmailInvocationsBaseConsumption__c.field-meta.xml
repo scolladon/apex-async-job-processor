@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>EmailInvocationsBaseConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Base consumption of email invocations for this job type</description>
+    <externalId>false</externalId>
+    <label>Email Invocations Base Consumption</label>
+    <precision>18</precision>
+    <scale>6</scale>
+    <type>Number</type>
+</CustomField>

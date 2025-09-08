@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>MobilePushApexCallsPerItemConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Per item consumption of mobile push apex calls for this job type</description>
+    <externalId>false</externalId>
+    <label>Mobile Push Apex Calls Per Item Cons</label>
+    <precision>18</precision>
+    <scale>6</scale>
+    <type>Number</type>
+</CustomField>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>FutureCallsBaseConsumption__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description>Expected number of future method calls for this job type. Used for governor limit planning and tracking.</description>
+    <externalId>false</externalId>
+    <label>Future Calls Consumption</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>6</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>
