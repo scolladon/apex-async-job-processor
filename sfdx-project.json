@@ -1,0 +1,16 @@
+{
+	"packageDirectories": [
+		{
+			"path": "apex-job/src",
+			"default": true
+		},
+		{
+			"path": "apex-job/test",
+			"default": false
+		}
+	],
+	"name": "async-processor",
+	"namespace": "",
+	"sfdcLoginUrl": "https://login.salesforce.com",
+	"sourceApiVersion": "64.0"
+}

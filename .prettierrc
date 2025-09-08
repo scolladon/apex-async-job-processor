@@ -1,0 +1,9 @@
+{
+  "trailingComma": "none",
+  "printWidth": 200,
+  "tabWidth": 2,
+  "plugins": [
+    "prettier-plugin-apex",
+    "@prettier/plugin-xml"
+  ]
+}

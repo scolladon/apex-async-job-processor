@@ -1,0 +1,106 @@
+{
+	"name": "apex-async-job-processor",
+	"private": true,
+	"version": "1.0.0",
+	"description": "Performant job selection and execution utilities for Apex with governor limit safety.",
+	"scripts": {
+		"build": "wireit",
+		"dependencies:upgrade": "npm update ; npm audit fix",
+		"lint": "wireit",
+		"postinstall": "npm install --global @salesforce/cli && sf plugins install code-analyzer",
+		"precommit": "lint-staged",
+		"prepare": "husky",
+		"prettier": "wireit",
+		"test": "wireit",
+		"test:functional:load-data": "sf sfdmu run --sourceusername csvfile --targetusername dev -n -p apex-job/test/functional/data",
+		"test:functional:prepare-metadata": "wireit",
+		"test:functional:start": "sf apex run -f apex-job/test/functional/script/launch-functional-test.apex",
+		"test:functional:stop": "sf apex run -f apex-job/test/functional/script/stop-functional-test.apex",
+		"test:integration": "wireit",
+		"test:unit": "wireit",
+		"test:unit:coverage": "npm run test:unit -- -c -v"
+	},
+	"devDependencies": {
+		"@prettier/plugin-xml": "^3.4.2",
+		"husky": "^9.1.7",
+		"lint-staged": "^16.1.4",
+		"prettier": "^3.6.2",
+		"prettier-plugin-apex": "^2.2.6",
+		"wireit": "^0.14.12"
+	},
+	"lint-staged": {
+		"**/*.{cls,xml}": [
+			"npm run lint -- -t"
+		]
+	},
+	"wireit": {
+		"build": {
+			"command": "sf project deploy start -d apex-job",
+			"files": [
+				"apex-job/**/*"
+			],
+			"output": [],
+			"dependencies": [
+				"lint"
+			]
+		},
+		"lint": {
+			"command": "sf code-analyzer run",
+			"files": [
+				"apex-job/**/*.{cls,xml}",
+				"code-analyzer.yml",
+				"apex-ruleset.xml"
+			],
+			"output": [],
+			"dependencies": [
+				"prettier"
+			]
+		},
+		"prettier": {
+			"command": "prettier --write apex-job/**/*.cls",
+			"files": [
+				"apex-job/**/*.cls"
+			],
+			"output": []
+		},
+		"test": {
+			"files": [
+				"apex-job/**/*"
+			],
+			"dependencies": [
+				"test:unit",
+				"test:integration"
+			]
+		},
+		"test:functional:prepare-metadata": {
+			"command": "sf project deploy start -d apex-job/test/functional && sf org assign permset -n AdminAsyncJob || true",
+			"files": [
+				"apex-job/test/functional"
+			],
+			"output": [],
+			"dependencies": [
+				"build"
+			]
+		},
+		"test:integration": {
+			"command": "sf apex test run -w 10 -t \"$(find apex-job/test/integration -name \"*.cls\" -exec basename {} .cls \\; | tr '\n' ',' | sed 's/,$//')\" -c -v",
+			"files": [
+				"apex-job/**/*"
+			],
+			"output": [],
+			"dependencies": [
+				"build"
+			]
+		},
+		"test:unit": {
+			"command": "sf apex test run -w 10 -t \"$(find apex-job/test/unit -name '*.cls' -exec basename {} .cls \\; | tr '\n' ',' | sed 's/,$//')\"",
+			"files": [
+				"apex-job/**/*"
+			],
+			"output": [],
+			"dependencies": [
+				"build"
+			]
+		}
+	}
+}
