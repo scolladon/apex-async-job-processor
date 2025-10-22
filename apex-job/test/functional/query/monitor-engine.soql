@@ -1,0 +1,4 @@
+SELECT Count(Id)
+FROM AsyncApexJob
+WHERE Status IN ('Processing', 'Queued', 'Preparing')
+AND ApexClass.Name = 'AsyncApexJobExecutor'

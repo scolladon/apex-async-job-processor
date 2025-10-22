@@ -1,0 +1,4 @@
+SELECT WaitTime__c, ChunkRunTime__c, UnitRunTime__c, ProcessingTime__c,LastSelectionDateTime__c, LastExecutionDateTime__c, NextExecutionDateTime__c, CreatedDate, LastModifiedDate, AttemptNumber__c, Status__c, IsDeleted,  JobDescription__r.Name 
+FROM JobRequest__c
+WHERE WaitTime__c != null AND ProcessingTime__c != null AND ChunkRunTime__c != null AND UnitRunTime__c != null 
+ORDER BY LastmodifiedDate DESC, JobDescription__r.Name, CreatedDate ASC 

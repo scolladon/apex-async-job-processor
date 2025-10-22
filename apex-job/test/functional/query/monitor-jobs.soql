@@ -1,0 +1,15 @@
+SELECT Count(Id), 
+       Status__c, JobDescription__r.ProcessorName__c, 
+       MAX(JobDescription__r.MaxChunkSize__c) MaxBulk, 
+       MAX(JobDescription__r.SmallestFailingChunk__c) SmallestFailingChunk, 
+       MAX(JobDescription__r.SuccessStreak__c) SuccessStreak, 
+       MAX(JobDescription__r.ConsecutiveFailures__c) ConsecutiveFailure,
+       SUM(AttemptNumber__c) NbTry, 
+       MAX(JobDescription__r.CpuTimeBaseConsumption__c) BaseCpuTime, 
+       MAX(JobDescription__r.CpuTimePerItemConsumption__c) PerItemCpuTime, 
+       MAX(JobDescription__r.CpuTimeSafety__c) SafetyCpuTime, 
+       FORMAT(MIN(NextExecutionDateTime__c)) NextExecutionDateTime, 
+       FORMAT(MIN(LastModifiedDate)) LastExecutionDateTime
+FROM JobRequest__c 
+GROUP BY Status__c, JobDescription__r.ProcessorName__c 
+ORDER BY Status__c, JobDescription__r.ProcessorName__c

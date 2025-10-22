@@ -1,0 +1,4 @@
+SELECT Count(Id) 
+FROM AsyncApexJob 
+WHERE CreatedDate >= TODAY
+AND ApexClass.Name = 'AsyncApexJobExecutor'

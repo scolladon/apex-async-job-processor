@@ -13,6 +13,8 @@
 		"prettier": "wireit",
 		"test": "wireit",
 		"test:functional:load-data": "sf sfdmu run --sourceusername csvfile --targetusername dev -n -p apex-job/test/functional/data",
+		"test:functional:monitor-jobs": "sf data query -f apex-job/test/functional/query/monitor-jobs.soql",
+		"test:functional:monitor-engine": "sf data query -f apex-job/test/functional/query/monitor-engine.soql",
 		"test:functional:prepare-metadata": "wireit",
 		"test:functional:start": "sf apex run -f apex-job/test/functional/script/launch-functional-test.apex",
 		"test:functional:stop": "sf apex run -f apex-job/test/functional/script/stop-functional-test.apex",
