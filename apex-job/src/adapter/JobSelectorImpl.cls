@@ -32,7 +32,12 @@ public without sharing class JobSelectorImpl implements JobSelector {
         NextExecutionDateTime__c,
         LastExecutionDateTime__c,
         LastExecutionMessage__c,
+        LastSelectionDateTime__c,
         AttemptNumber__c,
+        WaitTime__c,
+        ChunkRunTime__c,
+        UnitRunTime__c,
+        ProcessingTime__c,
         JobDescription__c,
         // Include all JobDescription fields
         JobDescription__r.Id,

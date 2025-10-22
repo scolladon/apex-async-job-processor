@@ -23,6 +23,47 @@ public class AsyncProcessorTest {
   }
 
   @IsTest
+  private static void givenSystemEnabled_whenExecutorRuns_thenSelectionAndEndTimesAreRecordedAndNextTryUsesEndOnFailure() {
+    // Arrange
+    insert new JobDescription__c(Name = 'ErrorProcessorWithInterval', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor', MinJobInterval__c = 3);
+
+    insert new JobRequest__c(
+      Name = 'ErrorProcessorWithInterval1',
+      Argument__c = '{"test": "data2"}',
+      Enabled__c = true,
+      Status__c = ApexJobStatus.READY.name(),
+      NextExecutionDateTime__c = System.now().addMinutes(-10),
+      LastExecutionDateTime__c = null,
+      AttemptNumber__c = 0,
+      JobDescription__r = new JobDescription__c(ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor')
+    );
+
+    final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
+    insert config;
+    ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
+
+    // Act
+    Test.startTest();
+    System.enqueueJob(sut);
+    Test.stopTest();
+
+    // Assert
+    final JobRequest__c jobRequest = [
+      SELECT Status__c, AttemptNumber__c, LastSelectionDateTime__c, LastExecutionDateTime__c, NextExecutionDateTime__c
+      FROM JobRequest__c
+      WHERE Name = 'ErrorProcessorWithInterval1'
+      LIMIT 1
+    ];
+    Assert.areEqual(ApexJobStatus.FAILURE.name(), jobRequest.Status__c, 'Job should be marked as failure');
+    Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number should be incremented');
+    Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'Selection time should be recorded');
+    Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'End time should be recorded');
+    Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
+    Assert.areEqual(jobRequest.LastExecutionDateTime__c.addMinutes(3), jobRequest.NextExecutionDateTime__c, 'Next try should be end + interval');
+  }
+
+  @IsTest
   private static void givenSystemEnabled_whenExecutorRunsWithEligibleJobs_thenDeleteSuccessfulJob() {
     // Arrange
     insert new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);

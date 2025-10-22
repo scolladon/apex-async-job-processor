@@ -46,8 +46,8 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
         break;
       }
       final JobExecuted executionResult = this.lastExecutableJob.executeChunk();
-      this.lastExecutableJob = null;
       this.jobExecutionResults.add(executionResult);
+      this.lastExecutableJob = null;
       this.logger.debug('Job executed: ' + executionResult);
     }
   }
@@ -57,7 +57,9 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       // In case the last job has been killed we need to record it
       if (this.shouldTreatException(ctx)) {
         final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(ctx.getException()));
+        final JobExecuted executionResult = new JobExecuted(this.lastExecutableJob, killedJobResult);
         this.jobExecutionResults.add(new JobExecuted(this.lastExecutableJob, killedJobResult));
+        this.lastExecutableJob = null;
       }
       this.factory.getRepository().recordJobExecution(this.jobExecutionResults);
     } catch (Exception e) {

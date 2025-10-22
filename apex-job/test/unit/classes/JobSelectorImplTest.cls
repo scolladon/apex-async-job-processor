@@ -146,6 +146,15 @@ private class JobSelectorImplTest {
     mocks.getAvailableLimitsSpy.returns(mockAvailableLimits);
 
     final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
+    // Populate numeric metrics so they appear in getPopulatedFieldsAsMap
+    List<JobRequest__c> jobsToPopulate = [SELECT Id FROM JobRequest__c WHERE Name IN ('HighPriorityJob1', 'NormalPriorityJob1')];
+    for (JobRequest__c j : jobsToPopulate) {
+      j.WaitTime__c = 100;
+      j.ChunkRunTime__c = 200;
+      j.UnitRunTime__c = 200 / jobsToPopulate.size();
+      j.ProcessingTime__c = 300;
+    }
+    update jobsToPopulate;
 
     // Act
     Test.startTest();
@@ -223,7 +232,6 @@ private class JobSelectorImplTest {
     Assert.areEqual(0, result.size(), 'Should return empty list when no eligible jobs exist');
   }
 
-  // TODO Fix flaky test
   @IsTest
   static void givenValidJobs_whenGetJobs_thenReturnsAllRequiredFields() {
     // Arrange
@@ -239,8 +247,13 @@ private class JobSelectorImplTest {
       'Enabled__c',
       'Status__c',
       'NextExecutionDateTime__c',
+      //'WaitTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
+      //'ChunkRunTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
+      //'UnitRunTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
+      //'ProcessingTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       //'LastExecutionDateTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       //'LastExecutionMessage__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
+      //'LastSelectionDateTime__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       'AttemptNumber__c',
       'JobDescription__c',
       // Include all JobDescription fields

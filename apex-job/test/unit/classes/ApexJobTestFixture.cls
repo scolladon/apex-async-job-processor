@@ -374,6 +374,7 @@ public class ApexJobTestFixture {
         Status__c = ApexJobStatus.READY.name(),
         NextExecutionDateTime__c = System.now().addMinutes(-5),
         LastExecutionDateTime__c = null,
+        LastSelectionDateTime__c = null,
         AttemptNumber__c = 0
       );
     }
@@ -445,6 +446,11 @@ public class ApexJobTestFixture {
 
     public JobRequestBuilder withLastExecutionDateTime(final Datetime lastExecution) {
       this.record.LastExecutionDateTime__c = lastExecution;
+      return this;
+    }
+
+    public JobRequestBuilder withLastSelectionDateTime(final Datetime lastSelection) {
+      this.record.LastSelectionDateTime__c = lastSelection;
       return this;
     }
 

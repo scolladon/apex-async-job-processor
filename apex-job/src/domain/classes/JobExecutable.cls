@@ -2,6 +2,8 @@ public without sharing class JobExecutable {
   private final LimitService limitService;
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
+  private Datetime selectionTime;
+  private Datetime endTime;
 
   public JobExecutable(final List<JobRequest__c> jobRequests) {
     this(new ApexJobFactoryImpl().getLimitService(), jobRequests);
@@ -12,6 +14,7 @@ public without sharing class JobExecutable {
     this.limitService = limitService;
     this.jobDescription = jobRequests[0].JobDescription__r;
     this.jobRequests = jobRequests;
+    this.selectionTime = System.now();
   }
 
   public JobExecuted executeChunk() {
@@ -26,7 +29,8 @@ public without sharing class JobExecutable {
     } catch (final Exception ex) {
       apexJobResult = new ApexJobResult(ex);
     }
-    apexJobResult.setConsumedLimits(this.limitService.stopSnapshot());
+    apexJobResult.consumedLimits = this.limitService.stopSnapshot();
+    this.endTime = System.now();
 
     ApexJobTransactionContext.getInstance().markExecutedJobs();
     return new JobExecuted(this, apexJobResult);
@@ -52,5 +56,16 @@ public without sharing class JobExecutable {
   // TODO Part of the JobRequest__c domain
   private static Object getArgument(final JobRequest__c job) {
     return String.isNotBlank(job.Argument__c) ? JSON.deserializeUntyped(job.Argument__c) : null;
+  }
+
+  public Datetime getSelectionTime() {
+    return this.selectionTime;
+  }
+
+  public Datetime getEndTime() {
+    if (this.endTime == null) {
+      this.endTime = System.now();
+    }
+    return this.endTime;
   }
 }

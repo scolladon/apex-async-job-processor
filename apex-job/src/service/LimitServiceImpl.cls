@@ -8,19 +8,19 @@ public with sharing class LimitServiceImpl implements LimitService {
 
   private LimitsUsage startSnapshot;
   private LimitsUsage stopSnapshot;
-  private Long startSnapshotTimestamp;
+  private Datetime startSnapshotTimestamp;
 
   public void startSnapshot() {
     this.startSnapshot = this.getConsumedLimits();
-    this.startSnapshotTimestamp = System.now().getTime();
+    this.startSnapshotTimestamp = System.now();
   }
 
   public LimitsUsage stopSnapshot() {
-    final Long stopSnapshotTimestamp = System.now().getTime();
+    final Datetime stopSnapshotTimestamp = System.now();
     final LimitsUsage consumedUsage = this.getConsumedLimits();
     Integer calloutTimeConsumedInMs = 0;
     if (consumedUsage.callout > this.startSnapshot.callout) {
-      calloutTimeConsumedInMs = (Integer) (stopSnapshotTimestamp - this.startSnapshotTimestamp);
+      calloutTimeConsumedInMs = (Integer) (stopSnapshotTimestamp.getTime() - this.startSnapshotTimestamp.getTime());
       LimitServiceImpl.totalCalloutTimeConsumedInMs += calloutTimeConsumedInMs;
     }
 
