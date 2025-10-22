@@ -223,7 +223,6 @@ private class JobSelectorImplTest {
     Assert.areEqual(0, result.size(), 'Should return empty list when no eligible jobs exist');
   }
 
-  // TODO Fix flaky test
   @IsTest
   static void givenValidJobs_whenGetJobs_thenReturnsAllRequiredFields() {
     // Arrange
