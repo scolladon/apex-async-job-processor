@@ -75,8 +75,10 @@ public without sharing class JobRepositoryImpl implements JobRepository {
       executedJob.stageExecution();
       for (Integer j = 0; j < executedJobRequestsSize; ++j) {
         final JobRequest__c job = executedJobRequests[j];
-        final List<JobRequest__c> dmlOperationHolder = JobRepositoryImpl.shouldDeleteJobRequest(job) ? jobsToDelete : jobsToUpdate;
-        dmlOperationHolder.add(job);
+        jobsToUpdate.add(job); // add it to update the metrics, even if they should be deleted
+        if (JobRepositoryImpl.shouldDeleteJobRequest(job)) {
+          jobsToDelete.add(job);
+        }
       }
       recordsToUpdate.add(executedJob.jobDescription);
     }
