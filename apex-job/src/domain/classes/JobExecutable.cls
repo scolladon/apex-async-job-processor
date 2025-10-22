@@ -26,7 +26,7 @@ public without sharing class JobExecutable {
     } catch (final Exception ex) {
       apexJobResult = new ApexJobResult(ex);
     }
-    apexJobResult.setConsumedLimits(this.limitService.stopSnapshot());
+    apexJobResult.consumedLimits = this.limitService.stopSnapshot();
 
     ApexJobTransactionContext.getInstance().markExecutedJobs();
     return new JobExecuted(this, apexJobResult);

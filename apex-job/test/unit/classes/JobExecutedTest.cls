@@ -24,7 +24,7 @@ private class JobExecutedTest {
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
-    jobResult.setConsumedLimits(consumedLimits);
+    jobResult.consumedLimits = consumedLimits;
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
@@ -162,7 +162,7 @@ private class JobExecutedTest {
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest1, jobRequest2, jobRequest3 };
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
-    jobResult.setConsumedLimits(consumedLimits);
+    jobResult.consumedLimits = consumedLimits;
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act
@@ -231,7 +231,7 @@ private class JobExecutedTest {
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
     final JobExecutable jobExecutable = new JobExecutable(jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
-    jobResult.setConsumedLimits(consumedLimits);
+    jobResult.consumedLimits = consumedLimits;
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
     // Act

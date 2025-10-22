@@ -1,7 +1,7 @@
 public without sharing class ApexJobResult {
   public final ApexJobStatus status { get; private set; }
   public final ApexJobError error { get; private set; }
-  public LimitsUsage consumedLimits { get; private set; }
+  public LimitsUsage consumedLimits { get; set; }
 
   public ApexJobResult(final ApexJobStatus status) {
     this(status, null);
@@ -14,10 +14,6 @@ public without sharing class ApexJobResult {
 
   public ApexJobResult(final Exception ex) {
     this(ApexJobStatus.FAILURE, new ApexJobResult.ApexJobError(ex));
-  }
-
-  public void setConsumedLimits(final LimitsUsage consumedLimits) {
-    this.consumedLimits = consumedLimits;
   }
 
   public class ApexJobError {

@@ -106,7 +106,7 @@ private class JobRepositoryImplTest {
       .withSoslQueries(1)
       .withFutureCalls(1)
       .build();
-    mockResult.setConsumedLimits(limitsUsage);
+    mockResult.consumedLimits = limitsUsage;
     for (Integer i = 0; i < 11; i++) {
       testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
@@ -160,7 +160,7 @@ private class JobRepositoryImplTest {
       .withSoslQueries(1)
       .withFutureCalls(1)
       .build();
-    mockResult.setConsumedLimits(limitsUsage);
+    mockResult.consumedLimits = limitsUsage;
     for (Integer i = 0; i < 11; i++) {
       testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
@@ -241,7 +241,7 @@ private class JobRepositoryImplTest {
         .withSoslQueries(1)
         .withFutureCalls(1)
         .build();
-      mockResult.setConsumedLimits(successLimits);
+      mockResult.consumedLimits = successLimits;
       testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
 
