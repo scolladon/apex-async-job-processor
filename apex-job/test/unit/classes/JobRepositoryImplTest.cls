@@ -71,7 +71,7 @@ private class JobRepositoryImplTest {
   }
 
   @isTest
-  static void givenRecordJobExecution_whenCalledWithSuccess_thenDeleteRequestAndUpdateDescription() {
+  static void givenRecordJobExecution_whenCalledWithSuccess_thenUpdateAndDeleteRequestAndUpdateDescription() {
     // Arrange
     // Create test data in database
     final List<JobDescription__c> testJobDescs = new List<JobDescription__c>();
@@ -116,12 +116,16 @@ private class JobRepositoryImplTest {
 
     // Act
     Test.startTest();
+    final Integer dmlBefore = Limits.getDmlRows();
     sut.recordJobExecution(testJobsExecuted);
+    final Integer dmlAfter = Limits.getDmlRows();
     Test.stopTest();
 
     // Assert
     Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c], 'All JobRequest should have been deleted');
     Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c], 'Should have 11 JobDescription updated');
+    // 11 updates (JobRequests for metrics) + 11 deletes (JobRequests) + 11 updates (JobDescriptions)
+    Assert.areEqual(33, dmlAfter - dmlBefore, 'Should update all requests for metrics, delete them, and update descriptions');
   }
 
   @isTest
@@ -170,12 +174,16 @@ private class JobRepositoryImplTest {
 
     // Act
     Test.startTest();
+    final Integer dmlBefore = Limits.getDmlRows();
     sut.recordJobExecution(testJobsExecuted);
+    final Integer dmlAfter = Limits.getDmlRows();
     Test.stopTest();
 
     // Assert
     Assert.areEqual(11, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.FAILURE.name()], 'All JobRequest should have been updated');
     Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c], 'All JobDescription should have been updated');
+    // 11 updates (JobRequests) + 11 updates (JobDescriptions)
+    Assert.areEqual(22, dmlAfter - dmlBefore, 'Should update all requests and descriptions');
   }
 
   @isTest
@@ -250,13 +258,17 @@ private class JobRepositoryImplTest {
 
     // Act
     Test.startTest();
+    final Integer dmlBefore = Limits.getDmlRows();
     sut.recordJobExecution(testJobsExecuted);
+    final Integer dmlAfter = Limits.getDmlRows();
     Test.stopTest();
 
     // Assert
     Assert.areEqual(5, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.FAILURE.name()], '5 JobRequest should have been updated');
     Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.SUCCESS.name()], '6 JobRequest should have been deleted');
     Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c], 'All JobDescription should have been updated');
+    // 11 updates (JobRequests) + 6 deletes (successful JobRequests) + 11 updates (JobDescriptions) = 28
+    Assert.areEqual(28, dmlAfter - dmlBefore, 'Should update all requests for metrics, delete successes, and update descriptions');
   }
 
   @isTest

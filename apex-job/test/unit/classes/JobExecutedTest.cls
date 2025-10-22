@@ -35,7 +35,17 @@ private class JobExecutedTest {
     Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number should be incremented');
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be null for success');
+    Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'Last selection datetime should be set');
+    Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
     Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'Last execution message should be empty for success');
+    Assert.isTrue(jobRequest.WaitTime__c >= 0, 'Wait time should be >= 0');
+    Assert.areEqual(
+      (Decimal) (jobRequest.LastExecutionDateTime__c.getTime() - jobRequest.LastSelectionDateTime__c.getTime()),
+      jobRequest.ChunkRunTime__c,
+      'Run time should equal end - selection in ms'
+    );
+    Assert.isTrue(jobRequest.ProcessingTime__c >= jobRequest.ChunkRunTime__c, 'Processing time should be >= run time');
+    Assert.isTrue(jobRequest.ChunkRunTime__c >= jobRequest.UnitRunTime__c, 'Chunk run time should be >= unit run time');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
     Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalledTimes(1);
   }
@@ -66,7 +76,17 @@ private class JobExecutedTest {
     Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number should be incremented');
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNotNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be set for retry');
+    Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'Last selection datetime should be set');
+    Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Test failure'), 'Last execution message should contain error');
+    Assert.isTrue(jobRequest.WaitTime__c >= 0, 'Wait time should be >= 0');
+    Assert.areEqual(
+      (Decimal) (jobRequest.LastExecutionDateTime__c.getTime() - jobRequest.LastSelectionDateTime__c.getTime()),
+      jobRequest.ChunkRunTime__c,
+      'Run time should equal end - selection in ms'
+    );
+    Assert.isTrue(jobRequest.ProcessingTime__c >= jobRequest.ChunkRunTime__c, 'Processing time should be >= run time');
+    Assert.isTrue(jobRequest.ChunkRunTime__c >= jobRequest.UnitRunTime__c, 'Chunk run time should be >= unit run time');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
     Expect.that(mocks.adjustFromFailureSpy).hasBeenCalled();
   }
@@ -97,7 +117,17 @@ private class JobExecutedTest {
     Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number should be incremented');
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNotNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be set for retry');
+    Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'Last selection datetime should be set');
+    Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Test killed'), 'Last execution message should contain error');
+    Assert.isTrue(jobRequest.WaitTime__c >= 0, 'Wait time should be >= 0');
+    Assert.areEqual(
+      (Decimal) (jobRequest.LastExecutionDateTime__c.getTime() - jobRequest.LastSelectionDateTime__c.getTime()),
+      jobRequest.ChunkRunTime__c,
+      'Run time should equal end - selection in ms'
+    );
+    Assert.isTrue(jobRequest.ProcessingTime__c >= jobRequest.ChunkRunTime__c, 'Processing time should be >= run time');
+    Assert.isTrue(jobRequest.ChunkRunTime__c >= jobRequest.UnitRunTime__c, 'Chunk run time should be >= unit run time');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
     Expect.that(mocks.adjustFromKillSpy).hasBeenCalled();
   }
@@ -128,8 +158,18 @@ private class JobExecutedTest {
     Assert.areEqual(2, jobRequest.AttemptNumber__c, 'Attempt number should be at max');
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution datetime should be set');
     Assert.isNull(jobRequest.NextExecutionDateTime__c, 'Next execution datetime should be null for abort');
+    Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'Last selection datetime should be set');
+    Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Max execution attempt reached'), 'Should contain max attempt message');
     Assert.isTrue(jobRequest.LastExecutionMessage__c.contains('Test failure'), 'Should contain error message');
+    Assert.isTrue(jobRequest.WaitTime__c >= 0, 'Wait time should be >= 0');
+    Assert.areEqual(
+      (Decimal) (jobRequest.LastExecutionDateTime__c.getTime() - jobRequest.LastSelectionDateTime__c.getTime()),
+      jobRequest.ChunkRunTime__c,
+      'Run time should equal end - selection in ms'
+    );
+    Assert.isTrue(jobRequest.ProcessingTime__c >= jobRequest.ChunkRunTime__c, 'Processing time should be >= run time');
+    Assert.isTrue(jobRequest.ChunkRunTime__c >= jobRequest.UnitRunTime__c, 'Chunk run time should be >= unit run time');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
     Expect.that(mocks.adjustFromFailureSpy).hasBeenCalled();
   }
@@ -174,6 +214,16 @@ private class JobExecutedTest {
       Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'All job requests should have last execution datetime');
       Assert.isNull(jobRequest.NextExecutionDateTime__c, 'All job requests should have null next execution datetime');
       Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'All job requests should have empty message');
+      Assert.isTrue(jobRequest.WaitTime__c >= 0, 'Wait time should be >= 0');
+      Assert.areEqual(
+        (Decimal) (jobRequest.LastExecutionDateTime__c.getTime() - jobRequest.LastSelectionDateTime__c.getTime()),
+        jobRequest.ChunkRunTime__c,
+        'Run time should equal end - selection in ms'
+      );
+      Assert.isTrue(jobRequest.ProcessingTime__c >= jobRequest.ChunkRunTime__c, 'Processing time should be >= run time');
+      Assert.isTrue(jobRequest.ChunkRunTime__c >= jobRequest.UnitRunTime__c, 'Chunk run time should be >= unit run time');
+      Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'All job requests should have last selection datetime');
+      Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
     }
     Assert.areEqual(1, jobRequests[0].AttemptNumber__c, 'First job request attempt should be 1');
     Assert.areEqual(2, jobRequests[1].AttemptNumber__c, 'Second job request attempt should be 2');
@@ -242,6 +292,9 @@ private class JobExecutedTest {
     Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number should be incremented');
     Assert.isNotNull(jobRequest.LastExecutionDateTime__c, 'Last execution date time should be set');
     Assert.isNotNull(jobRequest.NextExecutionDateTime__c, 'Next execution date time should be set');
+    Assert.isNotNull(jobRequest.LastSelectionDateTime__c, 'Last selection datetime should be set');
+    Assert.isTrue(jobRequest.LastSelectionDateTime__c.getTime() <= jobRequest.LastExecutionDateTime__c.getTime(), 'Selection should be <= end');
+    Assert.areEqual(jobRequest.LastExecutionDateTime__c.addMinutes((Integer) jobDescription.MinJobInterval__c), jobRequest.NextExecutionDateTime__c, 'Next should be end + interval');
     Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'Last execution message should be empty for success');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
     Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalled();

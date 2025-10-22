@@ -132,7 +132,11 @@ private class AsyncApexJobExecutorTest {
     final ApexJobTestMock mocks = new ApexJobTestMock();
     mocks.isSystemEnabledSpy.returns(true);
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
-    sut.lastExecutableJob = (JobExecutable) Mock.forType(JobExecutable.class).stub;
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('KilledPathJob').withProcessorName('AsyncApexJobExecutorTest.KilledPathJob').withMinJobInterval(3).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Req').withAttemptNumber(0).build();
+    jobRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobs = new List<JobRequest__c>{ jobRequest };
+    sut.lastExecutableJob = new JobExecutable(jobs);
 
     // Act
     sut.execute(new KilledFinalizerContext());
@@ -142,6 +146,18 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.errorSpy).hasNotBeenCalled();
     Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
+
+    // Validate timestamps propagated when staging
+    final List<Object> args = mocks.recordJobExecutionSpy.callLog.get(0);
+    final List<JobExecuted> recorded = (List<JobExecuted>) args.get(0);
+    Assert.areEqual(1, recorded.size(), 'One job executed should be recorded');
+    final JobExecuted captured = recorded[0];
+    captured.stageExecution();
+    final JobRequest__c staged = jobs[0];
+    Assert.isNotNull(staged.LastSelectionDateTime__c, 'Selection time should be set from executable');
+    Assert.isNotNull(staged.LastExecutionDateTime__c, 'End time should fallback to now in killed path');
+    Assert.isTrue(staged.LastSelectionDateTime__c.getTime() <= staged.LastExecutionDateTime__c.getTime(), 'Selection <= End');
+    Assert.areEqual(staged.LastExecutionDateTime__c.addMinutes(3), staged.NextExecutionDateTime__c, 'Next try from end + interval');
   }
   @isTest
   static void givenQueueableContext_whenExecuteWithSystemDisabled_thenNoExecution() {
