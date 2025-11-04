@@ -7,7 +7,7 @@ public without sharing class ApexJobConfigServiceImpl implements ApexJobConfigSe
   private static ApexJobConfig__c configInstance {
     get {
       if (configInstance == null) {
-        configInstance = ApexJobConfig__c.getInstance();
+        configInstance = ApexJobConfig__c.getOrgDefaults();
       }
       return configInstance;
     }

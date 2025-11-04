@@ -1,0 +1,13 @@
+<template>
+  <lightning-card title="Candidats" style="height: 1920px; overflow: auto;">
+    <lightning-datatable 
+      key-field="Id"
+      data={rows}
+      columns={columns}
+      enable-infinite-loading
+      is-loading={isLoading}
+      load-more-offset={pageSize}
+      onloadmore={handleLoadMore}>
+    </lightning-datatable>
+  </lightning-card>
+</template>

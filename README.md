@@ -11,6 +11,7 @@
  - [Developer API: Request and Job](#developer-api-request-and-job)
  - [Implementing ApexJob](#implementing-apexjob)
  - [Exploitation and monitoring](#exploitation-and-monitoring)
+ - [Monitoring console](#monitoring-console)
  - [Configuration](#configuration)
  - [Queueable runtime](#queueable-runtime)
  - [Algorithms](#algorithms)
@@ -191,11 +192,34 @@
 
  ## Exploitation and monitoring
 
- File: [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls)
+File: [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls)
 
- - `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
- - Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
- - Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`.
+- `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
+- Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
+- Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`.
+
+## Monitoring console
+
+UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
+
+- **Access**
+  - App Launcher → Async Job Monitor → Job Monitor Console.
+  - Deploys with metadata: `applications/Async_Job_Monitor.app-meta.xml` and `flexipages/Job_Monitor_Console.flexipage-meta.xml`.
+
+- **Permission required for controls**
+  - Custom Permission: `Manage_Async_Job_Engine` (Included in the `AdminAsyncJob` permission set).
+  - Without it, nothing displays.
+
+- **Controls** (calls `JobMonitorController`)
+  - Pause engine → sets `ApexJobConfig__c.Enabled__c = false`.
+  - Resume engine → sets `ApexJobConfig__c.Enabled__c = true`.
+  - Restart executor → enqueues a new `AsyncApexJobExecutor` now.
+  - Guard rails: live counts from `AsyncApexJob` for executors and the scheduled watcher.
+
+- **Tables and status**
+  - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution.
+  - Requests: live candidate queue ordered by priority, chunk size, callout base, and dates.
+  - Engine state: enabled flag, active executors, recovery scheduler alive.
 
  ## Configuration
 

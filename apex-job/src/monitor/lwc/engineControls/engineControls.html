@@ -1,0 +1,21 @@
+<template>
+  <lightning-card title="Engine Controls">
+    <div class="slds-p-around_medium slds-grid slds-wrap slds-gutters">
+      <template lwc:if={canManage}>
+        <div class="slds-col slds-large-size_2-of-3 slds-size_1-of-1">
+          <lightning-input type="toggle" label="Engine status" message-toggle-active="" message-toggle-inactive="" checked={engineEnabled} onchange={handleToggle}></lightning-input>
+          <p>Recovery Schedulable job status: <b>{recoveryBatchStatus}</b></p>
+          <p>There are <b>{executorCount}</b> instance of the executor running.</p>
+        </div>
+        <div class="slds-col slds-large-size_1-of-3 slds-size_1-of-1">
+          <lightning-button variant="brand" label="Restart" onclick={handleRestart} class="slds-m-right_small" disabled={loading}></lightning-button>
+        </div>
+      </template>
+      <template lwc:else>
+        <div class="slds-col slds-size_1-of-1">
+          <div class="slds-text-color_error">You do not have permission to manage the engine.</div>
+        </div>
+      </template>
+    </div>
+  </lightning-card>
+</template>
