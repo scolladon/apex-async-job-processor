@@ -190,13 +190,14 @@
  - Results are recorded and the engine re-enqueues promptly.
  - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptativeConsumptionLearner`).
 
- ## Exploitation and monitoring
+ ## Exploitation
 
 File: [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls)
 
 - `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
 - Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
 - Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`.
+- Bypass `JobRequest__c` after insert trigger via the `Bypass_JobRequest_Trigger` custom permission.
 
 ## Monitoring console
 

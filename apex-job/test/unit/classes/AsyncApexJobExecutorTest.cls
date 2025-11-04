@@ -31,8 +31,7 @@ private class AsyncApexJobExecutorTest {
 
     // Assert
     Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(Argument.ofType(AsyncApexJobExecutor.class), 0);
-    Assert.areNotEqual(sut, mocks.enqueueSpy.callLog.get(0).get(0)); // Ensure it reenqueues a new instance each time
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
     Expect.that(mocks.recordJobExecutionSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.errorSpy).hasNotBeenCalled();
@@ -52,7 +51,7 @@ private class AsyncApexJobExecutorTest {
     // Assert
     Expect.that(mocks.getEnqueueDelayInMinutesSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(Argument.ofType(AsyncApexJobExecutor.class), 10);
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(10);
     Expect.that(mocks.recordJobExecutionSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.errorSpy).hasNotBeenCalled();
@@ -167,7 +166,7 @@ private class AsyncApexJobExecutorTest {
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
 
     // Act
-    sut.execute((QueueableContext) null);
+    sut.execute(new QueueableContextStub());
 
     // Assert
     Expect.that(mocks.attachSpy).hasBeenCalledTimes(1);
@@ -185,7 +184,7 @@ private class AsyncApexJobExecutorTest {
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
 
     // Act
-    sut.execute((QueueableContext) null);
+    sut.execute(new QueueableContextStub());
 
     // Assert
     Expect.that(mocks.attachSpy).hasBeenCalledTimes(1);
@@ -215,7 +214,7 @@ private class AsyncApexJobExecutorTest {
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
 
     // Act
-    sut.execute((QueueableContext) null);
+    sut.execute(new QueueableContextStub());
 
     // Assert
     Expect.that(mocks.attachSpy).hasBeenCalledTimes(1);
@@ -244,7 +243,7 @@ private class AsyncApexJobExecutorTest {
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
 
     // Act
-    sut.execute((QueueableContext) null);
+    sut.execute(new QueueableContextStub());
 
     // Assert
     Expect.that(mocks.attachSpy).hasBeenCalledTimes(1);
@@ -256,5 +255,11 @@ private class AsyncApexJobExecutorTest {
   }
 
   private class TestException extends Exception {
+  }
+
+  private class QueueableContextStub implements QueueableContext {
+    public Id getJobId() {
+      return TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType);
+    }
   }
 }

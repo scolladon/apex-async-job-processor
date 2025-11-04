@@ -3,6 +3,7 @@ public interface ApexJobFactory {
   JobSelector getSelector();
   JobRepository getRepository();
   JobExecutorSpawner getSpawner();
+  JobExecutorService getExecutorService();
   JobExecutorFinalizerAttacher getFinalizerAttacher();
   ApexJobConfigService getConfigService();
   LimitService getLimitService();

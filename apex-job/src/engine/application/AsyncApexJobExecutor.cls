@@ -22,7 +22,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     final JobExecutorFinalizerAttacher finalizerAttacher = this.factory.getFinalizerAttacher();
     finalizerAttacher.attach(this);
 
-    if (this.configService.isSystemEnabled() != true) {
+    if (this.cannotRun(ctx.getJobId())) {
       return;
     }
 
@@ -73,7 +73,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
         return;
       }
       Integer delayInMinutes = this.getDelayInMinutes();
-      this.factory.getSpawner().enqueue(new AsyncApexJobExecutor(), delayInMinutes);
+      this.factory.getSpawner().enqueue(delayInMinutes);
       this.logger.debug('Enqueued AsyncApexJobExecutor.execute() again in ' + delayInMinutes + ' minutes');
     } catch (Exception e) {
       this.logger.debug('AsyncJob: Error while enqueuing AsyncApexJobExecutor, engine killed');
@@ -91,5 +91,9 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       return this.configService.getEnqueueDelayInMinutes();
     }
     return 0;
+  }
+
+  private Boolean cannotRun(final Id jobExecutorToExclude) {
+    return this.configService.isSystemEnabled() == false || this.factory.getExecutorService().isRunning(jobExecutorToExclude) == true;
   }
 }

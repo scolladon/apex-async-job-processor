@@ -3,6 +3,7 @@ public virtual class ApexJobFactoryImpl implements ApexJobFactory {
   private static JobSelector selectorInstance;
   private static JobRepository repositoryInstance;
   private static JobExecutorSpawner spawnerInstance;
+  private static JobExecutorService executorServiceInstance;
   private static JobExecutorFinalizerAttacher finalizerAttacherInstance;
   private static ApexJobConfigService configServiceInstance;
   private static LimitService limitServiceInstance;
@@ -34,6 +35,13 @@ public virtual class ApexJobFactoryImpl implements ApexJobFactory {
       ApexJobFactoryImpl.spawnerInstance = new JobExecutorQueueableSpawner();
     }
     return ApexJobFactoryImpl.spawnerInstance;
+  }
+
+  public JobExecutorService getExecutorService() {
+    if (ApexJobFactoryImpl.executorServiceInstance == null) {
+      ApexJobFactoryImpl.executorServiceInstance = new JobExecutorServiceImpl();
+    }
+    return ApexJobFactoryImpl.executorServiceInstance;
   }
 
   public JobExecutorFinalizerAttacher getFinalizerAttacher() {

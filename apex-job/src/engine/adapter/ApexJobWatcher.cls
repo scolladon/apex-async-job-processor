@@ -21,14 +21,8 @@ public without sharing class ApexJobWatcher implements Schedulable {
   }
 
   private void watchAndWakeup() {
-    final ApexJobConfigService configService = this.factory.getConfigService();
-    if (configService.isSystemEnabled() != true) {
-      return;
-    }
-
-    final Integer delay = configService.getEnqueueDelayInMinutes();
     final JobExecutorSpawner asyncJobQueueableSpawner = this.factory.getSpawner();
-    asyncJobQueueableSpawner.enqueue(new AsyncApexJobExecutor(), delay);
+    asyncJobQueueableSpawner.enqueue();
   }
 
   public static void schedule() {

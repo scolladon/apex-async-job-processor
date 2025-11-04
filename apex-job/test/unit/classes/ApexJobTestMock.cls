@@ -7,6 +7,7 @@ public class ApexJobTestMock {
   public JobSelector selectorStub { get; private set; }
   public JobRepository repositoryStub { get; private set; }
   public JobExecutorSpawner spawnerStub { get; private set; }
+  public JobExecutorService executorServiceStub { get; private set; }
   public JobExecutorFinalizerAttacher finalizerAttacherStub { get; private set; }
   public ApexJobConfigService configServiceStub { get; private set; }
   public LimitService limitServiceStub { get; private set; }
@@ -36,6 +37,7 @@ public class ApexJobTestMock {
   public MethodSpy adjustFromSuccessSpy { get; private set; }
   public MethodSpy adjustFromFailureSpy { get; private set; }
   public MethodSpy adjustFromKillSpy { get; private set; }
+  public MethodSpy isRunningSpy { get; private set; }
 
   @SuppressWarnings('PMD.NcssConstructorCount')
   public ApexJobTestMock() {
@@ -45,6 +47,7 @@ public class ApexJobTestMock {
     Mock selectorMock = Mock.forType(JobSelector.class);
     Mock repositoryMock = Mock.forType(JobRepository.class);
     Mock spawnerMock = Mock.forType(JobExecutorSpawner.class);
+    Mock executorServiceMock = Mock.forType(JobExecutorService.class);
     Mock finalizerAttacherMock = Mock.forType(JobExecutorFinalizerAttacher.class);
     Mock configServiceMock = Mock.forType(ApexJobConfigService.class);
     Mock limitServiceMock = Mock.forType(LimitService.class);
@@ -57,6 +60,7 @@ public class ApexJobTestMock {
     this.selectorStub = (JobSelector) selectorMock.stub;
     this.repositoryStub = (JobRepository) repositoryMock.stub;
     this.spawnerStub = (JobExecutorSpawner) spawnerMock.stub;
+    this.executorServiceStub = (JobExecutorService) executorServiceMock.stub;
     this.finalizerAttacherStub = (JobExecutorFinalizerAttacher) finalizerAttacherMock.stub;
     this.configServiceStub = (ApexJobConfigService) configServiceMock.stub;
     this.limitServiceStub = (LimitService) limitServiceMock.stub;
@@ -68,6 +72,7 @@ public class ApexJobTestMock {
     factoryMock.spyOn('getSelector').returns(this.selectorStub);
     factoryMock.spyOn('getRepository').returns(this.repositoryStub);
     factoryMock.spyOn('getSpawner').returns(this.spawnerStub);
+    factoryMock.spyOn('getExecutorService').returns(this.executorServiceStub);
     factoryMock.spyOn('getFinalizerAttacher').returns(this.finalizerAttacherStub);
     factoryMock.spyOn('getConfigService').returns(this.configServiceStub);
     factoryMock.spyOn('getLimitService').returns(this.limitServiceStub);
@@ -87,6 +92,9 @@ public class ApexJobTestMock {
 
     // Spawner Spies
     this.enqueueSpy = spawnerMock.spyOn('enqueue');
+
+    // Executor Spies
+    this.isRunningSpy = executorServiceMock.spyOn('isRunning');
 
     // Finalizer Spies
     this.attachSpy = finalizerAttacherMock.spyOn('attach');

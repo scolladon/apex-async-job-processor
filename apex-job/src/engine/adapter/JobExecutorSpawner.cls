@@ -1,3 +1,4 @@
 public interface JobExecutorSpawner {
-  Id enqueue(AsyncApexJobExecutor executor, Integer delayInMinutes);
+  Id enqueue(Integer delayInMinutes);
+  Id enqueue();
 }

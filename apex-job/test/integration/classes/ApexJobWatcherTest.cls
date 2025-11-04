@@ -1,43 +1,10 @@
 @IsTest
 private class ApexJobWatcherTest {
   @IsTest
-  static void givenSystemEnabled_whenExecute_thenEnqueuesJobWithConfiguredDelay() {
+  static void givenSystemDisabled_whenExecute_thenCallsEnqueue() {
     // Arrange
-    final Mock factoryMock = Mock.forType(ApexJobFactory.class);
-    final Mock configMock = Mock.forType(ApexJobConfigService.class);
-    final Mock spawnerMock = Mock.forType(JobExecutorSpawner.class);
-
-    final Integer delayInMinutes = 5;
-
-    factoryMock.spyOn('getConfigService').returns(configMock.stub);
-    factoryMock.spyOn('getSpawner').returns(spawnerMock.stub);
-    configMock.spyOn('isSystemEnabled').returns(true);
-    configMock.spyOn('getEnqueueDelayInMinutes').returns(delayInMinutes);
-    MethodSpy enqueueSpy = spawnerMock.spyOn('enqueue');
-
-    final ApexJobWatcher sut = new ApexJobWatcher((ApexJobFactory) factoryMock.stub);
-
-    // Act
-    sut.execute(null);
-
-    // Assert
-    Expect.that(enqueueSpy).hasBeenCalled();
-    Expect.that(configMock.spyOn('getEnqueueDelayInMinutes')).hasBeenCalled();
-  }
-
-  @IsTest
-  static void givenSystemDisabled_whenExecute_thenDoesNotEnqueue() {
-    // Arrange
-    final Mock factoryMock = Mock.forType(ApexJobFactory.class);
-    final Mock configMock = Mock.forType(ApexJobConfigService.class);
-    final Mock spawnerMock = Mock.forType(JobExecutorSpawner.class);
-
-    factoryMock.spyOn('getConfigService').returns(configMock.stub);
-    factoryMock.spyOn('getSpawner').returns(spawnerMock.stub);
-    configMock.spyOn('isSystemEnabled').returns(false);
-    MethodSpy enqueueSpy = spawnerMock.spyOn('enqueue');
-
-    final ApexJobWatcher sut = new ApexJobWatcher((ApexJobFactory) factoryMock.stub);
+    ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobWatcher sut = new ApexJobWatcher(mocks.factoryStub);
 
     // Act
     Test.startTest();
@@ -45,7 +12,7 @@ private class ApexJobWatcherTest {
     Test.stopTest();
 
     // Assert
-    Expect.that(enqueueSpy).hasNotBeenCalled();
+    Expect.that(mocks.enqueueSpy).hasBeenCalled();
   }
 
   @IsTest

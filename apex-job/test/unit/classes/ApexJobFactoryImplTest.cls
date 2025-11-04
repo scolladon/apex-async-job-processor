@@ -109,6 +109,33 @@ private class ApexJobFactoryImplTest {
   }
 
   @isTest
+  static void givenFactoryImpl_whenGetExecutorService_thenReturnsJobExecutorServiceImpl() {
+    // Arrange
+    ApexJobFactory sut = new ApexJobFactoryImpl();
+
+    // Act
+    JobExecutorService result = sut.getExecutorService();
+
+    // Assert
+    Assert.isNotNull(result, 'ExecutorService should not be null');
+    Assert.isInstanceOfType(result, JobExecutorServiceImpl.class, 'ExecutorService should be of type JobExecutorServiceImpl');
+  }
+
+  @isTest
+  static void givenFactoryImpl_whenGetExecutorServiceCalledTwice_thenReturnsSameInstance() {
+    // Arrange
+    ApexJobFactory sut = new ApexJobFactoryImpl();
+    ApexJobFactory sut2 = new ApexJobFactoryImpl();
+
+    // Act
+    JobExecutorService result1 = sut.getExecutorService();
+    JobExecutorService result2 = sut2.getExecutorService();
+
+    // Assert
+    Assert.areEqual(result1, result2, 'ExecutorService should return the same singleton instance');
+  }
+
+  @isTest
   static void givenFactoryImpl_whenGetConfigService_thenReturnsApexJobConfigServiceImpl() {
     // Arrange
     ApexJobFactory sut = new ApexJobFactoryImpl();
