@@ -37,7 +37,7 @@
 	},
 	"wireit": {
 		"build": {
-			"command": "sf project deploy start -d apex-job",
+			"command": "sf project deploy start -a 65.0 -d apex-job",
 			"files": [
 				"apex-job/**/*"
 			],
