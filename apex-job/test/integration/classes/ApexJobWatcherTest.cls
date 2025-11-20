@@ -17,18 +17,14 @@ private class ApexJobWatcherTest {
 
   @IsTest
   static void givenSchedule_whenNoExistingJobs_thenSchedulesTwelveJobs() {
-    // Arrange
-
     // Act
-    Test.startTest();
     ApexJobWatcher.schedule();
-    Test.stopTest();
 
     // Assert
     final Integer jobsNumber = [
       SELECT COUNT()
-      FROM AsyncApexJob
-      WHERE JobType = 'ScheduledApex' AND ApexClass.Name = :ApexJobWatcher.class.getName()
+      FROM CronTrigger
+      WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
     ];
     Assert.areEqual(12, jobsNumber, 'Exactly 12 scheduled jobs must be created');
   }
@@ -46,8 +42,8 @@ private class ApexJobWatcherTest {
     // Assert
     final Integer jobsNumber = [
       SELECT COUNT()
-      FROM AsyncApexJob
-      WHERE JobType = 'ScheduledApex' AND ApexClass.Name = :ApexJobWatcher.class.getName()
+      FROM CronTrigger
+      WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
     ];
     Assert.areEqual(12, jobsNumber, 'Scheduling twice must not create duplicates');
   }
