@@ -1,8 +1,5 @@
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class JobExecutorQueueableSpawner implements JobExecutorSpawner {
-  private static final String[] ALIVE_QUEUEABLE_STATUS = new List<String>{ 'Processing', 'Queued', 'Preparing' };
-  private static final String QUEUEABLE_JOB_TYPE = 'Queueable';
-
   private ApexJobLogger logger;
   private ApexJobFactory factory;
 

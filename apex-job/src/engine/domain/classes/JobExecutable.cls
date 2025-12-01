@@ -1,9 +1,9 @@
 public without sharing class JobExecutable {
   private final LimitService limitService;
-  public final JobDescription__c jobDescription { get; private set; }
-  public final List<JobRequest__c> jobRequests { get; private set; }
   private Datetime selectionTime;
   private Datetime endTime;
+  public final JobDescription__c jobDescription { get; private set; }
+  public final List<JobRequest__c> jobRequests { get; private set; }
 
   public JobExecutable(final List<JobRequest__c> jobRequests) {
     this(new ApexJobFactoryImpl().getLimitService(), jobRequests);

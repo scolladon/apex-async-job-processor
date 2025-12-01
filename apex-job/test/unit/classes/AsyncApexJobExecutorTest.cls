@@ -1,6 +1,6 @@
-@isTest
+@IsTest
 private class AsyncApexJobExecutorTest {
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenExecuteWithSystemDisabled_thenExecuteDoNotReenqueue() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -17,7 +17,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.errorSpy).hasNotBeenCalled();
   }
 
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenExecuteWithRemainingJobs_thenExecuteAndReenqueueWith0Delay() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -37,7 +37,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.errorSpy).hasNotBeenCalled();
   }
 
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenExecuteWithoutRemainingJobs_thenExecuteAndReenqueueWithDelay() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -57,7 +57,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.errorSpy).hasNotBeenCalled();
   }
 
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenNotPossibleToReenqueue_thenItLogsAndStopTheQueue() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -75,7 +75,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.errorSpy).hasBeenCalled();
   }
 
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenEnabledAndRecordExecutionThrows_thenItReenqueue() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -93,7 +93,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
   }
 
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenSystemIsDisabledThrows_thenItCallsLoggerError() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -125,7 +125,7 @@ private class AsyncApexJobExecutorTest {
     }
   }
 
-  @isTest
+  @IsTest
   static void givenFinalizerContext_whenExceptionOccurs_thenItRecordsJobExecutionAndReenqueue() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -158,7 +158,7 @@ private class AsyncApexJobExecutorTest {
     Assert.isTrue(staged.LastSelectionDateTime__c.getTime() <= staged.LastExecutionDateTime__c.getTime(), 'Selection <= End');
     Assert.areEqual(staged.LastExecutionDateTime__c.addMinutes(3), staged.NextExecutionDateTime__c, 'Next try from end + interval');
   }
-  @isTest
+  @IsTest
   static void givenQueueableContext_whenExecuteWithSystemDisabled_thenNoExecution() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -175,7 +175,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.enqueueSpy).hasNotBeenCalled();
   }
 
-  @isTest
+  @IsTest
   static void givenQueueableContext_whenNoJobToExecute_thenNoExecution() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -194,7 +194,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.getJobCandidatesSpy).hasBeenCalledTimes(1);
   }
 
-  @isTest
+  @IsTest
   static void givenQueueableContext_whenJobCandidatesPrepareChunkSuccessfully_thenExecution() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -224,7 +224,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.enqueueSpy).hasNotBeenCalled();
   }
 
-  @isTest
+  @IsTest
   static void givenQueueableContext_whenJobCandidatesPrepareChunkFails_thenNoExecution() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();

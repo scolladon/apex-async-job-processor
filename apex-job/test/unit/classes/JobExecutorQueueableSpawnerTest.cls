@@ -119,7 +119,7 @@ private class JobExecutorQueueableSpawnerTest {
     JobExecutorQueueableSpawner sut = new JobExecutorQueueableSpawner(mocks.factoryStub);
 
     // Act
-    Id jobId = sut.enqueue();
+    sut.enqueue();
 
     // Assert
     Expect.that(mocks.getEnqueueDelayInMinutesSpy).hasBeenCalled();

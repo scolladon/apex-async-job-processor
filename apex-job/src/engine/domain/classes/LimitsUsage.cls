@@ -1,3 +1,4 @@
+@SuppressWarnings('PMD.ExcessivePublicCount')
 public class LimitsUsage {
   private static final String CPU_TIME_DIMENSION = 'cpuTime';
   private static final String HEAP_SIZE_DIMENSION = 'heapSize';

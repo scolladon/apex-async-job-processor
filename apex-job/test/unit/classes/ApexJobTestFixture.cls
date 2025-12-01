@@ -1,4 +1,4 @@
-@isTest
+@IsTest
 @SuppressWarnings('PMD.ExcessivePublicCount')
 public class ApexJobTestFixture {
   private static Integer uniqueCounter = 0;

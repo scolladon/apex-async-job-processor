@@ -1,6 +1,6 @@
-@isTest
+@IsTest
 private class ApexJobLoggerImplTest {
-  @isTest
+  @IsTest
   static void givenValidMessage_whenError_thenLogsAtErrorLevel() {
     // Arrange
     ApexJobLogger logger = new ApexJobLoggerImpl();
@@ -15,7 +15,7 @@ private class ApexJobLoggerImplTest {
     Assert.isTrue(true, 'Error method should execute without throwing exceptions');
   }
 
-  @isTest
+  @IsTest
   static void givenValidMessage_whenDebug_thenLogsAtDebugLevel() {
     // Arrange
     ApexJobLogger logger = new ApexJobLoggerImpl();

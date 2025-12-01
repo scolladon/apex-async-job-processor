@@ -28,6 +28,7 @@ public without sharing class ApexJobWatcher implements Schedulable {
     asyncJobQueueableSpawner.enqueue();
   }
 
+  @SuppressWarnings('PMD.OperationWithLimitsInLoop')
   public static void schedule() {
     // If already schedule the job, do nothing
     final String cronJobBaseName = 'Async Job Watcher';

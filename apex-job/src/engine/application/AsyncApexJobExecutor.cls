@@ -11,7 +11,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     this(new ApexJobFactoryImpl());
   }
 
-  @testVisible
+  @TestVisible
   private AsyncApexJobExecutor(final ApexJobFactory factory) {
     this.factory = factory;
     this.logger = this.factory.getLogger();
@@ -58,7 +58,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       if (this.shouldTreatException(ctx)) {
         final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(ctx.getException()));
         final JobExecuted executionResult = new JobExecuted(this.lastExecutableJob, killedJobResult);
-        this.jobExecutionResults.add(new JobExecuted(this.lastExecutableJob, killedJobResult));
+        this.jobExecutionResults.add(executionResult);
         this.lastExecutableJob = null;
       }
       this.factory.getRepository().recordJobExecution(this.jobExecutionResults);

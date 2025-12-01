@@ -1,6 +1,6 @@
-@isTest
+@IsTest
 private class JobRepositoryImplTest {
-  @isTest
+  @IsTest
   static void givenGetJobCandidates_whenCalledWithNotEnoughQueries_thenReturnEmptyList() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -17,7 +17,7 @@ private class JobRepositoryImplTest {
     Assert.areEqual(0, actual.size(), 'It should not return any job candidates');
   }
 
-  @isTest
+  @IsTest
   static void givenGetJobCandidates_whenCalledWithEmptyList_thenCallTheSelectorLayerWIthEmptyList() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -41,7 +41,7 @@ private class JobRepositoryImplTest {
     Expect.that(mocks.getEligibleJobsSpy).hasBeenCalledWith(new List<Id>());
   }
 
-  @isTest
+  @IsTest
   static void givenGetJobCandidates_whenCalledWithNotEmptyList_thenCallTheSelectorLayerWIthNotEmptyList() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
@@ -70,7 +70,7 @@ private class JobRepositoryImplTest {
     Expect.that(mocks.getEligibleJobsSpy).hasBeenCalledWith(new List<Id>{ jobRequestToExclude.JobDescription__c });
   }
 
-  @isTest
+  @IsTest
   static void givenRecordJobExecution_whenCalledWithSuccess_thenUpdateAndDeleteRequestAndUpdateDescription() {
     // Arrange
     // Create test data in database
@@ -128,7 +128,7 @@ private class JobRepositoryImplTest {
     Assert.areEqual(33, dmlAfter - dmlBefore, 'Should update all requests for metrics, delete them, and update descriptions');
   }
 
-  @isTest
+  @IsTest
   static void givenRecordJobExecution_whenCalledWithFailure_thenUpdateRequestAndDescription() {
     // Arrange
     // Create test data in database
@@ -186,7 +186,7 @@ private class JobRepositoryImplTest {
     Assert.areEqual(22, dmlAfter - dmlBefore, 'Should update all requests and descriptions');
   }
 
-  @isTest
+  @IsTest
   static void givenRecordJobExecution_whenCalledWithFailureAndSuccess_thenUpdateDeleteRequestAndUpdateDescription() {
     // Arrange
     // Create test data in database
@@ -271,7 +271,7 @@ private class JobRepositoryImplTest {
     Assert.areEqual(28, dmlAfter - dmlBefore, 'Should update all requests for metrics, delete successes, and update descriptions');
   }
 
-  @isTest
+  @IsTest
   static void givenRecordJobExecution_whenCalledWithoutCandidates_thenDoesNothing() {
     // Arrange
     JobRepository sut = new JobRepositoryImpl();

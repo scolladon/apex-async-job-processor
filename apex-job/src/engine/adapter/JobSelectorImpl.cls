@@ -10,7 +10,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
     this(new ApexJobFactoryImpl());
   }
 
-  @testVisible
+  @TestVisible
   public JobSelectorImpl(final ApexJobFactory factory) {
     this.factory = factory;
   }

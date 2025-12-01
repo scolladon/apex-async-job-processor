@@ -1,6 +1,6 @@
-@isTest
+@IsTest
 private class ApexJobConfigServiceImplTest {
-  @isTest
+  @IsTest
   static void givenSystemEnabled_whenIsSystemEnabled_thenReturnsTrue() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
@@ -14,7 +14,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.isTrue(result, 'The system should be enabled');
   }
 
-  @isTest
+  @IsTest
   static void givenSystemDisabled_whenIsSystemEnabled_thenReturnsFalse() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = false);
@@ -28,7 +28,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.isFalse(result, 'The system should not be enabled');
   }
 
-  @isTest
+  @IsTest
   static void givenSystemNotConfigured_whenIsSystemEnabled_thenReturnsFalse() {
     // Arrange
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
@@ -40,7 +40,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.isFalse(result, 'The system should not be enabled');
   }
 
-  @isTest
+  @IsTest
   static void givenConfigWithDelayWithinBusinessHours_whenGetEnqueueDelayInMinutes_thenReturnsDefaultDelay() {
     // Arrange
     final Integer configuredDelay = 5;
@@ -57,7 +57,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.isTrue(result == 1 || result == configuredDelay, 'Should return default (1) when within business hours or configured delay (' + configuredDelay + ') when outside, got: ' + result);
   }
 
-  @isTest
+  @IsTest
   static void givenConfigWithDelayExceedingMaximum_whenGetEnqueueDelayInMinutes_thenReturnsMaximumDelay() {
     // Arrange
     final Integer excessiveDelay = 20;
@@ -73,7 +73,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.isTrue(result == 1 || result == 10, 'Should return default (1) when within business hours or configured delay (10) when outside, got: ' + result);
   }
 
-  @isTest
+  @IsTest
   static void givenConfigWithNegativeDelay_whenGetEnqueueDelayInMinutes_thenReturnsMinimumDelay() {
     // Arrange
     final Integer negativeDelay = -5;
@@ -90,7 +90,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.areEqual(expectedMinDelay, result, 'Should return minimum delay (1) for negative values');
   }
 
-  @isTest
+  @IsTest
   static void givenNoConfig_whenGetEnqueueDelayInMinutes_thenReturnsDefaultDelay() {
     // Arrange
     final Integer expectedDefaultDelay = 1;
@@ -103,7 +103,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.areEqual(expectedDefaultDelay, result, 'Should return default delay (1) when no config exists');
   }
 
-  @isTest
+  @IsTest
   static void givenConfigWithZeroDelay_whenGetEnqueueDelayInMinutes_thenReturnsDefaultDelay() {
     // Arrange
     final Integer expectedDefaultDelay = 1;
@@ -119,7 +119,7 @@ private class ApexJobConfigServiceImplTest {
     Assert.areEqual(expectedDefaultDelay, result, 'Should return default delay (1) when configured as zero');
   }
 
-  @isTest
+  @IsTest
   static void givenConfigWithExactMaximumDelay_whenGetEnqueueDelayInMinutes_thenReturnsMaximum() {
     // Arrange
     final Integer maxDelay = 10;

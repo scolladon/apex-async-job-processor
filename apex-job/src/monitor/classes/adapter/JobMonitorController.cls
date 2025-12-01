@@ -44,6 +44,7 @@ public with sharing class JobMonitorController {
   }
 
   @AuraEnabled
+  @SuppressWarnings('PMD.AvoidNonRestrictiveQueries ')
   public static List<Map<String, Object>> getStatusByProcessor() {
     final List<AggregateResult> rows = [
       SELECT

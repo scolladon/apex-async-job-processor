@@ -5,7 +5,7 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     this(new ApexJobFactoryImpl());
   }
 
-  @testVisible
+  @TestVisible
   private JobRepositoryImpl(final ApexJobFactory factory) {
     this.factory = factory;
   }

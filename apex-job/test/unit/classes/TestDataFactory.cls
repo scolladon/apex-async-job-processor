@@ -1,4 +1,4 @@
-@isTest
+@IsTest
 public without sharing class TestDataFactory {
   static Integer identifier = 1;
   public static String generateUniqueFakeId(Schema.SObjectType sot) {
