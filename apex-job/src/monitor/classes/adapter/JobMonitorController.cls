@@ -1,6 +1,6 @@
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public with sharing class JobMonitorController {
-  private static final List<String> ALIVE_QUEUEABLE_STATUS = new List<String>{ 'Processing', 'Queued', 'Preparing' };
+  private static final List<String> ALIVE_QUEUEABLE_STATUS = new List<String>{ 'Processing', 'Queued', 'Preparing', 'Holding' };
   private static final String QUEUEABLE_JOB_TYPE = 'Queueable';
   private static final String SCHEDULED_JOB_TYPE = 'ScheduledApex';
   private static final String JOB_NAME = AsyncApexJobExecutor.class.getName();
