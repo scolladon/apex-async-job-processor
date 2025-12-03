@@ -477,6 +477,11 @@ public class ApexJobTestFixture {
       return this;
     }
 
+    public JobRequestBuilder withJobIds(final String jobIds) {
+      this.record.JobIds__c = jobIds;
+      return this;
+    }
+
     public JobRequest__c build() {
       return this.record;
     }

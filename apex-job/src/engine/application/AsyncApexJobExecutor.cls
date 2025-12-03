@@ -18,11 +18,11 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     this.configService = this.factory.getConfigService();
   }
 
-  public void execute(QueueableContext ctx) {
+  public void execute(QueueableContext queueableContext) {
     final JobExecutorFinalizerAttacher finalizerAttacher = this.factory.getFinalizerAttacher();
     finalizerAttacher.attach(this);
 
-    if (this.cannotRun(ctx.getJobId())) {
+    if (this.cannotRun(queueableContext.getJobId())) {
       return;
     }
 
@@ -52,16 +52,16 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     }
   }
 
-  public void execute(FinalizerContext ctx) {
+  public void execute(FinalizerContext finalizerContext) {
     try {
       // In case the last job has been killed we need to record it
-      if (this.shouldTreatException(ctx)) {
-        final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(ctx.getException()));
+      if (this.shouldTreatException(finalizerContext)) {
+        final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(finalizerContext.getException()));
         final JobExecuted executionResult = new JobExecuted(this.lastExecutableJob, killedJobResult);
         this.jobExecutionResults.add(executionResult);
         this.lastExecutableJob = null;
       }
-      this.factory.getRepository().recordJobExecution(this.jobExecutionResults);
+      this.factory.getRepository().recordJobExecution(this.jobExecutionResults, finalizerContext);
     } catch (Exception e) {
       this.logger.debug('AsyncJob: Error while recording job execution');
       this.logger.error(e.getMessage());

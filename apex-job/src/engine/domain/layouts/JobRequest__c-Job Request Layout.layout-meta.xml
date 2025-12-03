@@ -71,6 +71,10 @@
                 <behavior>Edit</behavior>
                 <field>ProcessingTime__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Edit</behavior>
+                <field>JobIds__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>

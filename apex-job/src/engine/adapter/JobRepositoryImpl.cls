@@ -60,7 +60,8 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     return jobPerDescription;
   }
 
-  public void recordJobExecution(final List<JobExecuted> executedJobs) {
+  public void recordJobExecution(final List<JobExecuted> executedJobs, final FinalizerContext ctx) {
+    final String asyncJobId = ctx.getAsyncApexJobId();
     final Integer executedJobsSize = executedJobs.size();
     if (executedJobsSize == 0) {
       return;
@@ -75,6 +76,7 @@ public without sharing class JobRepositoryImpl implements JobRepository {
       executedJob.stageExecution();
       for (Integer j = 0; j < executedJobRequestsSize; ++j) {
         final JobRequest__c job = executedJobRequests[j];
+        job.JobIds__c = JobRepositoryImpl.buildJobIds(job.JobIds__c, asyncJobId);
         jobsToUpdate.add(job); // add it to update the metrics, even if they should be deleted
         if (JobRepositoryImpl.shouldDeleteJobRequest(job)) {
           jobsToDelete.add(job);
@@ -90,5 +92,17 @@ public without sharing class JobRepositoryImpl implements JobRepository {
   // TODO part of the JobRequest Domain
   private static Boolean shouldDeleteJobRequest(final JobRequest__c jobRequest) {
     return jobRequest.Status__c == ApexJobStatus.SUCCESS.name();
+  }
+
+  private static final String JOBIDS_SEP = ';';
+  private static String buildJobIds(final String jobIdValues, final String asyncJobId) {
+    final Set<String> jobIds = new Set<String>();
+    if (jobIdValues != null) {
+      jobIds.addAll(jobIdValues.split(JOBIDS_SEP));
+    }
+    jobIds.add(asyncJobId);
+    jobIds.remove(null);
+    jobIds.remove('');
+    return String.join(jobIds, JOBIDS_SEP);
   }
 }

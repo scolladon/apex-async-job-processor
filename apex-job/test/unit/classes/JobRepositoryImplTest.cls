@@ -117,7 +117,7 @@ private class JobRepositoryImplTest {
     // Act
     Test.startTest();
     final Integer dmlBefore = Limits.getDmlRows();
-    sut.recordJobExecution(testJobsExecuted);
+    sut.recordJobExecution(testJobsExecuted, new TestFinalizerContext(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)));
     final Integer dmlAfter = Limits.getDmlRows();
     Test.stopTest();
 
@@ -175,7 +175,7 @@ private class JobRepositoryImplTest {
     // Act
     Test.startTest();
     final Integer dmlBefore = Limits.getDmlRows();
-    sut.recordJobExecution(testJobsExecuted);
+    sut.recordJobExecution(testJobsExecuted, new TestFinalizerContext(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)));
     final Integer dmlAfter = Limits.getDmlRows();
     Test.stopTest();
 
@@ -258,8 +258,10 @@ private class JobRepositoryImplTest {
 
     // Act
     Test.startTest();
+    Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType); // Using JobDescription ID as fake AsyncApexJob ID for simplicity
+    TestFinalizerContext ctx = new TestFinalizerContext(asyncJobId);
     final Integer dmlBefore = Limits.getDmlRows();
-    sut.recordJobExecution(testJobsExecuted);
+    sut.recordJobExecution(testJobsExecuted, ctx);
     final Integer dmlAfter = Limits.getDmlRows();
     Test.stopTest();
 
@@ -279,10 +281,63 @@ private class JobRepositoryImplTest {
 
     // Act
     Test.startTest();
-    sut.recordJobExecution(new List<JobExecuted>());
+    sut.recordJobExecution(new List<JobExecuted>(), new TestFinalizerContext(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)));
     Test.stopTest();
 
     // Assert
     Assert.areEqual(0, Limits.getDmlRows() - dmlBeforeAct, 'Should have 0 save results');
+  }
+
+  @IsTest
+  static void givenRecordJobExecution_whenCalledWithAsyncJobId_thenPopulateJobIds() {
+    // Arrange
+    final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').enabled().withMaxChunkSize(-1).build();
+    insert jobDesc;
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob').withJobDescription(jobDesc.Id).failure().enabled().build();
+    jobRequest.JobDescription__r = jobDesc;
+    insert jobRequest;
+
+    ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
+    mockResult.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
+    List<JobExecuted> testJobsExecuted = new List<JobExecuted>{ new JobExecuted(new JobExecutable(new List<JobRequest__c>{ jobRequest }), mockResult) };
+
+    JobRepository sut = new JobRepositoryImpl();
+    Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType); // Using JobDescription ID as fake AsyncApexJob ID for simplicity
+    TestFinalizerContext ctx = new TestFinalizerContext(asyncJobId);
+
+    // Act
+    Test.startTest();
+    sut.recordJobExecution(testJobsExecuted, ctx);
+
+    // Assert
+    JobRequest__c updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id];
+    Assert.areEqual(asyncJobId, updatedJob.JobIds__c, 'JobIds__c should be populated');
+
+    Id anotherAsyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType); // Using JobDescription ID as fake AsyncApexJob ID for simplicity
+    ctx = new TestFinalizerContext(anotherAsyncJobId);
+    sut.recordJobExecution(testJobsExecuted, ctx);
+    Test.stopTest();
+
+    updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id];
+    Assert.areEqual(asyncJobId + ';' + anotherAsyncJobId, updatedJob.JobIds__c, 'JobIds__c should be appended');
+  }
+
+  private class TestFinalizerContext implements FinalizerContext {
+    private Id asyncJobId;
+    public TestFinalizerContext(Id asyncJobId) {
+      this.asyncJobId = asyncJobId;
+    }
+    public Id getAsyncApexJobId() {
+      return this.asyncJobId;
+    }
+    public Id getRequestId() {
+      return null;
+    }
+    public System.ParentJobResult getResult() {
+      return ParentJobResult.SUCCESS;
+    }
+    public Exception getException() {
+      return null;
+    }
   }
 }

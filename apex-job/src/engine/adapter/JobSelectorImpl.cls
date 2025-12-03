@@ -38,6 +38,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
         ChunkRunTime__c,
         UnitRunTime__c,
         ProcessingTime__c,
+        JobIds__c,
         JobDescription__c,
         // Include all JobDescription fields
         JobDescription__r.Id,

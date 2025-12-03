@@ -357,6 +357,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobRequest__c.JobIds__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobRequest__c.LastExecutionDateTime__c</field>
         <readable>true</readable>
     </fieldPermissions>
