@@ -23,7 +23,7 @@
             </layoutItems>
             <layoutItems>
                 <behavior>Edit</behavior>
-                <field>VariationResetThreashold__c</field>
+                <field>VariationResetThreshold__c</field>
             </layoutItems>
             <layoutItems>
                 <behavior>Edit</behavior>

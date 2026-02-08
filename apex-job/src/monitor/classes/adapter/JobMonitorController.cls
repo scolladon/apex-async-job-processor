@@ -17,7 +17,7 @@ public with sharing class JobMonitorController {
         JobDescription__r.ProcessorName__c,
         Status__c,
         Enabled__c,
-        IsCandidat__c,
+        IsCandidate__c,
         AttemptNumber__c,
         WaitTime__c,
         ChunkRunTime__c,
@@ -29,7 +29,7 @@ public with sharing class JobMonitorController {
         LastExecutionMessage__c,
         Argument__c
       FROM JobRequest__c
-      WHERE IsCandidat__c = TRUE
+      WHERE IsCandidate__c = TRUE
       ORDER BY
         IsDeleted ASC,
         JobDescription__r.Priority__c DESC,

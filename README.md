@@ -188,7 +188,7 @@
  - You never return `KILLED` yourself.
  - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/application/AsyncApexJobExecutor.cls)).
  - Results are recorded and the engine re-enqueues promptly.
- - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptativeConsumptionLearner`).
+ - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptiveConsumptionLearner`).
 
  ## Exploitation
 
@@ -232,7 +232,7 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
  - `Enabled__c` (Checkbox). Turns the engine on/off.
  - `EnqueueDelayOutsideBusinessHours__c` (0..10). Minutes to wait when outside Business Hours. Default idle delay is 1 minute. Values are clamped to [0,10].
 
- Candidate rules (`JobRequest__c.IsCandidat__c`):
+ Candidate rules (`JobRequest__c.IsCandidate__c`):
  - `JobRequest__c.Enabled__c` and `JobDescription__c.Enabled__c` must be true.
  - Status in READY, FAILURE, KILLED.
  - Time window and days respected (`AllowedDays__c`, `AllowedStartTime__c`, `AllowedEndTime__c`).
@@ -254,13 +254,13 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  ### Learning
 
- File: [AdaptativeConsumptionLearner](apex-job/src/domain/classes/consumption-learning/AdaptativeConsumptionLearner.cls)
+ File: [AdaptiveConsumptionLearner](apex-job/src/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls)
 
  - Tracks `Base`, `PerItem`, `Safety` per dimension from `ConsumptionModel.asList()` (internally cached).
  - Success: safety +0.05 (capped at 0.98), reset failure count, increment success streak, raise `MaxChunkSize__c` up to `MaxChunkSizeLimit__c`.
  - Failure: safety -0.05, track `ConsecutiveFailures__c` and `SmallestFailingChunk__c`.
  - Kill: penalize `Base` and `PerItem` by 1.1, lower safety. Reset if failures reach configured max.
- - Reset when per-item variation exceeds `VariationResetThreashold__c` or safety would drop below 0.5.
+ - Reset when per-item variation exceeds `VariationResetThreshold__c` or safety would drop below 0.5.
  - Per-item update applies when chunk size > 1; when chunk size == 1, update base only.
  - Safety range: [0.5 .. 0.98].
 
@@ -277,7 +277,7 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  ### Selector (Jar of Rocks)
 
- Files: [JobSelectorImpl](apex-job/src/adapter/JobSelectorImpl.cls), `apex-job/src/domain/objects/JobRequest__c/fields/IsCandidat__c.field-meta.xml`
+ Files: [JobSelectorImpl](apex-job/src/adapter/JobSelectorImpl.cls), `apex-job/src/domain/objects/JobRequest__c/fields/IsCandidate__c.field-meta.xml`
 
  - Database pre-filter on base consumption and candidacy rules. Only eligible rows reach Apex.
  - Extra callout guard avoids "Uncommitted work pending".
@@ -290,7 +290,7 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  Hexagonal design.
 
- - Domain: [ApexJob](apex-job/src/domain/classes/ApexJob.cls), [ApexJobContext](apex-job/src/domain/classes/ApexJobContext.cls), [ApexJobResult](apex-job/src/domain/classes/ApexJobResult.cls), [JobCandidate](apex-job/src/domain/classes/JobCandidate.cls), [AdaptativeConsumptionLearner](apex-job/src/domain/classes/consumption-learning/AdaptativeConsumptionLearner.cls), [AdaptiveChunkCalculator](apex-job/src/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls).
+ - Domain: [ApexJob](apex-job/src/domain/classes/ApexJob.cls), [ApexJobContext](apex-job/src/domain/classes/ApexJobContext.cls), [ApexJobResult](apex-job/src/domain/classes/ApexJobResult.cls), [JobCandidate](apex-job/src/domain/classes/JobCandidate.cls), [AdaptiveConsumptionLearner](apex-job/src/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls), [AdaptiveChunkCalculator](apex-job/src/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls).
  - Application: [AsyncApexJobExecutor](apex-job/src/application/AsyncApexJobExecutor.cls), [ApexJobManager](apex-job/src/application/ApexJobManager.cls).
  - Adapters: [JobSelectorImpl](apex-job/src/adapter/JobSelectorImpl.cls), [JobRepositoryImpl](apex-job/src/adapter/JobRepositoryImpl.cls), [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls), [ApexJobConfigServiceImpl](apex-job/src/adapter/ApexJobConfigServiceImpl.cls), [ApexJobLogger](apex-job/src/adapter/ApexJobLogger.cls), [ApexJobSpawner](apex-job/src/adapter/ApexJobSpawner.cls), [ApexJobFinalizer](apex-job/src/adapter/ApexJobFinalizer.cls), [ApexJobLimitService](apex-job/src/adapter/ApexJobLimitService.cls).
 

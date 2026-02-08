@@ -22,7 +22,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
     jobResult.consumedLimits = consumedLimits;
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
@@ -64,7 +64,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(new TestException('Test failure'));
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
@@ -105,7 +105,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError('Test killed', ''));
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
@@ -146,7 +146,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(1).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(new TestException('Test failure'));
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
@@ -200,7 +200,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest3 = ApexJobTestFixture.aJobRequest().withName('Test3').withAttemptNumber(0).build();
     jobRequest3.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest1, jobRequest2, jobRequest3 };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
     jobResult.consumedLimits = consumedLimits;
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
@@ -240,7 +240,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.ABORTED);
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
 
@@ -279,7 +279,7 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable jobExecutable = new JobExecutable(jobRequests);
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
     final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
     jobResult.consumedLimits = consumedLimits;
     final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);

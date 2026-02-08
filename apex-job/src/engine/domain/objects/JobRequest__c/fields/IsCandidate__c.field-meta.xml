@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
-    <fullName>IsCandidat__c</fullName>
+    <fullName>IsCandidate__c</fullName>
     <description>Define if the job can be executed</description>
     <formula>AND(
   Enabled__c
@@ -26,7 +26,7 @@
   ,OR (ISNULL(JobDescription__r.AllowedEndTime__c), TIMENOW() &lt;= JobDescription__r.AllowedEndTime__c)
 )</formula>
     <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
-    <label>Is Candidat</label>
+    <label>Is Candidate</label>
     <trackTrending>false</trackTrending>
     <type>Checkbox</type>
 </CustomField>

@@ -1,4 +1,4 @@
-public without sharing class AdaptativeConsumptionLearner implements ConsumptionLearner {
+public without sharing class AdaptiveConsumptionLearner implements ConsumptionLearner {
   private static final Decimal SAFETY_STEP = 0.05;
   private static final Decimal MIN_SAFETY = 0.5;
   private static final Decimal MAX_SAFETY = 0.98;
@@ -6,7 +6,7 @@ public without sharing class AdaptativeConsumptionLearner implements Consumption
 
   private final JobDescription__c job;
 
-  public AdaptativeConsumptionLearner(final JobDescription__c jobDescription) {
+  public AdaptiveConsumptionLearner(final JobDescription__c jobDescription) {
     this.job = jobDescription;
   }
 
@@ -62,7 +62,7 @@ public without sharing class AdaptativeConsumptionLearner implements Consumption
 
     if (currentPerItem > 0) {
       final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
-      if (variation > this.job.VariationResetThreashold__c) {
+      if (variation > this.job.VariationResetThreshold__c) {
         return true; // Variation too large
       }
     }

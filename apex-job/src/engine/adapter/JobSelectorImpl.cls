@@ -55,7 +55,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
         JobDescription__r.ConsecutiveFailures__c,
         JobDescription__r.SmallestFailingChunk__c,
         JobDescription__r.SuccessStreak__c,
-        JobDescription__r.VariationResetThreashold__c,
+        JobDescription__r.VariationResetThreshold__c,
         // Governor limits consumption fields
         JobDescription__r.CpuTimeBaseConsumption__c,
         JobDescription__r.CpuTimePerItemConsumption__c,
@@ -114,7 +114,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
       FROM JobRequest__c
       WHERE
         JobDescription__c NOT IN :jobDescriptionIdsToExclude
-        AND IsCandidat__c = TRUE
+        AND IsCandidate__c = TRUE
         AND JobDescription__r.MaxChunkSize__c >= :minMaxChunkSize
         AND JobDescription__r.CpuTimeBaseConsumption__c <= :availableLimits.cpuTime
         AND JobDescription__r.HeapSizeBaseConsumption__c <= :availableLimits.heapSize

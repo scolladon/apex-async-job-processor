@@ -1,41 +1,5 @@
-@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ApexJobManager {
-  private static ApexJobRepository repository = new ApexJobManager.DefaultApexJobRepository();
-  public interface ApexJobRepository {
-    JobRequest__c insertJobRequest(final JobRequest__c jobRequest);
-    JobRequest__c updateJobRequest(final JobRequest__c jobRequest);
-
-    JobDescription__c insertJobDescription(final JobDescription__c jobDescription);
-    JobDescription__c updateJobDescription(final JobDescription__c jobDescription);
-    JobDescription__c upsertJobDescriptionByProcessorName(final JobDescription__c jobDescription);
-  }
-
-  private with sharing class DefaultApexJobRepository implements ApexJobRepository {
-    public JobRequest__c insertJobRequest(final JobRequest__c jobRequest) {
-      insert jobRequest;
-      return jobRequest;
-    }
-
-    public JobRequest__c updateJobRequest(final JobRequest__c jobRequest) {
-      update jobRequest;
-      return jobRequest;
-    }
-
-    public JobDescription__c insertJobDescription(final JobDescription__c jobDescription) {
-      insert jobDescription;
-      return jobDescription;
-    }
-
-    public JobDescription__c updateJobDescription(final JobDescription__c jobDescription) {
-      update jobDescription;
-      return jobDescription;
-    }
-
-    public JobDescription__c upsertJobDescriptionByProcessorName(final JobDescription__c jobDescription) {
-      upsert jobDescription ProcessorName__c;
-      return jobDescription;
-    }
-  }
+  private static ApexJobRepository repository = new ApexJobRepositoryImpl();
 
   @TestVisible
   static void setRepository(final ApexJobRepository repo) {

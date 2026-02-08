@@ -73,6 +73,6 @@ public virtual class ApexJobFactoryImpl implements ApexJobFactory {
   }
 
   public ConsumptionLearner getConsumptionLearner(final JobDescription__c jobDescription) {
-    return new AdaptativeConsumptionLearner(jobDescription);
+    return new AdaptiveConsumptionLearner(jobDescription);
   }
 }

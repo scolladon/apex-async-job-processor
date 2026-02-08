@@ -15,7 +15,7 @@ export default class RequestTable extends LightningElement {
       { label: 'Processor', fieldName: 'processorUrl', type: 'url', typeAttributes: { label: { fieldName: 'ProcessorName' }, target: '_blank' },cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true, wrapText: true },
       { label: 'Status', fieldName: 'Status__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
       { label: 'Enabled', fieldName: 'Enabled__c', type: 'boolean', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Is Candidat?', fieldName: 'IsCandidat__c', type: 'boolean', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
+      { label: 'Is Candidate?', fieldName: 'IsCandidate__c', type: 'boolean', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
       { label: '#Attempt', fieldName: 'AttemptNumber__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
       { label: 'Wait Time (ms)', fieldName: 'WaitTime__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
       { label: 'Chunk Run Time (ms)', fieldName: 'ChunkRunTime__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
@@ -73,7 +73,7 @@ export default class RequestTable extends LightningElement {
       if (absoluteIndex > this.pageSize - 1) {
         classes.push('slds-theme_shade');
       }
-      if (!row.IsCandidat__c) {
+      if (!row.IsCandidate__c) {
         classes.push('slds-theme_alert-texture');
       }
       switch (row.Status__c) {

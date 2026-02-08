@@ -1,31 +1,26 @@
 public class JobCandidate {
-  private Integer calculatedChunkSize;
   private final JobDescription__c jobDescription;
   public final List<JobRequest__c> jobRequests;
   private final ChunkSizeCalculator chunkSizeCalculator;
+  private final ApexJobFactory factory;
 
-  public JobCandidate(final List<JobRequest__c> jobRequests) {
-    this(new ApexJobFactoryImpl().getChunkSizeCalculator(), jobRequests);
-  }
-
-  @TestVisible
-  private JobCandidate(final ChunkSizeCalculator chunkSizeCalculator, final List<JobRequest__c> jobRequests) {
+  public JobCandidate(final ApexJobFactory factory, final List<JobRequest__c> jobRequests) {
+    this.factory = factory;
+    this.chunkSizeCalculator = factory.getChunkSizeCalculator();
     this.jobRequests = jobRequests;
     this.jobDescription = jobRequests[0].JobDescription__r;
-    this.chunkSizeCalculator = chunkSizeCalculator;
-  }
-
-  public Boolean isExecutable() {
-    this.calculatedChunkSize = this.calculateChunkSize();
-    return this.calculatedChunkSize > 0;
   }
 
   public JobExecutable getExecutableChunk() {
+    final Integer chunkSize = this.calculateChunkSize();
+    if (chunkSize <= 0) {
+      return null;
+    }
     final List<JobRequest__c> jobsChunk = new List<JobRequest__c>();
-    for (Integer i = 0; i < this.calculatedChunkSize; ++i) {
+    for (Integer i = 0; i < chunkSize; ++i) {
       jobsChunk.add(this.jobRequests[i]);
     }
-    return new JobExecutable(jobsChunk);
+    return new JobExecutable(this.factory, jobsChunk);
   }
 
   private Integer calculateChunkSize() {
@@ -34,7 +29,6 @@ public class JobCandidate {
       return 1;
     }
 
-    // Define max possible chunk size for current transaction
     chunkSize = this.chunkSizeCalculator.getMaxPossible(this.jobDescription);
     return Math.min(chunkSize, this.jobRequests.size());
   }

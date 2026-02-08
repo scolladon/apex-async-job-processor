@@ -28,7 +28,7 @@ private class JobExecutableTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable sut = new JobExecutable(mocks.limitServiceStub, jobRequests);
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, jobRequests);
     Assert.isFalse(ApexJobTransactionContext.getInstance().hasExecutedJobs, 'Should not have executed jobs');
 
     // Act
@@ -56,7 +56,7 @@ private class JobExecutableTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable sut = new JobExecutable(mocks.limitServiceStub, jobRequests);
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, jobRequests);
     Assert.isFalse(ApexJobTransactionContext.getInstance().hasExecutedJobs, 'Should not have executed jobs');
 
     // Act
@@ -84,7 +84,7 @@ private class JobExecutableTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable sut = new JobExecutable(mocks.limitServiceStub, jobRequests);
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, jobRequests);
     Assert.isFalse(ApexJobTransactionContext.getInstance().hasExecutedJobs, 'Should not have executed jobs');
 
     // Act
@@ -97,6 +97,31 @@ private class JobExecutableTest {
     Expect.that(mocks.startSnapshotSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.stopSnapshotSpy).hasBeenCalledTimes(1);
     Assert.isTrue(ApexJobTransactionContext.getInstance().hasExecutedJobs, 'Should have executed jobs');
+  }
+
+  @IsTest
+  static void givenExecuteChunk_whenProcessorNameInvalid_thenThrowsDescriptiveException() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withId(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType))
+      .withName('InvalidProcessor')
+      .withProcessorName('NonExistentClassName')
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
+    jobRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, jobRequests);
+
+    // Act
+    try {
+      sut.executeChunk();
+      Assert.fail('Should have thrown IllegalArgumentException');
+    } catch (IllegalArgumentException e) {
+      // Assert
+      Assert.isTrue(e.getMessage().contains('NonExistentClassName'), 'Exception should contain the invalid class name');
+      Assert.isTrue(e.getMessage().contains('Processor class not found'), 'Exception should contain descriptive message');
+    }
   }
 
   // Test ApexJob implementations
@@ -133,7 +158,7 @@ private class JobExecutableTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable sut = new JobExecutable(mocks.limitServiceStub, jobRequests);
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, jobRequests);
 
     // Act
     final Datetime selectionTime = sut.getSelectionTime();
@@ -157,7 +182,7 @@ private class JobExecutableTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
-    final JobExecutable sut = new JobExecutable(mocks.limitServiceStub, jobRequests);
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, jobRequests);
     final Long beforeEnd = System.now().getTime();
 
     // Act

@@ -52,6 +52,40 @@ Thank you for considering a contribution! This project follows clean code, SOLID
 - Job filtering is performed in `JobSelectorImpl` using available limits and buffer handling.
 - Keep business logic separated from data manipulation; prefer small, cohesive classes.
 
+## Adding a New Governor Limit Dimension
+
+When adding a new governor limit dimension (e.g., `newDimension`), the following files require changes. Domain consumers like `AdaptiveChunkCalculator`, `AdaptiveConsumptionLearner`, and `ApexJobManager.resetConsumptionModel()` iterate over `ConsumptionModel.asList()` and require **zero changes**.
+
+1. **`JobDescription__c`** — Create 3 custom fields:
+   - `NewDimensionBaseConsumption__c` (Number)
+   - `NewDimensionPerItemConsumption__c` (Number)
+   - `NewDimensionSafety__c` (Number)
+
+2. **`LimitsUsage.cls`** — 3 additions:
+   - [ ] Add `private static final String NEW_DIMENSION_DIMENSION = 'newDimension';`
+   - [ ] Add to `ALL_DIMENSIONS` list
+   - [ ] Add property with get/set wrapping the map store
+
+3. **`LimitServiceImpl.cls`** — 3 additions:
+   - [ ] Add line in `getConsumedLimits()` using `Limits.getNewDimension()`
+   - [ ] Add line in `stopSnapshot()` computing consumed delta
+   - [ ] Add line in `getAvailableLimits()` computing `Limits.getLimitNewDimension() - Limits.getNewDimension()`
+
+4. **`JobSelectorImpl.cls`** — 4 additions:
+   - [ ] Add 3 fields to SELECT: `JobDescription__r.NewDimensionBaseConsumption__c`, `...PerItemConsumption__c`, `...Safety__c`
+   - [ ] Add 1 WHERE condition: `AND JobDescription__r.NewDimensionBaseConsumption__c <= :availableLimits.newDimension`
+
+5. **Test fixtures** — `ApexJobTestFixture.cls`:
+   - [ ] Add `withNewDimensionConsumption`, `withNewDimensionPerItemConsumption`, `withNewDimensionSafety` builder methods in `JobDescriptionBuilder`
+   - [ ] Add `this.usage.newDimension = 0;` in `LimitsUsageBuilder` constructor
+   - [ ] Add `withNewDimension` builder method in `LimitsUsageBuilder`
+   - [ ] Add `.withNewDimension(Limits.getLimitNewDimension())` in `createMaxAvailableLimits()`
+
+6. **Tests** — Verify:
+   - [ ] `LimitServiceImplTest` — snapshot and available limits include the new dimension
+   - [ ] `JobSelectorImplTest` — filtering by the new dimension works
+   - [ ] `AdaptiveChunkCalculatorTest` — chunk calculation considers the new dimension (automatic via `ConsumptionModel.asList()`)
+
 ## Commit, Branch, PR
 - Branch from `main`: `feature/<short-description>` or `fix/<short-description>`
 - Write concise commits (imperative mood). Example: `feat(selector): filter jobs by available CPU with buffer`. (respect conventional commit)

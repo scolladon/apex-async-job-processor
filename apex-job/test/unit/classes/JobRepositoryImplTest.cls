@@ -58,7 +58,11 @@ private class JobRepositoryImplTest {
 
     // Create system under test
     JobRepository sut = new JobRepositoryImpl(mocks.factoryStub);
-    JobExecuted jobCandidatesToExclude = new JobExecuted(new JobExecutable(new List<JobRequest__c>{ jobRequestToExclude }), new ApexJobResult(ApexJobStatus.SUCCESS));
+    JobExecuted jobCandidatesToExclude = new JobExecuted(
+      new ApexJobFactoryImpl(),
+      new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequestToExclude }),
+      new ApexJobResult(ApexJobStatus.SUCCESS)
+    );
 
     // Act
     List<JobCandidate> actual = sut.getJobCandidates(new List<JobExecuted>{ jobCandidatesToExclude });
@@ -108,7 +112,7 @@ private class JobRepositoryImplTest {
       .build();
     mockResult.consumedLimits = limitsUsage;
     for (Integer i = 0; i < 11; i++) {
-      testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
+      testJobsExecuted.add(new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
 
     // Create system under test with real factory
@@ -166,7 +170,7 @@ private class JobRepositoryImplTest {
       .build();
     mockResult.consumedLimits = limitsUsage;
     for (Integer i = 0; i < 11; i++) {
-      testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
+      testJobsExecuted.add(new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
 
     // Create system under test with real factory
@@ -250,7 +254,7 @@ private class JobRepositoryImplTest {
         .withFutureCalls(1)
         .build();
       mockResult.consumedLimits = successLimits;
-      testJobsExecuted.add(new JobExecuted(new JobExecutable(new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
+      testJobsExecuted.add(new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ testJobRequests[i] }), mockResult));
     }
 
     // Create system under test with real factory
@@ -299,7 +303,9 @@ private class JobRepositoryImplTest {
 
     ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
     mockResult.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
-    List<JobExecuted> testJobsExecuted = new List<JobExecuted>{ new JobExecuted(new JobExecutable(new List<JobRequest__c>{ jobRequest }), mockResult) };
+    List<JobExecuted> testJobsExecuted = new List<JobExecuted>{
+      new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequest }), mockResult)
+    };
 
     JobRepository sut = new JobRepositoryImpl();
     Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType); // Using JobDescription ID as fake AsyncApexJob ID for simplicity
@@ -311,15 +317,17 @@ private class JobRepositoryImplTest {
 
     // Assert
     JobRequest__c updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id];
-    Assert.areEqual(asyncJobId, updatedJob.JobIds__c, 'JobIds__c should be populated');
+    final String shortId = String.valueOf(asyncJobId).left(15);
+    Assert.areEqual(shortId, updatedJob.JobIds__c, 'JobIds__c should be populated with 15-char ID');
 
     Id anotherAsyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType); // Using JobDescription ID as fake AsyncApexJob ID for simplicity
     ctx = new TestFinalizerContext(anotherAsyncJobId);
     sut.recordJobExecution(testJobsExecuted, ctx);
     Test.stopTest();
 
+    final String anotherShortId = String.valueOf(anotherAsyncJobId).left(15);
     updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id];
-    Assert.areEqual(asyncJobId + ';' + anotherAsyncJobId, updatedJob.JobIds__c, 'JobIds__c should be appended');
+    Assert.areEqual(shortId + ';' + anotherShortId, updatedJob.JobIds__c, 'JobIds__c should be appended with 15-char IDs');
   }
 
   private class TestFinalizerContext implements FinalizerContext {

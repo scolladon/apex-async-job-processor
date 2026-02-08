@@ -1,5 +1,5 @@
 @IsTest
-private class AdaptativeConsumptionLearnerTest {
+private class AdaptiveConsumptionLearnerTest {
   @IsTest
   private static void givenSingleChunkSuccess_whenAdjustFromSuccess_thenTrackBaseConsumption() {
     // Arrange
@@ -7,7 +7,7 @@ private class AdaptativeConsumptionLearnerTest {
 
     final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -26,7 +26,7 @@ private class AdaptativeConsumptionLearnerTest {
 
     final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(208).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -44,7 +44,7 @@ private class AdaptativeConsumptionLearnerTest {
 
     final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(1000).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -61,7 +61,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -79,7 +79,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(1).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.9).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -95,7 +95,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(1).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.5).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -113,7 +113,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxExecutionAttempt(3).withConsecutiveFailures(3).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -131,7 +131,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(0).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).withCpuTimeSafety(0.5).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();
@@ -149,7 +149,7 @@ private class AdaptativeConsumptionLearnerTest {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().withConsecutiveFailures(0).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).build();
 
-    final AdaptativeConsumptionLearner sut = new AdaptativeConsumptionLearner(job);
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
 
     // Act
     Test.startTest();

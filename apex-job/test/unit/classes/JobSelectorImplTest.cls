@@ -272,7 +272,7 @@ private class JobSelectorImplTest {
       'JobDescription__r.ConsecutiveFailures__c',
       'JobDescription__r.SmallestFailingChunk__c',
       'JobDescription__r.SuccessStreak__c',
-      'JobDescription__r.VariationResetThreashold__c',
+      'JobDescription__r.VariationResetThreshold__c',
       // Governor limits consumption fields
       'JobDescription__r.CpuTimeBaseConsumption__c',
       'JobDescription__r.CpuTimePerItemConsumption__c',

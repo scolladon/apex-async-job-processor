@@ -327,7 +327,7 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
-        <field>JobDescription__c.VariationResetThreashold__c</field>
+        <field>JobDescription__c.VariationResetThreshold__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

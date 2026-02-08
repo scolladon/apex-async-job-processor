@@ -11,12 +11,7 @@ public with sharing class JobExecuted {
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
 
-  public JobExecuted(final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
-    this(new ApexJobFactoryImpl(), jobExecutable, jobExecutionResult);
-  }
-
-  @TestVisible
-  private JobExecuted(final ApexJobFactory factory, final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
+  public JobExecuted(final ApexJobFactory factory, final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
     this.factory = factory;
     this.jobDescription = jobExecutable.jobDescription;
     this.jobRequests = jobExecutable.jobRequests;
@@ -37,7 +32,11 @@ public with sharing class JobExecuted {
   }
 
   private void stageJobRequestExecution(final JobRequest__c job) {
-    // Capture base reference before any NextExecutionDateTime__c change
+    this.calculateTimingMetrics(job);
+    this.determineNextStatus(job);
+  }
+
+  private void calculateTimingMetrics(final JobRequest__c job) {
     final Datetime baseRef = job.NextExecutionDateTime__c ?? job.CreatedDate;
     final Long baseMs = baseRef.getTime();
     final Long selectionMs = this.stagingInfo.selectionTime.getTime();
@@ -49,31 +48,34 @@ public with sharing class JobExecuted {
     job.AttemptNumber__c = Math.min((job.AttemptNumber__c ?? 0) + 1, MAX_EXECUTION_ATTEMPT_NUMBER);
     job.LastSelectionDateTime__c = this.stagingInfo.selectionTime;
     job.LastExecutionDateTime__c = this.stagingInfo.endTime;
-    // Should abort
+  }
+
+  private void determineNextStatus(final JobRequest__c job) {
     if (this.stagingInfo.candidateAbortable && job.AttemptNumber__c >= this.jobDescription.MaxExecutionAttempt__c) {
       job.Status__c = ApexJobStatus.ABORTED.name();
       job.NextExecutionDateTime__c = null;
-      List<String> lastExecutionMessage = new List<String>{ MAX_EXECUTION_ATTEMPT_REACHED };
-      if (String.isNotBlank(this.stagingInfo.errorMessage)) {
-        lastExecutionMessage.add(this.stagingInfo.errorMessage);
-      }
-      job.LastExecutionMessage__c = String.join(lastExecutionMessage, '\n').left(MAX_LONG_TEXT_LENGTH);
-      // Failure or Killed
+      job.LastExecutionMessage__c = this.formatAbortMessage();
     } else if (this.stagingInfo.candidateStatusRetryable) {
       job.Status__c = this.jobExecutionResult.status.name();
       job.NextExecutionDateTime__c = this.stagingInfo.nextTry;
       job.LastExecutionMessage__c = this.stagingInfo.errorMessage;
-      // Recurrent candidat
-    } else if (this.stagingInfo.recurrentCandidat) {
+    } else if (this.stagingInfo.recurrentCandidate) {
       job.Status__c = ApexJobStatus.READY.name();
       job.NextExecutionDateTime__c = this.stagingInfo.nextTry;
       job.LastExecutionMessage__c = this.stagingInfo.errorMessage;
-      // Abort or Success
     } else {
       job.Status__c = this.jobExecutionResult.status.name();
       job.NextExecutionDateTime__c = null;
       job.LastExecutionMessage__c = this.stagingInfo.errorMessage;
     }
+  }
+
+  private String formatAbortMessage() {
+    final List<String> parts = new List<String>{ MAX_EXECUTION_ATTEMPT_REACHED };
+    if (String.isNotBlank(this.stagingInfo.errorMessage)) {
+      parts.add(this.stagingInfo.errorMessage);
+    }
+    return String.join(parts, '\n').left(MAX_LONG_TEXT_LENGTH);
   }
 
   private void stageJobDescriptionExecution() {
@@ -95,7 +97,7 @@ public with sharing class JobExecuted {
     public final Boolean candidateAbortable { get; private set; }
     public final String errorMessage { get; private set; }
     public final Datetime nextTry { get; private set; }
-    public final Boolean recurrentCandidat { get; private set; }
+    public final Boolean recurrentCandidate { get; private set; }
 
     public JobRequestExecutionStagingInfo(final JobExecutable executable, final ApexJobResult result, final JobDescription__c description) {
       this.endTime = executable.getEndTime();
@@ -105,7 +107,7 @@ public with sharing class JobExecuted {
 
       this.candidateStatusRetryable = RETRYABLE_STATUS.contains(result.status);
       this.candidateAbortable = this.candidateStatusRetryable && description.MaxExecutionAttempt__c != -1;
-      this.recurrentCandidat = description.isRecurrent__c == true;
+      this.recurrentCandidate = description.isRecurrent__c == true;
 
       final String rawErrorMessage = result.error?.toString() ?? '';
       this.errorMessage = rawErrorMessage.left(MAX_LONG_TEXT_LENGTH);

@@ -17,7 +17,7 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     }
     final List<Id> jobDescriptionToExclude = JobRepositoryImpl.extractDescriptionIds(executedJobs);
     final List<JobRequest__c> eligibleJobs = this.factory.getSelector().getEligibleJobs(jobDescriptionToExclude);
-    return JobRepositoryImpl.buildCandidates(eligibleJobs);
+    return this.buildCandidates(eligibleJobs);
   }
 
   private static List<Id> extractDescriptionIds(final List<JobExecuted> executedJobs) {
@@ -34,14 +34,14 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     return jobDescriptionIds;
   }
 
-  private static List<JobCandidate> buildCandidates(final List<JobRequest__c> eligibleJobs) {
+  private List<JobCandidate> buildCandidates(final List<JobRequest__c> eligibleJobs) {
     final Map<Id, List<JobRequest__c>> jobPerDescription = JobRepositoryImpl.groupJobsByDescription(eligibleJobs);
     final List<JobCandidate> jobCandidates = new List<JobCandidate>();
     final List<Id> jobDescriptionIds = new List<Id>(jobPerDescription.keySet());
     final Integer jobDescriptionIdsNumber = jobDescriptionIds.size();
     for (Integer i = 0; i < jobDescriptionIdsNumber; ++i) {
       final List<JobRequest__c> jobRequests = jobPerDescription.get(jobDescriptionIds[i]);
-      final JobCandidate jobCandidate = new JobCandidate(jobRequests);
+      final JobCandidate jobCandidate = new JobCandidate(this.factory, jobRequests);
       jobCandidates.add(jobCandidate);
     }
     return jobCandidates;
@@ -95,14 +95,20 @@ public without sharing class JobRepositoryImpl implements JobRepository {
   }
 
   private static final String JOBIDS_SEP = ';';
+  private static final Integer MAX_LONG_TEXT_LENGTH = 131072;
+  private static final Integer ID_15_LENGTH = 15;
+
   private static String buildJobIds(final String jobIdValues, final String asyncJobId) {
-    final Set<String> jobIds = new Set<String>();
-    if (jobIdValues != null) {
-      jobIds.addAll(jobIdValues.split(JOBIDS_SEP));
+    final String asyncJobId15 = asyncJobId.left(ID_15_LENGTH);
+    final List<String> jobIds = String.isNotBlank(jobIdValues) ? jobIdValues.split(JOBIDS_SEP) : new List<String>();
+    jobIds.add(asyncJobId15);
+
+    String result = String.join(jobIds, JOBIDS_SEP);
+    while (result.length() > MAX_LONG_TEXT_LENGTH) {
+      jobIds.remove(0);
+      result = String.join(jobIds, JOBIDS_SEP);
     }
-    jobIds.add(asyncJobId);
-    jobIds.remove(null);
-    jobIds.remove('');
-    return String.join(jobIds, JOBIDS_SEP);
+
+    return result;
   }
 }

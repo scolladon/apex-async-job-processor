@@ -1,17 +1,14 @@
 public without sharing class JobExecutable {
   private final LimitService limitService;
+  private final ApexJobFactory factory;
   private Datetime selectionTime;
   private Datetime endTime;
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
 
-  public JobExecutable(final List<JobRequest__c> jobRequests) {
-    this(new ApexJobFactoryImpl().getLimitService(), jobRequests);
-  }
-
-  @TestVisible
-  private JobExecutable(final LimitService limitService, final List<JobRequest__c> jobRequests) {
-    this.limitService = limitService;
+  public JobExecutable(final ApexJobFactory factory, final List<JobRequest__c> jobRequests) {
+    this.factory = factory;
+    this.limitService = factory.getLimitService();
     this.jobDescription = jobRequests[0].JobDescription__r;
     this.jobRequests = jobRequests;
     this.selectionTime = System.now();
@@ -33,12 +30,17 @@ public without sharing class JobExecutable {
     this.endTime = System.now();
 
     ApexJobTransactionContext.getInstance().markExecutedJobs();
-    return new JobExecuted(this, apexJobResult);
+    return new JobExecuted(this.factory, this, apexJobResult);
   }
 
   // TODO Part of the JobDescription domain
   private static ApexJob getProcessor(final JobDescription__c jobDescription) {
-    return (ApexJob) Type.forName(jobDescription.ProcessorName__c).newInstance();
+    final String processorName = jobDescription.ProcessorName__c;
+    final Type processorType = Type.forName(processorName);
+    if (processorType == null) {
+      throw new IllegalArgumentException('Processor class not found: ' + processorName);
+    }
+    return (ApexJob) processorType.newInstance();
   }
 
   @TestVisible

@@ -253,6 +253,6 @@ private class ApexJobFactoryImplTest {
 
     // Assert
     Assert.isNotNull(result, 'ConsumptionLearner should not be null');
-    Assert.isInstanceOfType(result, AdaptativeConsumptionLearner.class, 'ConsumptionLearner should be of type AdaptativeConsumptionLearner');
+    Assert.isInstanceOfType(result, AdaptiveConsumptionLearner.class, 'ConsumptionLearner should be of type AdaptiveConsumptionLearner');
   }
 }

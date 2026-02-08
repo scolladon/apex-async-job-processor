@@ -135,7 +135,7 @@ private class AsyncApexJobExecutorTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Req').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
     final List<JobRequest__c> jobs = new List<JobRequest__c>{ jobRequest };
-    sut.lastExecutableJob = new JobExecutable(jobs);
+    sut.lastExecutableJob = new JobExecutable(mocks.factoryStub, jobs);
 
     // Act
     sut.execute(new KilledFinalizerContext());
@@ -204,7 +204,6 @@ private class AsyncApexJobExecutorTest {
     executeChunkSpy.returns(jobExecutedMock.stub);
 
     final Mock jobCandidateMock = Mock.forType(JobCandidate.class);
-    jobCandidateMock.spyOn('isExecutable').returns(true);
     jobCandidateMock.spyOn('getExecutableChunk').returns((JobExecutable) jobExecutableMock.stub);
 
     mocks.getJobCandidatesSpy.returnsOnce(new List<JobCandidate>{ (JobCandidate) jobCandidateMock.stub });
@@ -234,7 +233,7 @@ private class AsyncApexJobExecutorTest {
     executeChunkSpy.returns(jobExecutedMock.stub);
 
     final Mock jobCandidateMock = Mock.forType(JobCandidate.class);
-    jobCandidateMock.spyOn('isExecutable').returns(false);
+    jobCandidateMock.spyOn('getExecutableChunk').returns(null);
 
     mocks.getJobCandidatesSpy.returnsOnce(new List<JobCandidate>{ (JobCandidate) jobCandidateMock.stub });
     mocks.getJobCandidatesSpy.returns(new List<JobCandidate>());
