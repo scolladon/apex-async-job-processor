@@ -300,6 +300,123 @@ private class JobExecutedTest {
     Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalled();
   }
 
+  @IsTest
+  static void givenRateLimitConfigured_whenJobSucceeds_thenUpdatesCounter() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
+
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestApexJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(100)
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    jobRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
+    jobResult.consumedLimits = consumedLimits;
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be set to chunk size for fresh window');
+    Assert.isNotNull(jobDescription.CurrentWindowStart__c, 'Window start should be set');
+  }
+
+  @IsTest
+  static void givenRateLimitWithActiveWindow_whenJobSucceeds_thenIncrementsCounter() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
+
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestApexJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(5)
+      .withMaxExecutionsPerMinute(100)
+      .withExecutionsInCurrentWindow(10)
+      .withCurrentWindowStart(System.now())
+      .build();
+    final JobRequest__c jobRequest1 = ApexJobTestFixture.aJobRequest().withName('Test1').withAttemptNumber(0).build();
+    jobRequest1.JobDescription__r = jobDescription;
+    final JobRequest__c jobRequest2 = ApexJobTestFixture.aJobRequest().withName('Test2').withAttemptNumber(0).build();
+    jobRequest2.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest1, jobRequest2 };
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
+    jobResult.consumedLimits = consumedLimits;
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(12, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be incremented by chunk size (10 + 2)');
+  }
+
+  @IsTest
+  static void givenRateLimitWithExpiredWindow_whenJobSucceeds_thenResetsCounter() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
+
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestApexJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(100)
+      .withExecutionsInCurrentWindow(50)
+      .withCurrentWindowStart(System.now().addMinutes(-2))
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    jobRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
+    jobResult.consumedLimits = consumedLimits;
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be reset to chunk size for expired window');
+    Assert.isTrue(jobDescription.CurrentWindowStart__c.getTime() > System.now().addMinutes(-1).getTime(), 'Window start should be refreshed to recent time');
+  }
+
+  @IsTest
+  static void givenNoRateLimit_whenJobSucceeds_thenCounterUnchanged() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
+
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestApexJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(0)
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    jobRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ jobRequest };
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
+    jobResult.consumedLimits = consumedLimits;
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(0, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should remain 0 when rate limiting is disabled');
+    Assert.isNull(jobDescription.CurrentWindowStart__c, 'Window start should remain null when rate limiting is disabled');
+  }
+
   // Test exception class
   public class TestException extends Exception {
   }

@@ -21,7 +21,10 @@ public class ApexJobTestFixture {
         ConsecutiveFailures__c = 0,
         SmallestFailingChunk__c = 0,
         SuccessStreak__c = 0,
-        VariationResetThreshold__c = 0.3
+        VariationResetThreshold__c = 0.3,
+        MaxExecutionsPerMinute__c = 0,
+        ExecutionsInCurrentWindow__c = 0,
+        CurrentWindowStart__c = null
       );
       for (ConsumptionModel model : ConsumptionModel.asList()) {
         this.record.put(model.base, ApexJobConstant.UNKNOWN_BASE_CONSUMPTION);
@@ -244,6 +247,21 @@ public class ApexJobTestFixture {
 
     public JobDescriptionBuilder withAllowedEndTime(final Time allowedEndTime) {
       this.record.AllowedEndTime__c = allowedEndTime;
+      return this;
+    }
+
+    public JobDescriptionBuilder withMaxExecutionsPerMinute(final Integer value) {
+      this.record.MaxExecutionsPerMinute__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withExecutionsInCurrentWindow(final Integer value) {
+      this.record.ExecutionsInCurrentWindow__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withCurrentWindowStart(final Datetime value) {
+      this.record.CurrentWindowStart__c = value;
       return this;
     }
 

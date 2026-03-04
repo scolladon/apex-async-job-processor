@@ -81,12 +81,28 @@ public with sharing class JobExecuted {
   private void stageJobDescriptionExecution() {
     final ConsumptionLearner consumptionLearner = this.factory.getConsumptionLearner(this.jobDescription);
     this.jobDescription.LastExecutionDateTime__c = this.stagingInfo.endTime;
+    this.updateRateLimitCounter();
     if (this.jobExecutionResult.status == ApexJobStatus.FAILURE || this.jobExecutionResult.status == ApexJobStatus.ABORTED) {
       consumptionLearner.adjustFromFailure(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
     } else if (this.jobExecutionResult.status == ApexJobStatus.SUCCESS) {
       consumptionLearner.adjustFromSuccess(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
     } else if (this.jobExecutionResult.status == ApexJobStatus.KILLED) {
       consumptionLearner.adjustFromKill(this.jobRequests.size());
+    }
+  }
+
+  private void updateRateLimitCounter() {
+    final Integer maxPerMinute = this.jobDescription.MaxExecutionsPerMinute__c?.intValue() ?? 0;
+    if (maxPerMinute <= 0) {
+      return;
+    }
+    final Datetime windowStart = this.jobDescription.CurrentWindowStart__c;
+    final Integer chunkSize = this.jobRequests.size();
+    if (windowStart == null || this.stagingInfo.endTime.getTime() - windowStart.getTime() >= ApexJobConstant.RATE_WINDOW_MS) {
+      this.jobDescription.CurrentWindowStart__c = this.stagingInfo.endTime;
+      this.jobDescription.ExecutionsInCurrentWindow__c = chunkSize;
+    } else {
+      this.jobDescription.ExecutionsInCurrentWindow__c = (this.jobDescription.ExecutionsInCurrentWindow__c ?? 0) + chunkSize;
     }
   }
 

@@ -3,7 +3,7 @@
 	"excludeIdsFromCSVFiles": true,
 	"objects": [
 		{
-			"query": "SELECT Name, ProcessorName__c FROM JobDescription__c",
+			"query": "SELECT Name, ProcessorName__c, MaxExecutionsPerMinute__c FROM JobDescription__c",
 			"operation": "Upsert",
 			"externalId": "ProcessorName__c",
 			"deleteOldData": true

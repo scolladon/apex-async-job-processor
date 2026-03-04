@@ -99,6 +99,8 @@ public without sharing class ApexJobManager {
     jobDescription.ConsecutiveFailures__c = 0;
     jobDescription.SuccessStreak__c = 0;
     jobDescription.SmallestFailingChunk__c = 0;
+    jobDescription.ExecutionsInCurrentWindow__c = 0;
+    jobDescription.CurrentWindowStart__c = null;
     repository.upsertJobDescriptionByProcessorName(jobDescription);
   }
 
@@ -138,6 +140,11 @@ public without sharing class ApexJobManager {
 
     public JobDescriptionBuilder minInterval(final Integer minJobInterval) {
       this.jobDescription.MinJobInterval__c = minJobInterval;
+      return this;
+    }
+
+    public JobDescriptionBuilder maxExecutionsPerMinute(final Integer maxExecutionsPerMinute) {
+      this.jobDescription.MaxExecutionsPerMinute__c = maxExecutionsPerMinute;
       return this;
     }
 

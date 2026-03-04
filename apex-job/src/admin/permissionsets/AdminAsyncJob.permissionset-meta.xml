@@ -72,6 +72,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.CurrentWindowStart__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.CpuTimeBaseConsumption__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -137,6 +142,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.ExecutionsInCurrentWindow__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.FetchCallsOnApexCursorBaseConsumption__c</field>
         <readable>true</readable>
     </fieldPermissions>
@@ -198,6 +208,11 @@
     <fieldPermissions>
         <editable>true</editable>
         <field>JobDescription__c.MaxExecutionAttempt__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.MaxExecutionsPerMinute__c</field>
         <readable>true</readable>
     </fieldPermissions>
     <fieldPermissions>

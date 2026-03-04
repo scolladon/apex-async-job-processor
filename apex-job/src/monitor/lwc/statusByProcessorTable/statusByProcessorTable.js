@@ -15,6 +15,8 @@ export default class StatusByProcessorTable extends LightningElement {
       { label: 'Smallest Failing', fieldName: 'smallestFailingChunk', type: 'number', hideDefaultActions: true },
       { label: 'Success Streak', fieldName: 'successStreak', type: 'number', hideDefaultActions: true },
       { label: 'Consecutive Failure', fieldName: 'consecutiveFailure', type: 'number', hideDefaultActions: true },
+      { label: 'Rate Limit', fieldName: 'maxExecutionsPerMinute', type: 'number', hideDefaultActions: true },
+      { label: 'Exec/min', fieldName: 'executionsInCurrentWindow', type: 'number', hideDefaultActions: true },
       { label: 'Next Exec', fieldName: 'nextExecutionDateTime', hideDefaultActions: true, wrapText: true },
       { label: 'Last Exec', fieldName: 'lastExecutionDateTime', hideDefaultActions: true, wrapText: true },
     ];
@@ -31,7 +33,11 @@ export default class StatusByProcessorTable extends LightningElement {
   async resolveProcessorNames(ids) {
     const result = await getJobDescriptionInfos({ jobDescriptionIds: ids });
     return result.reduce((acc, r) => {
-      acc[r?.Id] = r?.ProcessorName__c;
+      acc[r?.Id] = {
+        name: r?.ProcessorName__c,
+        maxExecutionsPerMinute: r?.MaxExecutionsPerMinute__c,
+        executionsInCurrentWindow: r?.ExecutionsInCurrentWindow__c
+      };
       return acc;
     }, {});
   }
@@ -42,8 +48,11 @@ export default class StatusByProcessorTable extends LightningElement {
     if (this.arePagesDifferent(rows, this.rowValues)) {
       const names = await this.resolveProcessorNames(rows.map(row => row.processorId));
       this.rowValues = rows.map(row => {
+        const info = names[row.processorId] ?? {};
         row.processorUrl = '/' + row.processorId;
-        row.processorName = names[row.processorId];
+        row.processorName = info.name;
+        row.maxExecutionsPerMinute = info.maxExecutionsPerMinute;
+        row.executionsInCurrentWindow = info.executionsInCurrentWindow;
         return row;
       });
     }
@@ -54,14 +63,6 @@ export default class StatusByProcessorTable extends LightningElement {
   }
 
   arePagesDifferent(newPage, currentPage) {
-    if (newPage.length !== currentPage.length) {
-      return true;
-    }
-    for (let i = 0; i < newPage.length; i++) {
-      if (newPage[i].Id !== currentPage[i].Id) {
-        return true;
-      }
-    }
-    return false;
+    return JSON.stringify(newPage) !== JSON.stringify(currentPage);
   }
 }

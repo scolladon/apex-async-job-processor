@@ -70,9 +70,10 @@ public with sharing class JobMonitorController {
     return out;
   }
 
-  @AuraEnabled(cacheable=true)
+  // Not cacheable: ExecutionsInCurrentWindow__c and CurrentWindowStart__c are volatile runtime state
+  @AuraEnabled
   public static List<JobDescription__c> getJobDescriptionInfos(final List<Id> jobDescriptionIds) {
-    return [SELECT Id, ProcessorName__c FROM JobDescription__c WHERE Id IN :jobDescriptionIds];
+    return [SELECT Id, ProcessorName__c, MaxExecutionsPerMinute__c, ExecutionsInCurrentWindow__c, CurrentWindowStart__c FROM JobDescription__c WHERE Id IN :jobDescriptionIds];
   }
 
   @AuraEnabled

@@ -99,15 +99,7 @@ export default class RequestTable extends LightningElement {
   }
 
   arePagesDifferent(newPage, currentPage) {
-    if (newPage.length !== currentPage.length) {
-      return true;
-    }
-    for (let i = 0; i < newPage.length; i++) {
-      if (newPage[i].Id !== currentPage[i].Id) {
-        return true;
-      }
-    }
-    return false;
+    return JSON.stringify(newPage) !== JSON.stringify(currentPage);
   }
 
 }
