@@ -62,6 +62,11 @@ private class ApexJobManagerTest {
       ConsecutiveFailures__c = 2,
       SuccessStreak__c = 8,
       SmallestFailingChunk__c = 7,
+      ConsecutiveVariationCount__c = 2,
+      LearningRate__c = 0.42,
+      VariationResetCount__c = 7,
+      VariationResetThreshold__c = 0.55,
+      KillCooldownCount__c = 5,
       CpuTimeBaseConsumption__c = 1,
       CpuTimePerItemConsumption__c = 1,
       CpuTimeSafety__c = 1,
@@ -123,6 +128,11 @@ private class ApexJobManagerTest {
       SELECT
         ProcessorName__c,
         MaxChunkSize__c,
+        ConsecutiveVariationCount__c,
+        LearningRate__c,
+        VariationResetCount__c,
+        VariationResetThreshold__c,
+        KillCooldownCount__c,
         CpuTimeBaseConsumption__c,
         CpuTimePerItemConsumption__c,
         CpuTimeSafety__c,
@@ -179,6 +189,11 @@ private class ApexJobManagerTest {
       LIMIT 1
     ];
     Assert.areEqual(-1, jd.MaxChunkSize__c, 'MaxChunkSize must be reset');
+    Assert.areEqual(0, jd.ConsecutiveVariationCount__c, 'ConsecutiveVariationCount must be reset (EWMA state)');
+    Assert.areEqual(0.42, jd.LearningRate__c, 'LearningRate is configuration and must be preserved by reset');
+    Assert.areEqual(7, jd.VariationResetCount__c, 'VariationResetCount is configuration and must be preserved by reset');
+    Assert.areEqual(0.55, jd.VariationResetThreshold__c, 'VariationResetThreshold is configuration and must be preserved by reset');
+    Assert.areEqual(5, jd.KillCooldownCount__c, 'KillCooldownCount is configuration and must be preserved by reset');
     Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.CpuTimeBaseConsumption__c);
     Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.CpuTimePerItemConsumption__c);
     Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.CpuTimeSafety__c);

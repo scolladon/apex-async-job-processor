@@ -46,7 +46,6 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       }
       final JobExecuted executionResult = this.lastExecutableJob.executeChunk();
       this.jobExecutionResults.add(executionResult);
-      this.lastExecutableJob = null;
       this.logger.debug('Job executed: ' + executionResult);
     }
   }
@@ -54,7 +53,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
   public void execute(FinalizerContext finalizerContext) {
     try {
       // In case the last job has been killed we need to record it
-      if (this.shouldTreatException(finalizerContext)) {
+      if (this.wasLastChunkKilled(finalizerContext)) {
         final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(finalizerContext.getException()));
         final JobExecuted executionResult = new JobExecuted(this.factory, this.lastExecutableJob, killedJobResult);
         this.jobExecutionResults.add(executionResult);
@@ -81,8 +80,18 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     }
   }
 
-  private Boolean shouldTreatException(FinalizerContext ctx) {
-    return ctx?.getResult() == ParentJobResult.UNHANDLED_EXCEPTION && this.lastExecutableJob != null;
+  private Boolean wasLastChunkKilled(final FinalizerContext finalizerContext) {
+    if (finalizerContext?.getResult() != ParentJobResult.UNHANDLED_EXCEPTION) {
+      return false;
+    }
+    if (this.lastExecutableJob == null) {
+      return false;
+    }
+    if (this.jobExecutionResults.isEmpty()) {
+      return true;
+    }
+    final JobExecuted lastRecorded = this.jobExecutionResults[this.jobExecutionResults.size() - 1];
+    return lastRecorded.executable != this.lastExecutableJob;
   }
 
   private Integer getDelayInMinutes() {

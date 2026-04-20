@@ -417,6 +417,56 @@ private class JobExecutedTest {
     Assert.isNull(jobDescription.CurrentWindowStart__c, 'Window start should remain null when rate limiting is disabled');
   }
 
+  @IsTest
+  static void givenChunkWithMalformedRequest_whenStageExecution_thenThatRequestTaggedTerminalAndValidFollowsChunkResult() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('ChunkWithMalformed').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c validRequest = ApexJobTestFixture.aJobRequest().withName('valid').withAttemptNumber(0).build();
+    validRequest.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    validRequest.JobDescription__r = jobDescription;
+    final JobRequest__c malformedRequest = ApexJobTestFixture.aJobRequest().withName('bad').withAttemptNumber(0).build();
+    malformedRequest.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    malformedRequest.JobDescription__r = jobDescription;
+    final List<JobRequest__c> jobRequests = new List<JobRequest__c>{ validRequest, malformedRequest };
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, jobRequests);
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.SUCCESS);
+    jobResult.consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).build();
+    jobResult.malformedRequestErrors = new Map<Id, String>{ malformedRequest.Id => 'Unexpected character at pos 1' };
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.MALFORMED_ARGUMENT.name(), malformedRequest.Status__c, 'Malformed request must be terminal-failed with MALFORMED_ARGUMENT status');
+    Assert.areEqual('Unexpected character at pos 1', malformedRequest.LastExecutionMessage__c, 'Malformed request carries the parser error message');
+    Assert.isNull(malformedRequest.NextExecutionDateTime__c, 'Malformed request must not be retried');
+    Assert.areEqual(ApexJobStatus.SUCCESS.name(), validRequest.Status__c, 'Valid request must follow the chunk-level SUCCESS result');
+  }
+
+  @IsTest
+  static void givenAllMalformedChunk_whenStageExecution_thenConsumptionLearnerNotInvoked() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('AllMalformed').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c malformedRequest = ApexJobTestFixture.aJobRequest().withName('bad').withAttemptNumber(0).build();
+    malformedRequest.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    malformedRequest.JobDescription__r = jobDescription;
+    final JobExecutable jobExecutable = new JobExecutable(mocks.factoryStub, new List<JobRequest__c>{ malformedRequest });
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.MALFORMED_ARGUMENT);
+    jobResult.malformedRequestErrors = new Map<Id, String>{ malformedRequest.Id => 'bad' };
+    final JobExecuted sut = new JobExecuted(mocks.factoryStub, jobExecutable, jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Expect.that(mocks.adjustFromSuccessSpy).hasNotBeenCalled();
+    Expect.that(mocks.adjustFromFailureSpy).hasNotBeenCalled();
+    Expect.that(mocks.adjustFromKillSpy).hasNotBeenCalled();
+  }
+
   // Test exception class
   public class TestException extends Exception {
   }

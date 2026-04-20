@@ -147,6 +147,57 @@ private class JobExecutableTest {
   }
 
   @IsTest
+  static void givenAllMalformedChunk_whenExecuteChunk_thenProcessorNotCalledAndResultStatusIsMalformed() {
+    // Arrange — parser returns two malformed entries, zero valid.
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobRequest__c request1 = ApexJobTestFixture.aJobRequest().withName('req1').withArgument('bad-json-1').build();
+    request1.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobRequest__c request2 = ApexJobTestFixture.aJobRequest().withName('req2').withArgument('bad-json-2').build();
+    request2.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    request1.JobDescription__r = ApexJobTestFixture.aJobDescription().withProcessorName('JobExecutableTest.TestApexJob').build();
+    request2.JobDescription__r = request1.JobDescription__r;
+    final JobRequestArgumentParser.ParseResult allMalformed = new JobRequestArgumentParser.ParseResult();
+    allMalformed.malformedErrors.put(request1.Id, 'Unexpected character at pos 1');
+    allMalformed.malformedErrors.put(request2.Id, 'Unexpected character at pos 1');
+    mocks.parseSpy.returns(allMalformed);
+
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, new List<JobRequest__c>{ request1, request2 });
+
+    // Act
+    final JobExecuted executed = sut.executeChunk();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.MALFORMED_ARGUMENT, executed.jobExecutionResult.status, 'All-malformed chunk must return MALFORMED_ARGUMENT status');
+    Assert.areEqual(2, executed.jobExecutionResult.malformedRequestErrors.size(), 'Both request Ids must be recorded in malformedRequestErrors');
+  }
+
+  @IsTest
+  static void givenMixedChunk_whenExecuteChunk_thenProcessorCalledAndMalformedPropagated() {
+    // Arrange — parser returns one valid argument, one malformed entry.
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobRequest__c valid = ApexJobTestFixture.aJobRequest().withName('valid').withArgument('{"ok":true}').build();
+    valid.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobRequest__c malformed = ApexJobTestFixture.aJobRequest().withName('bad').withArgument('not-json').build();
+    malformed.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    valid.JobDescription__r = ApexJobTestFixture.aJobDescription().withProcessorName('JobExecutableTest.TestApexJob').build();
+    malformed.JobDescription__r = valid.JobDescription__r;
+    final JobRequestArgumentParser.ParseResult mixed = new JobRequestArgumentParser.ParseResult();
+    mixed.validArguments.add(new Map<String, Object>{ 'ok' => true });
+    mixed.malformedErrors.put(malformed.Id, 'Unexpected character');
+    mocks.parseSpy.returns(mixed);
+
+    final JobExecutable sut = new JobExecutable(mocks.factoryStub, new List<JobRequest__c>{ valid, malformed });
+
+    // Act
+    final JobExecuted executed = sut.executeChunk();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.SUCCESS, executed.jobExecutionResult.status, 'Processor succeeded for the valid portion of the chunk');
+    Assert.areEqual(1, executed.jobExecutionResult.malformedRequestErrors.size(), 'Only the malformed request is tracked');
+    Assert.isTrue(executed.jobExecutionResult.malformedRequestErrors.containsKey(malformed.Id), 'Malformed entry keyed by the malformed request Id');
+  }
+
+  @IsTest
   static void givenNewExecutable_whenGetters_thenSelectionSetAndEndFallsBackToNow() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();

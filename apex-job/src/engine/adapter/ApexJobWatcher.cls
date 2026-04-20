@@ -1,11 +1,3 @@
-/**
- * Execute anonymously to kill and (re)schedule the job watcher
-for(CronTrigger ct : [SELECT Id FROM CronTrigger WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name Like 'Async Job Watcher%']) {
-  System.abortJob(ct.Id);
-}
-ApexJobWatcher.schedule();
- */
-
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ApexJobWatcher implements Schedulable {
   private final ApexJobFactory factory;
@@ -37,8 +29,7 @@ public without sharing class ApexJobWatcher implements Schedulable {
       return;
     }
     final String cronJobNameTemplate = '{0} {1} (' + System.currentTimeMillis() + ')';
-    // Schedule the job to run every 5 minutes
-    for (Integer i = 0; i < 60; i += 5) {
+    for (Integer i = 0; i < ApexJobConstant.MINUTES_PER_HOUR; i += ApexJobConstant.WATCHER_INTERVAL_MINUTES) {
       System.schedule(String.format(cronJobNameTemplate, new List<Object>{ cronJobBaseName, ('0' + i).right(2) }), '0 ' + i + ' * ? * * *', new ApexJobWatcher());
     }
   }

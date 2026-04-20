@@ -89,7 +89,6 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     Database.delete(jobsToDelete, false, AccessLevel.SYSTEM_MODE);
   }
 
-  // TODO part of the JobRequest Domain
   private static Boolean shouldDeleteJobRequest(final JobRequest__c jobRequest) {
     return jobRequest.Status__c == ApexJobStatus.SUCCESS.name();
   }

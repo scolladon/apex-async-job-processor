@@ -99,6 +99,7 @@ public without sharing class ApexJobManager {
     jobDescription.ConsecutiveFailures__c = 0;
     jobDescription.SuccessStreak__c = 0;
     jobDescription.SmallestFailingChunk__c = 0;
+    jobDescription.ConsecutiveVariationCount__c = 0;
     jobDescription.ExecutionsInCurrentWindow__c = 0;
     jobDescription.CurrentWindowStart__c = null;
     repository.upsertJobDescriptionByProcessorName(jobDescription);

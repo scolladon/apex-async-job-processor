@@ -9,4 +9,5 @@ public interface ApexJobFactory {
   LimitService getLimitService();
   ChunkSizeCalculator getChunkSizeCalculator();
   ConsumptionLearner getConsumptionLearner(JobDescription__c jobDescription);
+  JobRequestArgumentParser getArgumentParser();
 }

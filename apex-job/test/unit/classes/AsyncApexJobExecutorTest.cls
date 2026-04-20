@@ -147,7 +147,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
 
     // Validate timestamps propagated when staging
-    final List<Object> args = mocks.recordJobExecutionSpy.callLog.get(0);
+    final List<Object> args = mocks.recordJobExecutionSpy.getArguments(0);
     final List<JobExecuted> recorded = (List<JobExecuted>) args.get(0);
     Assert.areEqual(1, recorded.size(), 'One job executed should be recorded');
     final JobExecuted captured = recorded[0];
@@ -251,6 +251,72 @@ private class AsyncApexJobExecutorTest {
     Expect.that(executeChunkSpy).hasNotBeenCalled();
     Expect.that(mocks.recordJobExecutionSpy).hasNotBeenCalled();
     Expect.that(mocks.enqueueSpy).hasNotBeenCalled();
+  }
+
+  @IsTest
+  static void givenLastChunkAlreadyRecorded_whenFinalizerFires_thenNoDoubleRecord() {
+    // Arrange — simulate the success-then-kill race: the chunk is already in the results list.
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable inFlight = buildExecutable(mocks);
+    sut.lastExecutableJob = inFlight;
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, inFlight, new ApexJobResult(ApexJobStatus.SUCCESS)));
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert — list must still contain exactly one result, not two.
+    Assert.areEqual(1, sut.jobExecutionResults.size(), 'Finalizer must not append a KILLED duplicate when the chunk is already recorded');
+    Assert.areEqual(ApexJobStatus.SUCCESS, sut.jobExecutionResults[0].jobExecutionResult.status, 'Existing SUCCESS record must be preserved unchanged');
+  }
+
+  @IsTest
+  static void givenInFlightChunkNotRecorded_whenFinalizerFires_thenKilledAppended() {
+    // Arrange — simulate a kill during executeChunk: pointer set, list still empty of this chunk.
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    sut.lastExecutableJob = buildExecutable(mocks);
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert — exactly one KILLED record synthesized.
+    Assert.areEqual(1, sut.jobExecutionResults.size(), 'Finalizer must append exactly one KILLED record when the in-flight chunk is not already recorded');
+    Assert.areEqual(ApexJobStatus.KILLED, sut.jobExecutionResults[0].jobExecutionResult.status, 'The synthesized record status must be KILLED');
+  }
+
+  @IsTest
+  static void givenPreviousChunkRecordedButCurrentInFlight_whenFinalizerFires_thenKilledAppendedForCurrent() {
+    // Arrange — executor finished chunk N, started chunk N+1, then was killed mid-executeChunk.
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable previousChunk = buildExecutable(mocks);
+    final JobExecutable currentChunk = buildExecutable(mocks);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, previousChunk, new ApexJobResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = currentChunk;
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert — two results: previous SUCCESS plus current KILLED.
+    Assert.areEqual(2, sut.jobExecutionResults.size(), 'Finalizer must append KILLED for the new in-flight chunk while preserving the previously recorded SUCCESS');
+    Assert.areEqual(ApexJobStatus.KILLED, sut.jobExecutionResults[1].jobExecutionResult.status, 'The new tail record must be KILLED');
+  }
+
+  private static JobExecutable buildExecutable(final ApexJobTestMock mocks) {
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withProcessorName('AsyncApexJobExecutorTest.NoOpProcessor').build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().build();
+    jobRequest.JobDescription__r = jobDescription;
+    return new JobExecutable(mocks.factoryStub, new List<JobRequest__c>{ jobRequest });
+  }
+
+  public class NoOpProcessor implements ApexJob {
+    public ApexJobResult execute(final ApexJobContext ctx) {
+      return new ApexJobResult(ApexJobStatus.SUCCESS);
+    }
   }
 
   private class TestException extends Exception {

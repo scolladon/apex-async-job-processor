@@ -24,7 +24,11 @@ public class ApexJobTestFixture {
         VariationResetThreshold__c = 0.3,
         MaxExecutionsPerMinute__c = 0,
         ExecutionsInCurrentWindow__c = 0,
-        CurrentWindowStart__c = null
+        CurrentWindowStart__c = null,
+        LearningRate__c = ApexJobConstant.DEFAULT_LEARNING_RATE,
+        ConsecutiveVariationCount__c = 0,
+        VariationResetCount__c = ApexJobConstant.DEFAULT_VARIATION_RESET_COUNT,
+        KillCooldownCount__c = ApexJobConstant.DEFAULT_KILL_COOLDOWN_COUNT
       );
       for (ConsumptionModel model : ConsumptionModel.asList()) {
         this.record.put(model.base, ApexJobConstant.UNKNOWN_BASE_CONSUMPTION);
@@ -95,6 +99,26 @@ public class ApexJobTestFixture {
 
     public JobDescriptionBuilder withVariationResetThreshold(final Decimal value) {
       this.record.VariationResetThreshold__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withLearningRate(final Decimal value) {
+      this.record.LearningRate__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withConsecutiveVariationCount(final Integer value) {
+      this.record.ConsecutiveVariationCount__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withVariationResetCount(final Integer value) {
+      this.record.VariationResetCount__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withKillCooldownCount(final Integer value) {
+      this.record.KillCooldownCount__c = value;
       return this;
     }
 

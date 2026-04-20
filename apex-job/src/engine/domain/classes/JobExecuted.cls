@@ -10,9 +10,11 @@ public with sharing class JobExecuted {
   private final JobRequestExecutionStagingInfo stagingInfo;
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
+  public final JobExecutable executable { get; private set; }
 
   public JobExecuted(final ApexJobFactory factory, final JobExecutable jobExecutable, final ApexJobResult jobExecutionResult) {
     this.factory = factory;
+    this.executable = jobExecutable;
     this.jobDescription = jobExecutable.jobDescription;
     this.jobRequests = jobExecutable.jobRequests;
     this.jobExecutionResult = jobExecutionResult;
@@ -32,8 +34,25 @@ public with sharing class JobExecuted {
   }
 
   private void stageJobRequestExecution(final JobRequest__c job) {
+    if (this.isMalformed(job)) {
+      this.stageMalformedJobRequest(job);
+      return;
+    }
     this.calculateTimingMetrics(job);
     this.determineNextStatus(job);
+  }
+
+  private Boolean isMalformed(final JobRequest__c job) {
+    return this.jobExecutionResult.malformedRequestErrors != null && this.jobExecutionResult.malformedRequestErrors.containsKey(job.Id);
+  }
+
+  private void stageMalformedJobRequest(final JobRequest__c job) {
+    job.Status__c = ApexJobStatus.MALFORMED_ARGUMENT.name();
+    job.LastExecutionMessage__c = this.jobExecutionResult.malformedRequestErrors.get(job.Id);
+    job.NextExecutionDateTime__c = null;
+    job.AttemptNumber__c = Math.min((job.AttemptNumber__c ?? 0) + 1, MAX_EXECUTION_ATTEMPT_NUMBER);
+    job.LastSelectionDateTime__c = this.stagingInfo.selectionTime;
+    job.LastExecutionDateTime__c = this.stagingInfo.endTime;
   }
 
   private void calculateTimingMetrics(final JobRequest__c job) {
@@ -79,9 +98,12 @@ public with sharing class JobExecuted {
   }
 
   private void stageJobDescriptionExecution() {
-    final ConsumptionLearner consumptionLearner = this.factory.getConsumptionLearner(this.jobDescription);
     this.jobDescription.LastExecutionDateTime__c = this.stagingInfo.endTime;
     this.updateRateLimitCounter();
+    if (this.jobExecutionResult.status == ApexJobStatus.MALFORMED_ARGUMENT) {
+      return;
+    }
+    final ConsumptionLearner consumptionLearner = this.factory.getConsumptionLearner(this.jobDescription);
     if (this.jobExecutionResult.status == ApexJobStatus.FAILURE || this.jobExecutionResult.status == ApexJobStatus.ABORTED) {
       consumptionLearner.adjustFromFailure(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
     } else if (this.jobExecutionResult.status == ApexJobStatus.SUCCESS) {

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>VariationResetCount__c</fullName>
+    <defaultValue>3</defaultValue>
+    <description>How many consecutive variations above VariationResetThreshold__c are required before the engine triggers a full consumption-model reset. Default 3.</description>
+    <externalId>false</externalId>
+    <label>Variation Reset Count</label>
+    <precision>2</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

@@ -56,6 +56,10 @@ public without sharing class JobSelectorImpl implements JobSelector {
         JobDescription__r.SmallestFailingChunk__c,
         JobDescription__r.SuccessStreak__c,
         JobDescription__r.VariationResetThreshold__c,
+        JobDescription__r.LearningRate__c,
+        JobDescription__r.ConsecutiveVariationCount__c,
+        JobDescription__r.VariationResetCount__c,
+        JobDescription__r.KillCooldownCount__c,
         // Rate limit fields
         JobDescription__r.MaxExecutionsPerMinute__c,
         JobDescription__r.ExecutionsInCurrentWindow__c,

@@ -1,5 +1,4 @@
 public with sharing class LimitServiceImpl implements LimitService {
-  private static final Decimal BUFFER_COEFFICIENT = 0.97;
   private static final Integer DEFAULT_CONSUMPTION_VALUE = -1;
   private static final Integer MAX_CALLOUT_TIME_IN_MS = 120000;
 
@@ -52,8 +51,8 @@ public with sharing class LimitServiceImpl implements LimitService {
     final Integer baseHeapSize = Limits.getLimitHeapSize() - Limits.getHeapSize();
 
     LimitsUsage result = new LimitsUsage();
-    result.cpuTime = (Integer) (baseCpuTime * BUFFER_COEFFICIENT);
-    result.heapSize = (Integer) (baseHeapSize * BUFFER_COEFFICIENT);
+    result.cpuTime = (Integer) (baseCpuTime * ApexJobConstant.AVAILABLE_LIMITS_BUFFER);
+    result.heapSize = (Integer) (baseHeapSize * ApexJobConstant.AVAILABLE_LIMITS_BUFFER);
     result.callout = Limits.getLimitCallouts() - Limits.getCallouts();
     result.calloutTime = MAX_CALLOUT_TIME_IN_MS - LimitServiceImpl.totalCalloutTimeConsumedInMs;
     result.publishImmediateDml = Limits.getLimitPublishImmediateDml() - Limits.getPublishImmediateDml();

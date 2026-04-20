@@ -2,6 +2,7 @@ public without sharing class ApexJobResult {
   public final ApexJobStatus status { get; private set; }
   public final ApexJobError error { get; private set; }
   public LimitsUsage consumedLimits { get; set; }
+  public Map<Id, String> malformedRequestErrors { get; set; }
 
   public ApexJobResult(final ApexJobStatus status) {
     this(status, null);

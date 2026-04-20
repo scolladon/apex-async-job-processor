@@ -8,6 +8,7 @@ public virtual class ApexJobFactoryImpl implements ApexJobFactory {
   private static ApexJobConfigService configServiceInstance;
   private static LimitService limitServiceInstance;
   private static ChunkSizeCalculator chunkSizeCalculatorInstance;
+  private static JobRequestArgumentParser argumentParserInstance;
 
   public ApexJobLogger getLogger() {
     if (ApexJobFactoryImpl.loggerInstance == null) {
@@ -74,5 +75,12 @@ public virtual class ApexJobFactoryImpl implements ApexJobFactory {
 
   public ConsumptionLearner getConsumptionLearner(final JobDescription__c jobDescription) {
     return new AdaptiveConsumptionLearner(jobDescription);
+  }
+
+  public JobRequestArgumentParser getArgumentParser() {
+    if (ApexJobFactoryImpl.argumentParserInstance == null) {
+      ApexJobFactoryImpl.argumentParserInstance = new JobRequestArgumentParser();
+    }
+    return ApexJobFactoryImpl.argumentParserInstance;
   }
 }

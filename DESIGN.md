@@ -16,7 +16,9 @@ A Salesforce DX unlocked package implementing a Queueable-based async job proces
 - [Adaptive Chunk Calculation](#adaptive-chunk-calculation)
 - [Consumption Learning Algorithm](#consumption-learning-algorithm)
 - [Governor Limit Tracking](#governor-limit-tracking)
+- [Malformed Argument Handling](#malformed-argument-handling)
 - [Monitoring UI](#monitoring-ui)
+- [Operator Scripts](#operator-scripts)
 - [Security Model](#security-model)
 - [Extensibility](#extensibility)
 - [Key Design Decisions](#key-design-decisions)
@@ -70,7 +72,7 @@ ApexJobConfig__c (Hierarchy Custom Setting)
 JobDescription__c [1]                          JobRequest__c [N]
   ├── ProcessorName__c (Text, unique, ext ID)    ├── JobDescription__c (Lookup, required)
   ├── Enabled__c (Checkbox)                      ├── Argument__c (LongTextArea, 131072)
-  ├── Priority__c (Number, default: -1)          ├── Status__c (Picklist: READY|FAILURE|KILLED|ABORTED|SUCCESS)
+  ├── Priority__c (Number, default: -1)          ├── Status__c (Picklist: READY|FAILURE|KILLED|ABORTED|SUCCESS|MALFORMED_ARGUMENT)
   ├── isRecurrent__c (Checkbox)                  ├── Enabled__c (Checkbox)
   ├── AllowedDays__c (MultiselectPicklist)        ├── IsCandidate__c (Formula, Checkbox)
   ├── AllowedStartTime__c (Time)                 ├── AttemptNumber__c (Number)
@@ -83,6 +85,10 @@ JobDescription__c [1]                          JobRequest__c [N]
   ├── ConsecutiveFailures__c (Number)            ├── UnitRunTime__c (Number, ms)
   ├── SuccessStreak__c (Number)                  ├── ProcessingTime__c (Number, ms)
   ├── VariationResetThreshold__c (Number, 0.3)   └── JobIds__c (LongTextArea, audit trail)
+  ├── LearningRate__c (Number, 0.30)             // EWMA α — weight of the latest observation
+  ├── VariationResetCount__c (Number, 3)         // consecutive variations before model reset
+  ├── ConsecutiveVariationCount__c (Number, 0)   // engine-managed counter
+  ├── KillCooldownCount__c (Number, 3)           // consecutive successes that must pass before EWMA resumes after a kill/failure
   ├── LastExecutionDateTime__c (DateTime)
   └── 18 dimensions × 3 fields = 54 consumption model fields
 ```
@@ -184,8 +190,12 @@ System.enqueueJob(new AsyncApexJobExecutor(), options)
 ═══════════════════════════════════════════════════════════
      │
      ├── [Block 1: Persist]
-     │     ├── UNHANDLED_EXCEPTION + lastExecutableJob != null?
-     │     │     └── Synthesize KILLED result
+     │     ├── wasLastChunkKilled() gate:
+     │     │     UNHANDLED_EXCEPTION AND lastExecutableJob set AND
+     │     │     last entry of jobExecutionResults was produced by a
+     │     │     DIFFERENT executable (reference inequality)
+     │     │     → Synthesize KILLED result (idempotent: prevents the
+     │     │       SUCCESS-then-kill race from producing a duplicate)
      │     └── JobRepository.recordJobExecution(results)
      │           ├── JobExecuted.stageExecution() per result:
      │           │     ├── Calculate timing metrics
@@ -224,7 +234,8 @@ All domain classes live under `apex-job/src/engine/domain/classes/`. No database
 | `ApexJob` | Interface — the single extension point. Implementors define `execute(ApexJobContext): ApexJobResult`. |
 | `ApexJobContext` | Read-only carrier of deserialized `Argument__c` values for a chunk. |
 | `ApexJobResult` | Execution outcome. Contains `ApexJobStatus` + optional error + mutable `consumedLimits` (populated post-execution by infrastructure). |
-| `ApexJobStatus` | Enum: `READY`, `SUCCESS`, `FAILURE`, `ABORTED`, `KILLED`. |
+| `ApexJobStatus` | Enum: `READY`, `SUCCESS`, `FAILURE`, `ABORTED`, `KILLED`, `MALFORMED_ARGUMENT`. |
+| `JobRequestArgumentParser` | Parses each `JobRequest__c.Argument__c` via `JSON.deserializeUntyped`, returning a `ParseResult(validArguments, malformedErrors)` so one bad row can't fail the whole chunk. |
 | `ApexJobConstant` | Sentinel values: `UNKNOWN_MAX_CHUNK_SIZE = -1`, `UNKNOWN_SAFETY = 0.74`, `DEFAULT_MAX_CHUNK_SIZE = 50`. |
 | `LimitsUsage` | Map-backed store with 18 typed properties. `dimensions()` returns the canonical ordered list driving the entire system. |
 | `ConsumptionModel` | Flyweight mapping a dimension name to its three `JobDescription__c` field names. `asList()` is lazily cached. |
@@ -233,11 +244,11 @@ All domain classes live under `apex-job/src/engine/domain/classes/`. No database
 
 **`JobCandidate`** — Wraps a `JobDescription__c` with its eligible `JobRequest__c` list. `getExecutableChunk()` computes chunk size and produces a `JobExecutable`. Bootstrap logic: `MaxChunkSize__c == -1` forces `chunkSize = 1`.
 
-**`JobExecutable`** — Executes a chunk. Instantiates the processor via reflection (`Type.forName`), deserializes arguments into `ApexJobContext`, wraps execution in limit snapshots. Catches exceptions and converts to `FAILURE` results. Returns a `JobExecuted`.
+**`JobExecutable`** — Executes a chunk. Parses arguments via `JobRequestArgumentParser`; short-circuits to `MALFORMED_ARGUMENT` without invoking the processor when every request is malformed. Otherwise instantiates the processor via reflection (`Type.forName`), passes only the valid arguments, wraps execution in limit snapshots. Catches processor exceptions and converts to `FAILURE` results. Attaches `malformedRequestErrors` to the `ApexJobResult` for per-request staging. Returns a `JobExecuted`.
 
-**`JobExecuted`** — Post-execution staging. Two responsibilities:
-1. Stage `JobRequest__c` records: compute timing metrics, determine next status via a state machine.
-2. Drive consumption learning: route to `ConsumptionLearner.adjustFrom{Success|Failure|Kill}()` based on result status.
+**`JobExecuted`** — Post-execution staging. Exposes `executable` (public read-only reference to the source `JobExecutable`, used by the finalizer's idempotent kill-gate). Two responsibilities:
+1. Stage `JobRequest__c` records: compute timing metrics, determine next status via a state machine. Malformed requests (in `malformedRequestErrors`) are tagged terminal (`Status__c = MALFORMED_ARGUMENT`, no retry).
+2. Drive consumption learning: route to `ConsumptionLearner.adjustFrom{Success|Failure|Kill}()` based on result status. Skipped entirely when the chunk-level status is `MALFORMED_ARGUMENT` — no processor ran, so no limits were consumed that deserve learning.
 
 ### Subdirectories
 
@@ -265,6 +276,7 @@ getConfigService()         → ApexJobConfigServiceImpl
 getLimitService()           → LimitServiceImpl
 getChunkSizeCalculator()   → AdaptiveChunkCalculator
 getConsumptionLearner(job) → new AdaptiveConsumptionLearner(job)  // NOT a singleton
+getArgumentParser()        → JobRequestArgumentParser
 ```
 
 Every component follows the same DI handshake:
@@ -424,10 +436,13 @@ When `MaxChunkSize__c == -1` (unknown), `JobCandidate` bypasses the calculator e
 ### Safety Boundaries
 
 ```
-SAFETY_STEP     = 0.05   (±5% per execution)
-MIN_SAFETY      = 0.5    (floor)
-MAX_SAFETY      = 0.98   (ceiling)
-KILL_PENALTY    = 1.1    (10% inflation on KILL)
+SAFETY_STEP                   = 0.05  (±5% per execution)
+MIN_SAFETY                    = 0.5   (floor)
+MAX_SAFETY                    = 0.98  (ceiling)
+KILL_PENALTY                  = 1.1   (10% inflation on KILL)
+DEFAULT_LEARNING_RATE         = 0.30  (EWMA α — weight of latest observation)
+DEFAULT_VARIATION_RESET_COUNT = 3     (consecutive variations before reset)
+DEFAULT_KILL_COOLDOWN_COUNT   = 3     (consecutive successes before EWMA resumes after a kill/failure)
 ```
 
 ### On Success
@@ -436,9 +451,13 @@ KILL_PENALTY    = 1.1    (10% inflation on KILL)
 2. Ratchet up `MaxChunkSize = min(max(current, chunkSize), MaxChunkSizeLimit)`.
 3. Increase safety by `+SAFETY_STEP` (capped at 0.98).
 4. Per dimension:
-   - `chunkSize == 1` → `base = max(currentBase, observed)`.
-   - `chunkSize > 1` → `perItem = max(currentPerItem, (observed - base) / (chunkSize - 1))`.
-5. If per-item variation exceeds `VariationResetThreshold` (default 30%) → **full model reset**.
+   - If the current learned value is unknown (sentinel `0`) → **cold start**: set it directly to the observed value.
+   - Else, compute the variation relative to current:
+     - If above `VariationResetThreshold__c` → it is **not** assimilated; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
+     - Otherwise (within threshold), **assimilate** depending on the post-failure cooldown window:
+       - If `SuccessStreak__c < KillCooldownCount__c` → **cooldown active**: `Math.max(current, observed)` — keeps the just-inflated post-kill ceiling sticky so a single recovery chunk cannot blend it back down; this defeats the pre-remediation scenario where EWMA eroded kill penalties after 2–3 observations and re-invited the same kill.
+       - Else → **EWMA blend**: `newValue = α·observed + (1−α)·current`, where α = `LearningRate__c` (default `0.30`). Smoothly absorbs small variations instead of permanently latching outliers like the old pure `max()` approach did.
+   - For `chunkSize == 1`, the routing lands on `base`; for `chunkSize > 1`, on `perItem` (computed as `(observed − base) / (chunkSize − 1)`).
 
 ### On Failure
 
@@ -450,14 +469,16 @@ KILL_PENALTY    = 1.1    (10% inflation on KILL)
 ### On Kill (governor limit crash, no consumed limits available)
 
 Two paths:
-- **Reset**: If `ConsecutiveFailures >= MaxExecutionAttempt` → wipe all model fields to unknown sentinels.
+- **Reset**: If `ConsecutiveFailures >= MaxExecutionAttempt` → wipe all model fields to unknown sentinels (including `ConsecutiveVariationCount__c = 0`).
 - **Inflate**: For each dimension, lower safety by `SAFETY_STEP` AND multiply `base` and `perItem` by `KILL_PENALTY (1.1)`. If safety would drop below 0.5 → reset instead.
 
 ### State Transition Summary
 
 ```
-SUCCESS → safety↑, base/perItem updated (max), MaxChunkSize ratcheted up
-          reset if variation > threshold
+SUCCESS → safety↑, base/perItem EWMA-blended toward observation,
+          MaxChunkSize ratcheted up
+          observations outside VariationResetThreshold increment a counter;
+          reset only after VariationResetCount consecutive hits
 
 FAILURE → safety↓, SmallestFailingChunk updated
           reset if safety < 0.5
@@ -488,6 +509,44 @@ for (ConsumptionModel model : ConsumptionModel.asList()) {
     // ... generic processing
 }
 ```
+
+---
+
+## Malformed Argument Handling
+
+`JobRequest__c.Argument__c` is user-supplied JSON. A single malformed value must not fail the entire chunk or unjustly penalize the consumption model — the fault belongs to the row, not the processor.
+
+### Parser
+
+`JobRequestArgumentParser.parse(jobRequests)` returns a `ParseResult`:
+
+```apex
+public class ParseResult {
+  public List<Object> validArguments;        // parsed values for processor
+  public Map<Id, String> malformedErrors;    // jobRequestId → parser error message
+}
+```
+
+Each request is tried independently in a `try/catch` around `JSON.deserializeUntyped`; any exception (`JSONException` or otherwise) is captured and the request routed to `malformedErrors`. Blank `Argument__c` is valid-as-null (preserves the pre-existing convention).
+
+### Executor short-circuit
+
+`JobExecutable.executeChunk()`:
+
+1. Calls the parser.
+2. If **every** request is malformed (`validArguments.isEmpty() && !malformedErrors.isEmpty()`) → builds an `ApexJobResult(MALFORMED_ARGUMENT)` without calling the processor. Also attaches `malformedRequestErrors = parseResult.malformedErrors` to the result.
+3. Otherwise → calls the processor with only the valid arguments. Processor-thrown exceptions still convert to `FAILURE` as before. Malformed-request errors are still attached to the result for downstream staging.
+
+### Per-request staging
+
+`JobExecuted.stageJobRequestExecution(jobRequest)` branches before the usual retry/success logic:
+
+- If `jobRequest.Id` appears in `malformedRequestErrors` → `Status__c = MALFORMED_ARGUMENT`, `LastExecutionMessage__c = <parser error>`, `NextExecutionDateTime__c = null`, `AttemptNumber__c++`. **Terminal — no retry.** Timing metrics are skipped because the processor never touched this request.
+- Otherwise → the existing state machine runs (`calculateTimingMetrics`, `determineNextStatus`).
+
+### Consumption-learning skip
+
+`JobExecuted.stageJobDescriptionExecution()` still runs `updateRateLimitCounter()` (a malformed-spam flood is bounded by the per-minute rate limit like any other burst). But when the chunk-level status is `MALFORMED_ARGUMENT`, the method **returns before invoking the `ConsumptionLearner`** — no processor ran, so the observed limits don't describe meaningful work and shouldn't be blended into `base`/`perItem`.
 
 ---
 
@@ -527,6 +586,16 @@ for (ConsumptionModel model : ConsumptionModel.asList()) {
 ### Apex Controller
 
 `JobMonitorController` (`with sharing`) provides all backend methods. Read methods respect sharing; mutation methods (`pauseEngine`, `resumeEngine`, `restartEngine`) additionally require the `Manage_Async_Job_Engine` custom permission, enforced via `FeatureManagement.checkPermission`.
+
+---
+
+## Operator Scripts
+
+Anonymous-Apex scripts under `scripts/apex/` (outside every `sfdx-project.json` packageDirectory — never deployed to orgs):
+
+| Script | Purpose | Run |
+|---|---|---|
+| `scripts/apex/restart-watcher.apex` | Aborts every existing `Async Job Watcher` cron trigger and calls `ApexJobWatcher.schedule()` to re-register the 12 slots. Use when the scheduler drifts or after renaming classes involved. | `sf apex run -f scripts/apex/restart-watcher.apex -o <org-alias>` |
 
 ---
 
@@ -605,9 +674,17 @@ The safety coefficient is not static — it is actively tuned. Success streaks p
 
 Once any chunk of size N fails, `SmallestFailingChunk = N` and the calculator enforces `chunk ≤ N - 1`. This prevents retrying a chunk size that has already proven too large, independent of the safety factor math. Resets to 0 on success.
 
-### Variation Reset Threshold
+### Variation Reset Threshold with N-of-N Counter
 
-If per-item cost diverges from the learned model by more than 30% (configurable), the system assumes the workload changed fundamentally and wipes the model. This prevents the calculator from working with stale data and re-enables the bootstrap probe.
+If an observation diverges from the learned model by more than `VariationResetThreshold__c` (default 30%) the sample is **not** blended in — instead `ConsecutiveVariationCount__c` increments. The model is reset only once the counter reaches `VariationResetCount__c` (default 3). A single outlier (cold cache, one-off cascade) is tolerated and can no longer wipe the model; sustained workload drift still triggers a reset and re-enables the bootstrap probe. Any within-threshold observation clears the counter.
+
+### Post-Kill `Math.max` Cooldown
+
+EWMA is symmetric — within-threshold observations blend both up and down. After a `KILL`, `inflateConsumptionModel` multiplies `base` and `perItem` by `KILL_PENALTY = 1.1`. Without a safeguard, the next successful chunk (which typically consumes less than the inflated value) would blend the inflation 30 % of the way back down and re-enable aggressive chunk sizes — exactly the regression the 2026-04-20 Scenario A run surfaced (three clustered kills early, then a nine-item kill mid-run).
+
+The cooldown: while `SuccessStreak__c < KillCooldownCount__c` (default `3`), the within-threshold assimilation uses `Math.max(current, observed)` instead of EWMA blending. The kill penalty sticks for `N` successful chunks, proving the smaller chunk size is actually safe, before the model is allowed to relax. On the `N`-th success, the streak ≥ `N` and EWMA resumes.
+
+The cooldown reuses the existing `SuccessStreak__c` field — no new state. Side effects: the same window also follows any non-kill `FAILURE` (which also resets `SuccessStreak__c = 0`), making learning slightly more conservative post-failure — a deliberate feature. A brand-new `JobDescription__c` at cold start also spends its first `N` successes in Math.max semantics, naturally matching the conservative bootstrap posture; the `currentBase == 0` branch still short-circuits to a direct assignment on observation #1.
 
 ### Static Singleton DI
 

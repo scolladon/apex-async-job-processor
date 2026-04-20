@@ -120,11 +120,11 @@ private class LimitServiceImplTest {
     // Act
     LimitsUsage result = sut.getAvailableLimits();
 
-    // Assert - Verify buffer is applied (approximately 20% reduction, allowing for rounding)
+    // Assert - Verify buffer is applied (approximately 3% reduction, allowing for rounding)
     Integer consumedCpuTime = Limits.getCpuTime();
     Integer availableCpuTime = Limits.getLimitCpuTime() - consumedCpuTime;
-    Integer expectedCpuTime = (Integer) (availableCpuTime * 0.97);
+    Integer expectedCpuTime = (Integer) (availableCpuTime * ApexJobConstant.AVAILABLE_LIMITS_BUFFER);
     // Allow for ±10ms difference due to rounding and computing
-    Assert.isTrue(expectedCpuTime - result.cpuTime <= 10, 'CPU time should be approximately reduced by 20% buffer. Expected: ' + expectedCpuTime + ', Actual: ' + result.cpuTime);
+    Assert.isTrue(expectedCpuTime - result.cpuTime <= 10, 'CPU time should be approximately reduced by the AVAILABLE_LIMITS_BUFFER. Expected: ' + expectedCpuTime + ', Actual: ' + result.cpuTime);
   }
 }

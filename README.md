@@ -157,8 +157,13 @@
 
  Notes
  - Payload is set via `ApexJobManager.request().payload(...)` or `.payloadJson(...)`.
- - At runtime, the engine deserializes each `JobRequest__c.Argument__c` into `ApexJobContext.arguments` (see `JobExecutable.getArgument(...)`).
+ - At runtime, `JobRequestArgumentParser` deserializes each `JobRequest__c.Argument__c` into `ApexJobContext.arguments` before your processor runs.
  - A chunk may contain several arguments. Make your work idempotent.
+
+Malformed arguments
+ - If `Argument__c` cannot be parsed by `JSON.deserializeUntyped`, the request is marked `Status__c = MALFORMED_ARGUMENT` and is **not** retried (the data is user-supplied and won't fix itself).
+ - Other valid requests in the same chunk run normally; your processor receives only the valid arguments.
+ - If *every* request in a chunk is malformed, the processor is **not called** and the consumption learner is skipped (no unjust penalty on the model).
 
  Returning results
   
@@ -234,7 +239,7 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  Candidate rules (`JobRequest__c.IsCandidate__c`):
  - `JobRequest__c.Enabled__c` and `JobDescription__c.Enabled__c` must be true.
- - Status in READY, FAILURE, KILLED.
+ - Status in READY, FAILURE, KILLED. (Terminal statuses — `SUCCESS`, `ABORTED`, `MALFORMED_ARGUMENT` — are never re-selected.)
  - Time window and days respected (`AllowedDays__c`, `AllowedStartTime__c`, `AllowedEndTime__c`).
  - Attempts below `MaxExecutionAttempt__c` (or -1 for unlimited).
 
@@ -260,7 +265,10 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
  - Success: safety +0.05 (capped at 0.98), reset failure count, increment success streak, raise `MaxChunkSize__c` up to `MaxChunkSizeLimit__c`.
  - Failure: safety -0.05, track `ConsecutiveFailures__c` and `SmallestFailingChunk__c`.
  - Kill: penalize `Base` and `PerItem` by 1.1, lower safety. Reset if failures reach configured max.
- - Reset when per-item variation exceeds `VariationResetThreshold__c` or safety would drop below 0.5.
+ - Per-dimension base/per-item updates use an **EWMA blend** (`α·observed + (1−α)·current`, α = `LearningRate__c`, default 0.30) — smooth adaptation instead of a hard `max()` ratchet that outliers could stick permanently.
+ - Observations whose variation exceeds `VariationResetThreshold__c` are not assimilated; instead `ConsecutiveVariationCount__c` increments. A full model reset fires only once the counter reaches `VariationResetCount__c` (default 3), so a single noisy sample can no longer wipe months of learning.
+ - After a `KILL` or `FAILURE` (which zeroes `SuccessStreak__c`), the next `KillCooldownCount__c` successful chunks (default 3) still fall back to `Math.max` semantics so the post-kill `base × 1.1` / `perItem × 1.1` inflation stays sticky until the smaller chunk size is proven safe. Once the streak catches up, EWMA resumes.
+ - Safety floor still triggers a reset (safety would drop below `MIN_SAFETY = 0.5`).
  - Per-item update applies when chunk size > 1; when chunk size == 1, update base only.
  - Safety range: [0.5 .. 0.98].
 

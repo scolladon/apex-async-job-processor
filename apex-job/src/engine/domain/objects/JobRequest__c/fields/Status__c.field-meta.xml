@@ -25,6 +25,11 @@
                 <label>Killed</label>
             </value>
             <value>
+                <fullName>MALFORMED_ARGUMENT</fullName>
+                <default>false</default>
+                <label>Malformed Argument</label>
+            </value>
+            <value>
                 <fullName>READY</fullName>
                 <default>true</default>
                 <label>Ready</label>

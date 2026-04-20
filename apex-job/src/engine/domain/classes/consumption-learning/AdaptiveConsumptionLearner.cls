@@ -11,13 +11,15 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
   }
 
   public void adjustFromSuccess(final LimitsUsage consumed, final Integer chunkSize) {
+    final Boolean inCooldown = this.isInKillCooldown();
     this.updateFieldsOnSuccess(chunkSize);
-    this.updateModel(consumed, chunkSize, SAFETY_STEP);
+    this.updateModel(consumed, chunkSize, SAFETY_STEP, inCooldown);
   }
 
   public void adjustFromFailure(final LimitsUsage consumed, final Integer chunkSize) {
+    final Boolean inCooldown = this.isInKillCooldown();
     this.updateFieldsOnFailure(chunkSize);
-    this.updateModel(consumed, chunkSize, -SAFETY_STEP);
+    this.updateModel(consumed, chunkSize, -SAFETY_STEP, inCooldown);
   }
 
   public void adjustFromKill(final Integer chunkSize) {
@@ -29,10 +31,11 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
     }
   }
 
-  private void updateModel(final LimitsUsage consumed, final Integer chunkSize, final Decimal safetyStep) {
+  @SuppressWarnings('PMD.ExcessiveParameterList')
+  private void updateModel(final LimitsUsage consumed, final Integer chunkSize, final Decimal safetyStep, final Boolean inCooldown) {
     for (ConsumptionModel model : ConsumptionModel.asList()) {
       final Decimal usage = consumed.get(model.dimension);
-      if (processDimension(usage, model, chunkSize, safetyStep)) {
+      if (processDimension(usage, model, chunkSize, safetyStep, inCooldown)) {
         resetConsumptionModel();
         break;
       }
@@ -40,40 +43,68 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
   }
 
   @SuppressWarnings('PMD.ExcessiveParameterList')
-  private Boolean processDimension(final Decimal usage, final ConsumptionModel model, final Integer chunkSize, final Decimal safetyStep) {
+  private Boolean processDimension(final Decimal usage, final ConsumptionModel model, final Integer chunkSize, final Decimal safetyStep, final Boolean inCooldown) {
     if (adjustSafetyModel(model, safetyStep)) {
       return true;
     }
     if (chunkSize == 1) {
-      return adjustBaseConsumptionModel(usage, model);
+      return adjustBaseConsumptionModel(usage, model, inCooldown);
     }
-    return adjustPerItemConsumptionModel(usage, model, chunkSize);
+    return adjustPerItemConsumptionModel(usage, model, chunkSize, inCooldown);
   }
 
-  private Boolean adjustBaseConsumptionModel(final Decimal usage, final ConsumptionModel model) {
+  private Boolean adjustBaseConsumptionModel(final Decimal usage, final ConsumptionModel model, final Boolean inCooldown) {
     final Decimal currentBase = (Decimal) this.job.get(model.base);
-    this.job.put(model.base, Math.max(currentBase, usage));
+    if (currentBase <= ApexJobConstant.UNKNOWN_BASE_CONSUMPTION) {
+      this.job.put(model.base, usage);
+      return false;
+    }
+    final Decimal variation = Math.abs((usage - currentBase) / currentBase);
+    if (variation > this.job.VariationResetThreshold__c) {
+      return this.recordVariationHit();
+    }
+    this.job.put(model.base, inCooldown ? Math.max(currentBase, usage) : this.blend(currentBase, usage));
+    this.job.ConsecutiveVariationCount__c = 0;
     return false;
   }
 
-  private Boolean adjustPerItemConsumptionModel(final Decimal usage, final ConsumptionModel model, final Integer chunkSize) {
+  @SuppressWarnings('PMD.ExcessiveParameterList')
+  private Boolean adjustPerItemConsumptionModel(final Decimal usage, final ConsumptionModel model, final Integer chunkSize, final Boolean inCooldown) {
     final Decimal currentPerItem = (Decimal) this.job.get(model.perItem);
     final Decimal newPerItem = calculateNewPerItem(usage, model, chunkSize);
 
-    if (currentPerItem > 0) {
-      final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
-      if (variation > this.job.VariationResetThreshold__c) {
-        return true; // Variation too large
-      }
+    if (currentPerItem <= ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION) {
+      this.job.put(model.perItem, newPerItem);
+      return false;
     }
-
-    this.job.put(model.perItem, Math.max(currentPerItem, newPerItem));
+    final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
+    if (variation > this.job.VariationResetThreshold__c) {
+      return this.recordVariationHit();
+    }
+    this.job.put(model.perItem, inCooldown ? Math.max(currentPerItem, newPerItem) : this.blend(currentPerItem, newPerItem));
+    this.job.ConsecutiveVariationCount__c = 0;
     return false;
+  }
+
+  private Boolean isInKillCooldown() {
+    final Integer threshold = ((Decimal) (this.job.KillCooldownCount__c ?? ApexJobConstant.DEFAULT_KILL_COOLDOWN_COUNT)).intValue();
+    return (this.job.SuccessStreak__c ?? 0) < threshold;
   }
 
   private Decimal calculateNewPerItem(final Decimal usage, final ConsumptionModel model, final Integer chunkSize) {
     final Decimal base = (Decimal) this.job.get(model.base);
     return (usage - base) / (chunkSize - 1);
+  }
+
+  private Decimal blend(final Decimal current, final Decimal observed) {
+    final Decimal alpha = this.job.LearningRate__c ?? ApexJobConstant.DEFAULT_LEARNING_RATE;
+    return alpha * observed + (1 - alpha) * current;
+  }
+
+  private Boolean recordVariationHit() {
+    final Integer threshold = ((Decimal) (this.job.VariationResetCount__c ?? ApexJobConstant.DEFAULT_VARIATION_RESET_COUNT)).intValue();
+    this.job.ConsecutiveVariationCount__c = (this.job.ConsecutiveVariationCount__c ?? 0) + 1;
+    return this.job.ConsecutiveVariationCount__c >= threshold;
   }
 
   private Boolean adjustSafetyModel(final ConsumptionModel model, final Decimal safetyStep) {
@@ -132,6 +163,7 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
     this.job.ConsecutiveFailures__c = 0;
     this.job.SuccessStreak__c = 0;
     this.job.SmallestFailingChunk__c = 0;
+    this.job.ConsecutiveVariationCount__c = 0;
   }
 
   private Boolean requiresResetOnKill() {

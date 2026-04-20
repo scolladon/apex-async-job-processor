@@ -12,7 +12,7 @@
 		"prepare": "husky",
 		"prettier": "wireit",
 		"test": "wireit",
-		"test:functional:load-data": "sf sfdmu run --sourceusername csvfile --targetusername dev -n -p apex-job/test/functional/data",
+		"test:functional:load-data": "sf sfdmu run --sourceusername csvfile --targetusername $(sf config get target-org --json | node -pe \"JSON.parse(require('fs').readFileSync(0,'utf8')).result[0].value\") -n -p apex-job/test/functional/data",
 		"test:functional:monitor-jobs": "sf data query -f apex-job/test/functional/query/monitor-jobs.soql",
 		"test:functional:monitor-engine": "sf data query -f apex-job/test/functional/query/monitor-engine.soql",
 		"test:functional:prepare-metadata": "wireit",
@@ -31,9 +31,7 @@
 		"wireit": "^0.14.12"
 	},
 	"lint-staged": {
-		"**/*.{cls,xml}": [
-			"npm run lint -- -t"
-		]
+		"**/*.{cls,xml}": "sf code-analyzer run -t"
 	},
 	"wireit": {
 		"build": {

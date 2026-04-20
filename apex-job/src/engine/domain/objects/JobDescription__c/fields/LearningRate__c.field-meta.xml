@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>LearningRate__c</fullName>
+    <defaultValue>0.30</defaultValue>
+    <description>EWMA learning rate (alpha) for the adaptive consumption model. Weight given to the most recent observation. 0 &lt; alpha &lt;= 1. Lower values smooth more.</description>
+    <externalId>false</externalId>
+    <label>Learning Rate</label>
+    <precision>3</precision>
+    <required>false</required>
+    <scale>2</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

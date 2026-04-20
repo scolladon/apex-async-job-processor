@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>ConsecutiveVariationCount__c</fullName>
+    <defaultValue>0</defaultValue>
+    <description
+  >State: consecutive observations whose variation exceeded VariationResetThreshold__c. Managed by the engine. Resets to 0 on any normal observation or on a full model reset.</description>
+    <externalId>false</externalId>
+    <label>Consecutive Variation Count</label>
+    <precision>4</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <trackTrending>false</trackTrending>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

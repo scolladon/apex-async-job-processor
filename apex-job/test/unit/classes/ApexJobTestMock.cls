@@ -13,6 +13,7 @@ public class ApexJobTestMock {
   public LimitService limitServiceStub { get; private set; }
   public ChunkSizeCalculator chunkSizeCalculatorStub { get; private set; }
   public ConsumptionLearner consumptionLearnerStub { get; private set; }
+  public JobRequestArgumentParser argumentParserStub { get; private set; }
 
   // Spies
   public MethodSpy errorSpy { get; private set; }
@@ -38,6 +39,7 @@ public class ApexJobTestMock {
   public MethodSpy adjustFromFailureSpy { get; private set; }
   public MethodSpy adjustFromKillSpy { get; private set; }
   public MethodSpy isRunningSpy { get; private set; }
+  public MethodSpy parseSpy { get; private set; }
 
   @SuppressWarnings('PMD.NcssConstructorCount')
   public ApexJobTestMock() {
@@ -53,6 +55,7 @@ public class ApexJobTestMock {
     Mock limitServiceMock = Mock.forType(LimitService.class);
     Mock chunkSizeCalculatorMock = Mock.forType(ChunkSizeCalculator.class);
     Mock consumptionLearnerMock = Mock.forType(ConsumptionLearner.class);
+    Mock argumentParserMock = Mock.forType(JobRequestArgumentParser.class);
 
     // Stubs
     this.factoryStub = (ApexJobFactory) factoryMock.stub;
@@ -66,6 +69,7 @@ public class ApexJobTestMock {
     this.limitServiceStub = (LimitService) limitServiceMock.stub;
     this.chunkSizeCalculatorStub = (ChunkSizeCalculator) chunkSizeCalculatorMock.stub;
     this.consumptionLearnerStub = (ConsumptionLearner) consumptionLearnerMock.stub;
+    this.argumentParserStub = (JobRequestArgumentParser) argumentParserMock.stub;
 
     // Factory Spies
     factoryMock.spyOn('getLogger').returns(this.loggerStub);
@@ -78,6 +82,7 @@ public class ApexJobTestMock {
     factoryMock.spyOn('getLimitService').returns(this.limitServiceStub);
     factoryMock.spyOn('getChunkSizeCalculator').returns(this.chunkSizeCalculatorStub);
     factoryMock.spyOn('getConsumptionLearner').returns(this.consumptionLearnerStub);
+    factoryMock.spyOn('getArgumentParser').returns(this.argumentParserStub);
 
     // Logger Spies
     this.errorSpy = loggerMock.spyOn('error');
@@ -115,5 +120,9 @@ public class ApexJobTestMock {
     this.adjustFromSuccessSpy = consumptionLearnerMock.spyOn('adjustFromSuccess');
     this.adjustFromFailureSpy = consumptionLearnerMock.spyOn('adjustFromFailure');
     this.adjustFromKillSpy = consumptionLearnerMock.spyOn('adjustFromKill');
+
+    // Argument Parser Spies
+    this.parseSpy = argumentParserMock.spyOn('parse');
+    argumentParserMock.spyOn('parse').returns(new JobRequestArgumentParser.ParseResult());
   }
 }
