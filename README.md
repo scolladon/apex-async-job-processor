@@ -6,6 +6,8 @@
  Build job processors that respect limits. The engine selects eligible jobs, sizes chunks, and runs them in Queueable. It learns after each run.
 
  - [Why](#why)
+   - [The four walls you hit](#the-four-walls-you-hit)
+   - [How Async Processor stays under every limit](#how-async-processor-stays-under-every-limit)
  - [Install](#install)
  - [Quick start](#quick-start)
  - [Developer API: Request and Job](#developer-api-request-and-job)
@@ -20,12 +22,87 @@
    - [Selector (Jar of Rocks)](#selector-jar-of-rocks)
  - [Architecture](#architecture)
 
- ## Why
+## Why
 
- - Simple. Extensible.
- - Governor-limit safe by design.
- - Testable via dependency injection.
- - Hexagonal architecture.
+Queueable looks free. It isn't. The platform meters async at four levels you can't see from Apex, and the obvious design — _one `System.enqueueJob` per record_ — trips every one of them. Salesforce says it plainly in its own [Asynchronous Processing decision guide][async]: async patterns have **"no SLA"**, are **"subject to multiple governor mechanisms,"** and **"can cause processing delays due to the finite nature of the resources allocated to asynchronous infrastructure."** The platform **"doesn't scale infinitely."**
+
+Async Processor inverts the pattern: **one self-chaining executor drains a backlog you own, sizing each chunk to the limits it has measured.** One slot, never a swarm.
+
+- Simple. Extensible.
+- Governor-limit safe by design.
+- Testable via dependency injection.
+- Hexagonal architecture.
+
+### The four walls you hit
+
+A single routine bulk operation can hit all four — and none of them is visible from Apex until you're already over.
+
+**1 · The 24-hour async ceiling.** Batch + `@future` + Queueable + Scheduled all draw from **one budget — 250,000 executions or `user licenses × 200` per rolling 24 h, whichever is greater** ([limits][gov]). One Queueable per record lets a single bulk job spend six figures of that budget in minutes. When it trips, _every_ async feature in the org starts throwing `AsyncApexExecutions Limit exceeded` — and you usually learn about it hours later, from a [proactive alert][alert], org-wide.
+
+**2 · A finite pool of worker threads — with no dial to turn.** Async handlers run on **"a finite number of worker threads on each application server,"** and the **"fair usage algorithm controls the number of threads that an org has available for each message type"** ([guide][async]) — a small per-org share, with no setting to raise it. Fan out chained Queueables and you saturate _your own_ share. No exception is thrown; jobs simply sit `Queued`. `AsyncApexJob` shows you rows, never a reason.
+
+**3 · Queue-depth caps.** You can enqueue at most **50 Queueables per transaction**, chain only **1** from inside a running job, and the **Apex Flex Queue holds 100** jobs before it rejects new ones ([flex queue][flex]). A burst overflows it instantly: `You've exceeded the limit of 100 jobs in the flex queue`.
+
+**4 · Flow control & fair usage — the silent one.** Before adding work to a message type's queue, the platform **checks the first several thousand entries; if most belong to your org and you already hold worker threads, your new entries are moved to the back of the queue — a process it calls _re-enqueuing_** ([fundamentals][fund]). Keep flooding and the fair-usage algorithm **cuts the threads allocated to your org** ([guide][async]). The blast radius isn't local — your runaway Queueable delays _unrelated_ async: Bulk API loads, Platform Event delivery, integration callbacks, nightly batch. The symptom (integrations gone slow) sits nowhere near the cause (a fire-and-forget Queueable someone shipped last week). Almost nobody connects the two.
+
+None of it is observable from the platform — `AsyncApexJob` reports _status_, never _consumption_. You hit the wall before you knew it was there.
+
+```text
+NAIVE — one Queueable per record
+────────────────────────────────────────────────────────────────────
+  bulk load 10k rows
+        │  System.enqueueJob × 10,000   (burst)
+        ▼
+  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  platform queue ──▶ overflow at 100 holding
+        │                                  flow control ──▶ shoved to back
+        ▼                                  fair usage   ──▶ your threads cut
+  ┌──────────────────────────────┐    24h cap ──▶ 250k executions drained
+  │ your fair share of threads    │
+  │ ░░░░░░░  SATURATED  ░░░░░░░░  │ ──▶ Platform Events   delayed
+  └──────────────────────────────┘ ──▶ Bulk API async    delayed
+                                     ──▶ @future / batch   starved
+
+ASYNC PROCESSOR — one executor treats them all
+────────────────────────────────────────────────────────────────────
+  JobRequest__c backlog  (your table, priority-ordered)
+        │
+        ▼  System.enqueueJob × 1
+  ┌──────────────────────────────┐  ◀─┐
+  │ AsyncApexJobExecutor          │   │ re-enqueue (self-chain)
+  │ select ▸ size chunk ▸ execute │   │
+  │ ▸ record ▸ repeat             │ ──┘
+  └──────────────────────────────┘
+        │  idle? back off 1–10 min  (off-hours aware)
+        ▼
+  ┌──────────────────────────────┐
+  │ your fair share of threads    │
+  │ ▏ one steady slot ▏           │ ──▶ Platform Events   clear
+  └──────────────────────────────┘ ──▶ Bulk API async    clear
+                                     ──▶ @future / batch   clear
+  Watcher ── every 5 min ── restarts the chain only if it dies
+```
+
+### How Async Processor stays under every limit
+
+| Wall | How fast you hit it | What Async Processor does |
+|---|---|---|
+| **250k execs / 24 h** | One bulk job, one Queueable per record | Runs **many requests per execution** via learned chunking; **idle back-off** + a 5-min watchdog instead of busy-spin keep the execution count near-flat — [`AsyncApexJobExecutor`][f1], [`ApexJobConfigServiceImpl`][f5] |
+| **Finite per-org threads** | A swarm of chained Queueables | **Exactly one executor at a time** — `DuplicateSignature` on enqueue + a running-executor guard — so you never hold more than one scarce slot — [`JobExecutorQueueableSpawner`][f2], [`JobExecutorServiceImpl`][f3] |
+| **Flex / queue depth 100** | A burst of enqueues | The backlog lives in **your `JobRequest__c` table**, drained in priority order by one queueable — the platform queue never sees the burst — [`JobSelectorImpl`][f4] |
+| **Flow control / fair usage** | Flooding any message type | One entry in the queue at a time never trips the "first several thousand entries" re-enqueuing check — **the async lane stays clear for your integrations** |
+
+Same backlog, drained by one disciplined executor instead of a swarm — plus a learned, per-processor consumption model and a [monitoring console](#monitoring-console) so you can finally _see_ what each job costs.
+
+[gov]: https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_gov_limits.htm
+[async]: https://architect.salesforce.com/decision-guides/async-processing
+[fund]: https://architect.salesforce.com/docs/architect/fundamentals/guide/async-fundamentals
+[flex]: https://developer.salesforce.com/docs/atlas.en-us.apexcode.meta/apexcode/apex_flex_queue.htm
+[alert]: https://help.salesforce.com/s/articleView?id=000382490&type=1
+[f1]: apex-job/src/engine/application/AsyncApexJobExecutor.cls
+[f2]: apex-job/src/engine/adapter/JobExecutorQueueableSpawner.cls
+[f3]: apex-job/src/engine/service/JobExecutorServiceImpl.cls
+[f4]: apex-job/src/engine/adapter/JobSelectorImpl.cls
+[f5]: apex-job/src/engine/adapter/ApexJobConfigServiceImpl.cls
 
  ## Install
 
@@ -39,7 +116,7 @@
 
  ## Quick start
 
- 1) Implement your processor ([ApexJob](apex-job/src/domain/classes/ApexJob.cls)).
+ 1) Implement your processor ([ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls)).
 
  ```apex
  public with sharing class DataCleanupExecutor implements ApexJob {
@@ -86,18 +163,18 @@
 
  ## Developer API: Request and Job
 
- File: [ApexJobManager](apex-job/src/application/ApexJobManager.cls)
+ File: [ApexJobManager](apex-job/src/engine/application/ApexJobManager.cls)
 
  - Job Description builder: `define()` → chain `processor(String)`, `priority(Integer)`, `minInterval(Integer)`, `maxAttempts(Integer)`, `recurrent()`, `allowedOn(List<String>)`, `allowedBetween(Time, Time)`, then `save()`.
  - Manage descriptions: `enableJobDescription(Id|String)`, `disableJobDescription(Id|String)`, `resetConsumptionModel(String processorName)`.
  - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`.
  - Manage requests: `enableJobRequest(Id)`, `disableJobRequest(Id)`.
 
- Your Apex processor implements [ApexJob](apex-job/src/domain/classes/ApexJob.cls) and returns [ApexJobResult](apex-job/src/domain/classes/ApexJobResult.cls). Context arrives in `ApexJobContext.arguments`.
+ Your Apex processor implements [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls) and returns [ApexJobResult](apex-job/src/engine/domain/classes/ApexJobResult.cls). Context arrives in `ApexJobContext.arguments`.
 
  ## Implementing ApexJob
 
- Contract (file: [ApexJob](apex-job/src/domain/classes/ApexJob.cls)):
+ Contract (file: [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls)):
 
  ```apex
  public interface ApexJob {
@@ -191,13 +268,13 @@ Malformed arguments
 
  Kill handling (hard transaction aborts)
  - You never return `KILLED` yourself.
- - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/application/AsyncApexJobExecutor.cls)).
+ - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls)).
  - Results are recorded and the engine re-enqueues promptly.
  - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptiveConsumptionLearner`).
 
  ## Exploitation
 
-File: [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls)
+File: [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls)
 
 - `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
 - Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
@@ -207,6 +284,16 @@ File: [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls)
 ## Monitoring console
 
 UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
+
+Monitoring is possible at all because the backlog lives in _your_ data, not the opaque platform queue:
+
+```text
+ NAIVE — backlog in the platform queue   │  ENGINE — backlog in YOUR table
+   ├ capped (100 holding)                │    ├ unbounded JobRequest__c rows
+   ├ opaque: AsyncApexJob = status only  │    ├ queryable: status, attempts,
+   └ no priority, no cost visibility     │    │  next-run, timing, learned cost
+                                         │    └ priority-ordered + LWC console
+```
 
 - **Access**
   - App Launcher → Async Job Monitor → Job Monitor Console.
@@ -230,8 +317,8 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
  ## Configuration
 
  Files:
- - [ApexJobConfig](apex-job/src/domain/objects/ApexJobConfig__c/*)
- - [ApexJobConfigServiceImpl](apex-job/src/adapter/ApexJobConfigServiceImpl.cls)
+ - [ApexJobConfig](apex-job/src/engine/domain/objects/ApexJobConfig__c/*)
+ - [ApexJobConfigServiceImpl](apex-job/src/engine/adapter/ApexJobConfigServiceImpl.cls)
 
  Global switches (Hierarchy Custom Setting `ApexJobConfig__c`):
  - `Enabled__c` (Checkbox). Turns the engine on/off.
@@ -247,7 +334,30 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  ## Queueable runtime
 
- File: [AsyncApexJobExecutor](apex-job/src/application/AsyncApexJobExecutor.cls)
+ File: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls)
+
+```text
+ new JobRequest__c ─(trigger)─┐        ┌─ ApexJobWatcher ─ every 5 min,
+                              ▼        │   re-arms the chain only if it died
+                          Spawner ◀────┘
+                              │  enqueueJob ×1   (DuplicateSignature = no doubles)
+                              ▼
+ ╔════════════ QUEUEABLE transaction ═════════════╗
+ ║  attach Finalizer                              ║
+ ║  ┌─ loop ──────────────────────────────────┐  ║
+ ║  │  select candidates   (priority-ordered)  │  ║
+ ║  │  size chunk          (adaptive)          │  ║
+ ║  │  execute   ◀── your ApexJob.execute()    │  ║
+ ║  │  measure limits consumed                 │  ║
+ ║  └── until no candidates OR limits exhausted┘  ║
+ ╚═══════════════════════╤════════════════════════╝
+                         ▼   limits reset at the boundary
+ ╔════════════ FINALIZER transaction ═════════════╗
+ ║  persist results  +  learn (update model)      ║
+ ║  re-enqueue:  did work → now · idle → back off  ║
+ ╚═══════════════════════╤════════════════════════╝
+                         └──▶ next Queueable  (self-chain)
+```
 
  - Queueable + Finalizer.
  - Loop: fetch candidates → pick first executable → execute chunk → collect results.
@@ -257,9 +367,22 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  ## Algorithms
 
+ The engine is a closed control loop — every chunk it runs measures the limits it cost, and that measurement sizes the next one:
+
+```text
+   (1) SIZE  ──▶  (2) EXECUTE  ──▶  (3) MEASURE  ──▶  (4) LEARN
+    ▲   chunk = min over 18 limits     actual limit      blend into
+    │   (avail−base)·safety/perItem+1  usage this run    base/perItem/safety
+    │                                                        │
+    └──────────────  next chunk sized by what  ◀─────────────┘
+                     this run just taught it
+   SUCCESS → safety↑, chunk↑      FAILURE → safety↓, cap chunk
+   KILL    → base/perItem ×1.1, safety↓  (back off hard)
+```
+
  ### Learning
 
- File: [AdaptiveConsumptionLearner](apex-job/src/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls)
+ File: [AdaptiveConsumptionLearner](apex-job/src/engine/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls)
 
  - Tracks `Base`, `PerItem`, `Safety` per dimension from `ConsumptionModel.asList()` (internally cached).
  - Success: safety +0.05 (capped at 0.98), reset failure count, increment success streak, raise `MaxChunkSize__c` up to `MaxChunkSizeLimit__c`.
@@ -274,7 +397,7 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  ### Chunking
 
- File: [AdaptiveChunkCalculator](apex-job/src/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls)
+ File: [AdaptiveChunkCalculator](apex-job/src/engine/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls)
 
  - For each dimension with known base:
    - `usable = availableLimit - base`
@@ -285,7 +408,7 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  ### Selector (Jar of Rocks)
 
- Files: [JobSelectorImpl](apex-job/src/adapter/JobSelectorImpl.cls), `apex-job/src/domain/objects/JobRequest__c/fields/IsCandidate__c.field-meta.xml`
+ Files: [JobSelectorImpl](apex-job/src/engine/adapter/JobSelectorImpl.cls), `apex-job/src/engine/domain/objects/JobRequest__c/fields/IsCandidate__c.field-meta.xml`
 
  - Database pre-filter on base consumption and candidacy rules. Only eligible rows reach Apex.
  - Extra callout guard avoids "Uncommitted work pending".
@@ -298,9 +421,9 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
 
  Hexagonal design.
 
- - Domain: [ApexJob](apex-job/src/domain/classes/ApexJob.cls), [ApexJobContext](apex-job/src/domain/classes/ApexJobContext.cls), [ApexJobResult](apex-job/src/domain/classes/ApexJobResult.cls), [JobCandidate](apex-job/src/domain/classes/JobCandidate.cls), [AdaptiveConsumptionLearner](apex-job/src/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls), [AdaptiveChunkCalculator](apex-job/src/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls).
- - Application: [AsyncApexJobExecutor](apex-job/src/application/AsyncApexJobExecutor.cls), [ApexJobManager](apex-job/src/application/ApexJobManager.cls).
- - Adapters: [JobSelectorImpl](apex-job/src/adapter/JobSelectorImpl.cls), [JobRepositoryImpl](apex-job/src/adapter/JobRepositoryImpl.cls), [ApexJobWatcher](apex-job/src/adapter/ApexJobWatcher.cls), [ApexJobConfigServiceImpl](apex-job/src/adapter/ApexJobConfigServiceImpl.cls), [ApexJobLogger](apex-job/src/adapter/ApexJobLogger.cls), [ApexJobSpawner](apex-job/src/adapter/ApexJobSpawner.cls), [ApexJobFinalizer](apex-job/src/adapter/ApexJobFinalizer.cls), [ApexJobLimitService](apex-job/src/adapter/ApexJobLimitService.cls).
+ - Domain: [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls), [ApexJobContext](apex-job/src/engine/domain/classes/ApexJobContext.cls), [ApexJobResult](apex-job/src/engine/domain/classes/ApexJobResult.cls), [JobCandidate](apex-job/src/engine/domain/classes/JobCandidate.cls), [AdaptiveConsumptionLearner](apex-job/src/engine/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls), [AdaptiveChunkCalculator](apex-job/src/engine/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls).
+ - Application: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls), [ApexJobManager](apex-job/src/engine/application/ApexJobManager.cls).
+ - Adapters: [JobSelectorImpl](apex-job/src/engine/adapter/JobSelectorImpl.cls), [JobRepositoryImpl](apex-job/src/engine/adapter/JobRepositoryImpl.cls), [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls), [ApexJobConfigServiceImpl](apex-job/src/engine/adapter/ApexJobConfigServiceImpl.cls), [ApexJobLoggerImpl](apex-job/src/engine/adapter/ApexJobLoggerImpl.cls), [JobExecutorQueueableSpawner](apex-job/src/engine/adapter/JobExecutorQueueableSpawner.cls), [JobExecutorFinalizerAttacherImpl](apex-job/src/engine/adapter/JobExecutorFinalizerAttacherImpl.cls), [LimitServiceImpl](apex-job/src/engine/service/LimitServiceImpl.cls).
 
  ```plantuml
  @startuml
@@ -323,10 +446,10 @@ UI: Lightning App "Async Job Monitor" with App Page "Job Monitor Console".
    class JobRepositoryImpl
    class ApexJobWatcher
    class ApexJobConfigServiceImpl
-   class ApexJobLogger
-   class ApexJobSpawner
-   class ApexJobFinalizer
-   class ApexJobLimitService
+   class ApexJobLoggerImpl
+   class JobExecutorQueueableSpawner
+   class JobExecutorFinalizerAttacherImpl
+   class LimitServiceImpl
  }
 
  AsyncApexJobExecutor --> JobRepositoryImpl : fetch/record
