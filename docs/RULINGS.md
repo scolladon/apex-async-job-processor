@@ -9,3 +9,4 @@ infer it from `DOCTRINE.md` and the code.
 - R-003 [scripts/apex/backfill-next-execution.apex] Installed orgs backfill runnable null-dated requests with an operator script that sets NextExecutionDateTime__c to CreatedDate, 10,000 rows per run, re-run until it reports 0. Refused: release note only.
 - R-004 [apex-job/src/engine/domain/classes/JobExecuted.cls] JobExecuted drops the CreatedDate fallback and takes NextExecutionDateTime__c alone as the timing base. Refused: keep the fallback and select CreatedDate · fall back to the selection time.
 - R-005 [apex-job/src/engine/application/AsyncApexJobExecutor.cls] After a failed recording the finalizer re-enqueues with the idle delay from getEnqueueDelayInMinutes, never with 0. Refused: a new fixed delay constant · no re-enqueue, leave it to the watcher.
+- R-006 [apex-job/src/engine/domain/customindex/**] The NextExecutionDateTime__c custom index sets allowNullValues to true. Refused: allowNullValues false.
