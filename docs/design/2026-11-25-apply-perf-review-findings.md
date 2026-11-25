@@ -1,7 +1,7 @@
 # Design — apply-perf-review-findings
 
 > Brief: apply the 2026-11-25 scratch-org performance review in one run. Items 8, 1, 2, 4, 5, 6 and 7 get code; item 3 gets documentation only. Item 9, splitting the selector, multiple chunks per description, and tracking the executor by job Id are out.
-> Status: draft → self-reviewed ×3
+> Status: draft → self-reviewed ×3 → revised against `docs/RULINGS.md` (R-001..R-014) and `docs/DOCTRINE.md` (D-1)
 
 ## Context
 
@@ -12,15 +12,15 @@ What exists today and constrains this change:
 - **Insert trigger**: `apex-job/src/engine/domain/triggers/JobRequestAfterInsert.trigger` has one event, `after insert`. When the running user lacks `Bypass_JobRequest_Trigger` it calls `new ApexJobFactoryImpl().getSpawner().enqueue(0)`. No `before` trigger exists on `JobRequest__c`.
 - **Scheduling date**: `JobRequest__c.NextExecutionDateTime__c` is a plain DateTime with no default and no index. `JobExecuted.cls` writes `null` on terminal states (`:52`, `:75`, `:87`) and a date on retry or recurrence (`:79`, `:83`). `IsCandidate__c` accepts `ISNULL(NextExecutionDateTime__c)` as due, and `DESIGN.md:138` documents the same rule.
 - **Packaging**: `sfdx-project.json` declares only `packageDirectories` (`apex-job/src`, `apex-job/test`), with no `package`, `versionName` or `packageAliases`. The only shipping path in the repo is `sf project deploy start -d apex-job` (`package.json` wireit `build`). The brief's open question "does CustomIndex ship" therefore reduces to "does a source deploy accept it". The review's tested deploy already answers yes. Unlocked or managed packaging is not used here and is not designed for.
-- **Tests**: Apex Mockery (`Mock.forType`, `spyOn`, `Expect.that`) centralised in `apex-job/test/unit/classes/ApexJobTestMock.cls`; builders in `ApexJobTestFixture.cls`. `AsyncProcessorTest.cls:3-28` already builds a user carrying `Bypass_JobRequest_Trigger` through a runtime `PermissionSet` and `SetupEntityAccess`. That is the pattern to reuse for the bypass creation path. `JobMonitorController` has no test class. The repo has no LWC test setup: no `@salesforce/sfdx-lwc-jest` and no `jest.config.js`.
+- **Tests**: Apex Mockery (`Mock.forType`, `spyOn`, `Expect.that`) centralised in `apex-job/test/unit/classes/ApexJobTestMock.cls`; builders in `ApexJobTestFixture.cls`. `AsyncProcessorTest.cls:3-28` already builds a user carrying `Bypass_JobRequest_Trigger` through a runtime `PermissionSet` and `SetupEntityAccess`. That is the pattern to reuse for the bypass creation path. `JobMonitorController` has no test class. The repo has no LWC test setup: no `@salesforce/sfdx-lwc-jest` and no `jest.config.js`. `.forceignore` already excludes `**/__tests__/**` (under its "LWC Jest" heading), so jest suites never deploy.
 - **Prior designs** in `docs/design/2026-04-19-*.md` set the house style: a prose rationale, code sketches, a touchpoint table, and edge cases. `docs/design/2026-04-19-ewma-consumption-learning.md` introduced the variation counter that item 6 refines.
-- **Doctrine / rulings**: the repo has no `DOCTRINE.md` and no rulings file. The binding constraints are the brief's PERIMETER and the "Ruled" lines.
+- **Doctrine / rulings**: `docs/RULINGS.md` R-001..R-014 settle every load-bearing choice of this design; each part below cites the ruling it implements. `docs/DOCTRINE.md` D-1 ("keep logic out of triggers") governs save-time values: a declarative mechanism comes before trigger code, and a trigger only delegates side effects such as the wake-up. The brief's PERIMETER and "Ruled" lines still bind. Ruling ids live in this doc only, never in source or test code.
 
 ## Requirements
 
 1. A fresh org accepts `sf project deploy start -d apex-job/src` (item 8).
 2. A request saved through `ApexJobManager.request()...save()` without `scheduleAt` gets executed and recorded. If recording fails, the finalizer does not re-enqueue at delay 0 (item 1).
-3. Every runnable request (`READY`, `FAILURE`, `KILLED`) carries a non-null `NextExecutionDateTime__c` on all three creation paths: builder, plain DML, and DML under `Bypass_JobRequest_Trigger`. Terminal rows keep `null` (items 1 and 2).
+3. Every request inserted with `NextExecutionDateTime__c` left unset carries a non-null date on all three creation paths: builder, plain DML, and DML under `Bypass_JobRequest_Trigger`. Terminal rows keep `null`. A `null` date, whether inserted explicitly or left by an update, means "not scheduled": the selector and `IsCandidate__c` both exclude the row (items 1 and 2; R-002, R-007).
 4. The selector stays ONE query. Its WHERE clause gains `AND NextExecutionDateTime__c <= :now`, a `CustomIndex` on `NextExecutionDateTime__c` ships, and `IsCandidate__c = TRUE` remains as the residual check. The selector never uses `OR ... = NULL` (item 2).
 5. The insert trigger attempts the wake-up at most once per transaction and never in Batch or `@future` context. No enqueue happens once `Limits.getQueueableJobs() >= Limits.getLimitQueueableJobs()`. The four measured rows are reproduced by tests (item 4).
 6. `JobIds__c` keeps only the last N ids (item 5).
@@ -43,60 +43,58 @@ Part order follows the brief: 8, then the date decision shared by items 1 and 2,
 **Change** (ruled)
 - Add `apex-job/src/monitor/tabs/Job_Monitor_Console.tab-meta.xml` with the brief's exact content: `flexiPage` `Job_Monitor_Console`, `label` `Job Monitor Console`, `motif` `Custom67: Gears`.
 - Delete line 18 of the app.
-- The permission-set grant is D1.
+- Permission set (R-001): `AdminAsyncJob.permissionset-meta.xml` gains `<tabSettings><tab>Job_Monitor_Console</tab><visibility>Visible</visibility></tabSettings>`. No `applicationVisibilities` is added; R-001 refuses both leaving the tab ungranted and adding app visibility on top.
 - `README.md:300` lists the monitor's deploy metadata and gains `tabs/Job_Monitor_Console.tab-meta.xml`.
 
 **Proof**: the orchestrator deploys `apex-job/src` to a new scratch org. Item 8 has no Apex test surface because metadata validity is checked by the deploy itself.
 
-### Shared decision (items 1 and 2) — where `NextExecutionDateTime__c` is stamped
+### Shared decision (items 1 and 2) — how `NextExecutionDateTime__c` gets its date (R-002, D-1)
 
 The trap: `JobRequestAfterInsert.trigger:2` skips its whole body when the user has `Bypass_JobRequest_Trigger`, and an after-insert trigger cannot modify `Trigger.new` without a second DML. Stamping there would leave bulk-loaded rows `null`. With the new `<= :now` filter, those rows would never be selected again, so this location is excluded.
 
-Options (D2):
+**Mechanism (R-002).** A platform field default on `apex-job/src/engine/domain/objects/JobRequest__c/fields/NextExecutionDateTime__c.field-meta.xml`:
 
-| | Mechanism | Builder | Plain DML | DML + bypass | API / Data Loader | Manual re-queue (update) | Pinned? |
-|---|---|---|---|---|---|---|---|
-| **A** | `before insert` trigger that ignores the bypass permission and sets `NextExecutionDateTime__c = Datetime.now()` when null | yes | yes | yes | yes (triggers fire on every API insert) | only if `before update` is added (D3) | Yes, by our own code and the per-path tests below |
-| **B** | Field `defaultValue` formula `NOW()` on `NextExecutionDateTime__c` | ? | ? | ? | ? | no (defaults apply on create only) | **No.** Whether a default fills a field that is unset or explicitly `null` on an Apex `insert` of a `new JobRequest__c(...)`, and on an API insert that sends the column blank, is not pinned. The brief forbids designing from memory, and no org may be touched in this phase. |
-| **C** | Builder-only stamping (`JobRequestBuilder` constructor) | yes | **no** | **no** | **no** | no | Fails requirement 3 by construction. Listed for completeness. |
-
-**Recommendation: A.** It is the only option whose behaviour is fully determined by code in this repo and covers every insert path. It also keeps working when the caller passes an explicit `null`. If the user prefers B, the same three per-path tests become the empirical pin, and B is accepted only if all three go green on a scratch org.
-
-Shape of A:
-
-```apex
-// apex-job/src/engine/domain/triggers/JobRequestBeforeInsert.trigger  (new; name follows JobRequestAfterInsert)
-trigger JobRequestBeforeInsert on JobRequest__c (before insert) {
-  new JobRequestDueDate().stampMissing(Trigger.new, Datetime.now());
-}
+```xml
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>NextExecutionDateTime__c</fullName>
+    <defaultValue>NOW()</defaultValue>
+    <label>Next Execution Date Time</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>
 ```
 
-```apex
-// apex-job/src/engine/domain/classes/JobRequestDueDate.cls  (new, domain, no DB access)
-public without sharing class JobRequestDueDate {
-  public void stampMissing(final List<JobRequest__c> jobRequests, final Datetime now) {
-    for (JobRequest__c jobRequest : jobRequests) {
-      if (jobRequest.NextExecutionDateTime__c == null) {
-        jobRequest.NextExecutionDateTime__c = now;
-      }
-    }
-  }
-}
-```
+No trigger stamps the date and no `JobRequestDueDate` class exists. D-1 puts a declarative mechanism before trigger code, and R-002 refuses a before-save trigger stamping null dates, a field default backed by a delegating before-save trigger, and builder-only stamping. No `JobRequest__c` trigger is added or changed for the date; `JobRequestAfterInsert.trigger` changes only for item 4.
 
-- The trigger does **not** call `FeatureManagement.checkPermission('Bypass_JobRequest_Trigger')`. The permission's meaning narrows to "skip the wake-up". The custom-permission description (`apex-job/src/admin/customPermissions/Bypass_JobRequest_Trigger.customPermission-meta.xml`), `DESIGN.md:609` and `DESIGN.md:701-703` change accordingly.
-- `now` is a parameter so the unit test is deterministic. On insert, status is ignored: inserting a row that is already terminal is not an engine path, and a stamped date on such a row is inert because `IsCandidate__c` rejects the status.
-- If D3 = A (stamp on update too), the event list becomes `(before insert, before update)` and the file is named `JobRequestBeforeSave.trigger`. A second method `stampMissingOnRunnable(List<JobRequest__c>, Datetime)` stamps only rows whose `Status__c` is in `{READY, FAILURE, KILLED}`. `JobExecuted` never writes a runnable status with a null date (its two runnable branches, `:79` and `:83`, write `nextTry`), so the finalizer's own updates never hit this branch. The branch serves manual re-queues only.
-- Stamp time equals the insert transaction's clock, which is effectively `CreatedDate`. `WaitTime__c` keeps its current meaning ("waited since creation") for unscheduled requests.
+**Pinned matrix** (scratch org, 2026-11-25, `NOW()` default deployed):
 
-Per-path tests (new `apex-job/test/integration/classes/JobRequestTriggerTest.cls`). Each one is red today:
+| Insert / save path | `NextExecutionDateTime__c` at save | Default stamps? |
+|---|---|---|
+| `ApexJobManager.request()...save()` without `scheduleAt` | unset (the builder constructor never touches it, `ApexJobManager.cls:49-53`) | yes |
+| Apex `insert new JobRequest__c(...)` | unset | yes |
+| Apex `JobRequest__c.SObjectType.newSObject(null, false)` then `insert` | unset, defaults not loaded in memory | yes |
+| REST `POST /sobjects/JobRequest__c` | field omitted from the body | yes |
+| Apex `insert` | explicit `null` (also `scheduleAt(null)`, `ApexJobManager.cls:66`) | **no** |
+| REST `POST` | explicit `"NextExecutionDateTime__c": null` | **no** |
+| Any `update` (Apex or REST), including a re-queue to `READY` | any | **no**, defaults apply on create only |
+
+**Consequences.**
+- An insert that leaves the field unset is due at once. Its stamp equals the insert transaction's clock, which is effectively `CreatedDate`, so `WaitTime__c` keeps its meaning ("waited since creation") for unscheduled requests.
+- An explicit `null` on insert, and a re-queue that flips a row back to `READY`/`FAILURE`/`KILLED` without setting a date, both produce a row that is **not scheduled**. The selector's `<= :now` filter excludes it, and with R-007 so does `IsCandidate__c`. Today the `ISNULL` branch would run such a row; after this change it waits until someone sets a date. That rule is stated for consumers in `README.md` (developer API section, next to `scheduleAt(Datetime)` at `:170`, and the monitoring line at `:281`) and in `DESIGN.md` (the candidate-criteria block at `:134-140`): "a request runs when `NextExecutionDateTime__c <= now`; leave the field unset on insert to run as soon as possible; a `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date."
+- `Bypass_JobRequest_Trigger` keeps its meaning, "skip the wake-up". The default is applied by the platform, not by a trigger, so the bypass has no effect on stamping. The custom-permission description (`apex-job/src/admin/customPermissions/Bypass_JobRequest_Trigger.customPermission-meta.xml`), `DESIGN.md:609` and `DESIGN.md:701-703` do **not** change for stamping.
+- Stamping on update is refused by R-002 ("an update gets no date"). No `before update` path exists.
+
+**Per-path tests** (new `apex-job/test/integration/classes/JobRequestNextExecutionDateTimeTest.cls`). They pin the field default, so the first three are red today and green once the `defaultValue` deploys:
 - `givenBuilderWithoutScheduleAt_whenSave_thenNextExecutionDateTimeIsStamped`
 - `givenPlainInsertWithoutDate_whenInsert_thenNextExecutionDateTimeIsStamped`
-- `givenUserWithTriggerBypass_whenInsertWithoutDate_thenNextExecutionDateTimeIsStamped`. It uses `System.runAs` with the bypass user.
+- `givenUserWithTriggerBypass_whenInsertWithoutDate_thenNextExecutionDateTimeIsStamped`. It uses `System.runAs` with the bypass user and proves the bypass does not reach the default.
 - `givenExplicitDate_whenInsert_thenDateIsKept`. This is a guard, and it is green today.
-- Unit tests in `apex-job/test/unit/classes/JobRequestDueDateTest.cls` (new) check that a null date gets `now`, a set date is kept, and an empty list is a no-op.
+- `givenExplicitNullDate_whenInsert_thenRequestIsNotSelected`. It inserts, against one enabled description, a `READY` enabled request with `NextExecutionDateTime__c = null` and a control request with the field unset. It asserts the null row's field stays `null`, `new JobSelectorImpl().getEligibleJobs(new List<Id>())` returns the control row but not the null row (so the exclusion is due to the date, not to limits or the description), and the re-queried `IsCandidate__c` is `false` for the null row and `true` for the control. It is red today on the selector and `IsCandidate__c` assertions (the `ISNULL` branch makes the row a candidate), and pins the R-007 formula behaviour described in item 2.
 
-DRY: the bypass-user setup in `AsyncProcessorTest.cls:3-28` moves into a shared test helper, `TestDataFactory.createUserWithTriggerBypass()` in `apex-job/test/unit/classes/TestDataFactory.cls`. Both test classes call it, so the code is not duplicated a second time.
+Stamp assertions bracket the stored value between a `Datetime` captured before the DML, truncated to the whole second, and `Datetime.now()` after the re-query. The platform clock cannot be injected, and the comparison must not depend on whether the stored value keeps milliseconds.
+
+DRY: the bypass-user setup in `AsyncProcessorTest.cls:3-28` moves into a shared test helper, `TestDataFactory.createUserWithTriggerBypass()` in `apex-job/test/unit/classes/TestDataFactory.cls`. `AsyncProcessorTest` and `JobRequestNextExecutionDateTimeTest` call it, so the code is not duplicated.
 
 ### Item 1 — null-date requests are never recorded and the engine hot-loops
 
@@ -105,7 +103,7 @@ DRY: the bypass-user setup in `AsyncProcessorTest.cls:3-28` moves into a shared 
 - `apex-job/src/engine/application/AsyncApexJobExecutor.cls:53-81` is `execute(FinalizerContext)`. Its first `try` (`:54-67`) catches the exception and logs it. The second `try` (`:69-80`) then calls `getDelayInMinutes()` (`:97-102`), which returns `0` because `jobExecutionResults` is non-empty.
 - `README.md:152-155` documents exactly this builder call without `scheduleAt`.
 
-**(a) Null-date path.** The shared decision closes it at the source: a selected row always has a date, because the stamp guarantees one and the `<= :now` filter excludes `null`. The `?? job.CreatedDate` fallback becomes unreachable for every row `JobExecuted` sees. A synthesized `KILLED` result reuses rows that came from the selector, so it is covered too. D5 decides between three options: remove the fallback (recommended, since the codebase does not keep dead code), keep it and add `CreatedDate` to the SELECT, or fall back to `selectionTime`.
+**(a) Null-date path.** The shared decision closes it at the source: a builder request without `scheduleAt` now carries the `NOW()` default, and the `<= :now` filter excludes every `null` date, so a selected row always has a date. A synthesized `KILLED` result reuses rows that came from the selector, so it is covered too. The `?? job.CreatedDate` fallback is therefore unreachable, and R-004 removes it: `JobExecuted.cls:59` becomes `final Datetime baseRef = job.NextExecutionDateTime__c;`. R-004 refuses keeping the fallback with `CreatedDate` added to the SELECT, and falling back to the selection time.
 
 **(b) No zero-delay re-enqueue after a failed recording.** If recording threw, nothing was persisted: the exception fires in `stageExecution` before any DML, and DML itself is `allOrNone:false` and does not throw. In that case the finalizer must not treat the results as progress.
 
@@ -122,10 +120,10 @@ private void discardUnrecordedResults() {
 }
 ```
 
-`getDelayInMinutes()` keeps its current body, and an empty list yields `configService.getEnqueueDelayInMinutes()`. This avoids a boolean parameter and a new state flag. The list is read nowhere after the first `try`, because `wasLastChunkKilled` runs before it. D6 covers which delay to use. The recommendation is the existing idle delay: 1 min in business hours, clamped to [0, 10] by `ApexJobConfigServiceImpl.cls:21-31`.
+`getDelayInMinutes()` keeps its current body, and an empty list yields `configService.getEnqueueDelayInMinutes()`. This avoids a boolean parameter and a new state flag. The list is read nowhere after the first `try`, because `wasLastChunkKilled` runs before it. Per R-005 the delay is the existing idle delay from `getEnqueueDelayInMinutes()`, never `0`: 1 min in business hours, clamped to [0, 10] by `ApexJobConfigServiceImpl.cls:21-31`. R-005 refuses a new fixed delay constant and leaving the restart to the watcher.
 
 **Tests**
-- Red, end-to-end: in `apex-job/test/integration/classes/AsyncProcessorTest.cls`, `givenBuilderRequestWithoutScheduleAt_whenExecutorRuns_thenRequestIsRecorded`. It creates a description for `AsyncProcessorTest.NormalPriorityProcessor`, then `ApexJobManager.request().forDescription(id).save()` with no `scheduleAt`, and runs `System.enqueueJob(new AsyncApexJobExecutor(factoryForTest))` inside `startTest`/`stopTest`. It asserts that the request was deleted (SUCCESS). Today the request stays `READY` with `AttemptNumber__c == null`. Like the neighbouring tests, it runs inside `System.runAs(getRunningUser())` (the bypass user). Otherwise the real after-insert wake-up would enqueue a second, unmocked executor. This also exercises the D2 = A guarantee that bypassed inserts still get a date.
+- Red, end-to-end: in `apex-job/test/integration/classes/AsyncProcessorTest.cls`, `givenBuilderRequestWithoutScheduleAt_whenExecutorRuns_thenRequestIsRecorded`. It creates a description for `AsyncProcessorTest.NormalPriorityProcessor`, then `ApexJobManager.request().forDescription(id).save()` with no `scheduleAt`, and runs `System.enqueueJob(new AsyncApexJobExecutor(factoryForTest))` inside `startTest`/`stopTest`. It asserts that the request was deleted (SUCCESS). Today the request stays `READY` with `AttemptNumber__c == null`. Like the neighbouring tests, it runs inside `System.runAs(getRunningUser())` (the bypass user). Otherwise the real after-insert wake-up would enqueue a second, unmocked executor. Because the date comes from the platform default (R-002), the bypass user's insert still gets a date, so this test also exercises that guarantee end to end.
 - Red, unit: in `apex-job/test/unit/classes/AsyncApexJobExecutorTest.cls`, `givenExecutedResultsAndRecordingThrows_whenFinalizerRuns_thenReenqueueWithIdleDelay`. `jobExecutionResults` is non-empty, `recordJobExecutionSpy` throws, and `getEnqueueDelayInMinutesSpy` returns `3`. Expect `enqueueSpy` to have been called with `3` and never with `0`. The existing `givenFinalizerContext_whenExecuteWithRemainingJobs_thenExecuteAndReenqueueWith0Delay` stays green, which proves the success path is unchanged.
 
 ### Item 2 — the selector does a full table scan
@@ -135,16 +133,18 @@ private void discardUnrecordedResults() {
 - `apex-job/src/monitor/classes/adapter/JobMonitorController.cls:11-44` is `getJobRequestPage`: `WHERE IsCandidate__c = TRUE ... ALL ROWS`, polled every 2 s.
 
 **Change**
-1. New `apex-job/src/engine/domain/customindex/JobRequest__c.NextExecutionDateTime__c.indx-meta.xml`. The brief gives the exact content (`<allowNullValues>true</allowNullValues>`, no `<field>` element). D7 decides between `true` and `false`.
+1. New `apex-job/src/engine/domain/customindex/JobRequest__c.NextExecutionDateTime__c.indx-meta.xml`. The brief gives the exact content (`<allowNullValues>true</allowNullValues>`, no `<field>` element). R-006 keeps `allowNullValues` at `true`, the only measured value, and refuses `false`.
 2. Selector: capture `final Datetime now = Datetime.now();` next to the other locals at `:21-24`, and add `AND NextExecutionDateTime__c <= :now` directly after `IsCandidate__c = TRUE`. Everything else is unchanged: it stays one query, keeps the formula as the residual check, and never uses `OR NULL`.
-3. The date invariant comes from the shared decision above.
-4. Installed orgs that already hold runnable rows with a null date are covered by D4. The recommendation is an operator script, `scripts/apex/backfill-next-execution.apex`, following the house pattern of `scripts/apex/restart-watcher.apex`, which lives outside every packageDirectory. Each run sets `NextExecutionDateTime__c = CreatedDate` on rows where `NextExecutionDateTime__c = null AND Status__c IN ('READY','FAILURE','KILLED')`, for up to 10,000 rows, and is re-run until it reports 0.
-5. `IsCandidate__c` still has the `ISNULL(NextExecutionDateTime__c)` branch, and `DESIGN.md:138` documents it (D8). Recommendation: with D2 = A and D3 = A, a runnable null-dated row cannot exist, so the branch is dead. Remove it from the formula and from `DESIGN.md:138`. The monitor's "Is Candidate?" column and the selector then agree. Caveat: with `formulaTreatBlanksAs` `BlankAsZero`, the result of `NOW() >= <null datetime>` is not pinned. Since D3 = A guarantees no runnable null rows, the formula never meets that case on a runnable row. If D3 = B, keep the branch and document instead that the selector excludes null-dated rows.
-6. Monitor `getJobRequestPage` (D9). Recommendation: add the same `AND NextExecutionDateTime__c <= :now` and drop `ALL ROWS` together with the `IsDeleted ASC` sort key. The engine deletes only `SUCCESS` rows (`JobRepositoryImpl.cls:92-94`), and `IsCandidate__c` rejects those. `ALL ROWS` can therefore surface only rows a user deleted while they were runnable. The engine never runs those rows because the selector has no `ALL ROWS`, so showing them as candidates is wrong.
+3. The date invariant comes from the shared decision above (R-002): unset on insert means due now, `null` means not scheduled.
+4. Installed orgs that already hold runnable rows with a null date are covered by R-003, which refuses a release note alone. Those rows predate the not-scheduled rule and were due under the `ISNULL` branch, so they are backfilled rather than left unscheduled. The operator script `scripts/apex/backfill-next-execution.apex` follows the house pattern of `scripts/apex/restart-watcher.apex` and lives outside every packageDirectory. It runs after the deploy. Each run sets `NextExecutionDateTime__c = CreatedDate` on rows where `NextExecutionDateTime__c = null AND Status__c IN ('READY','FAILURE','KILLED')`, for up to 10,000 rows, and is re-run until it reports 0.
+5. `IsCandidate__c` (R-007). The formula loses its `ISNULL(NextExecutionDateTime__c)` branch: `,OR( NOW() &gt;= NextExecutionDateTime__c , ISNULL(NextExecutionDateTime__c) )` becomes `,NOW() &gt;= NextExecutionDateTime__c`. The premise is no longer "a null date cannot exist" but "a null date means not scheduled": explicit-null inserts and date-less re-queues do exist (shared decision), and the formula must reject them like the selector does. `DESIGN.md:138` drops `OR NextExecutionDateTime__c IS NULL` and gains the not-scheduled rule. R-007 refuses keeping the branch and documenting the selector's exclusion instead.
+   - Null-date evaluation after removal. The field sets `formulaTreatBlanksAs` `BlankAsZero`; whether that option changes a blank DateTime comparison is not pinned on the field itself. Probe (FormulaEval API, `Formula.builder()` on `JobRequest__c`, scratch org, 2026-11-25; the builder exposes no treat-blanks option): `NOW() >= NextExecutionDateTime__c` on a null date evaluates to `null`, `AND(true, NOW() >= NextExecutionDateTime__c)` evaluates to `false`, and a past date evaluates to `true`. Expected field result: `IsCandidate__c = false` for a null date. The field-level pin is `givenExplicitNullDate_whenInsert_thenRequestIsNotSelected`, which asserts the re-queried `IsCandidate__c` is `false`. If that assertion fails on the deployed formula, R-007's outcome is not met by removal alone; that is a blocker raised to the user, not a silent formula change.
+   - The monitor's "Is Candidate?" column and the selector then agree for every row.
+6. Monitor `getJobRequestPage` (R-008): add the same `AND NextExecutionDateTime__c <= :now` and drop `ALL ROWS` together with the `IsDeleted ASC` sort key. R-008 refuses keeping `ALL ROWS` with the filter, and leaving the query as is. The engine deletes only `SUCCESS` rows (`JobRepositoryImpl.cls:92-94`), and `IsCandidate__c` rejects those. `ALL ROWS` can therefore surface only rows a user deleted while they were runnable. The engine never runs those rows because the selector has no `ALL ROWS`, so showing them as candidates is wrong.
 
 **Tests**
-- Unit: `JobSelectorImplTest.cls` keeps its existing coverage (`givenFutureJobs_whenGetJobs_thenExcludesFutureJobs`, etc.). The explicit filter cannot be observed behaviourally, because the residual formula already excludes the same rows. Its proof is the query plan, not a unit test.
-- The per-path stamping tests above prove requirement 3.
+- Unit: `JobSelectorImplTest.cls` keeps its existing coverage (`givenFutureJobs_whenGetJobs_thenExcludesFutureJobs`, etc.). After R-007 the filter and the residual formula exclude the same rows, so the filter alone cannot be observed behaviourally. Its proof is the query plan, not a unit test.
+- The per-path tests above prove requirement 3, and `givenExplicitNullDate_whenInsert_thenRequestIsNotSelected` proves the not-scheduled rule end to end (selector plus formula).
 - Done-when (orchestrator): REST `query?explain=` on the selector's SOQL shows `leadingOperationType: Index` on `NextExecutionDateTime__c` when few rows are due. Wait about a minute after deploy before measuring. Timings go next to the brief's baselines (410-480 ms TableScan, compared with the target band of 73-82 ms Index).
 
 ### Item 4 — the insert trigger spends the caller's governor limits
@@ -194,7 +194,7 @@ new ApexJobFactoryImpl().getSpawner().wakeUp();
 
 - The flag is checked before `markWakeUpAttempted()`, so a skipped Batch or `@future` call does not mark it. That makes no difference, because these contexts never wake up anyway.
 - The slot check sits in `cannotEnqueue`, ahead of the SOQL. It therefore protects every enqueue: trigger, finalizer, watcher and `restartEngine`. At the limit, `System.enqueueJob` would otherwise throw an uncatchable `LimitException`, so returning `null` is strictly better.
-- D10 decides where the flag lives and why the guard goes in a new `wakeUp()` rather than inside `enqueue(Integer)`. Putting it inside `enqueue` would also gate the finalizer, the watcher and `restartEngine` whenever they share a transaction with an insert. In tests that share a transaction routinely, so an explicit enqueue would silently return `null`.
+- R-009 settles where the flag lives (`ApexJobTransactionContext`) and that the guard goes in a new `wakeUp()` called only by the insert trigger, rather than inside `enqueue(Integer)` or in a static flag in the spawner. Putting it inside `enqueue` would also gate the finalizer, the watcher and `restartEngine` whenever they share a transaction with an insert. In tests that share a transaction routinely, so an explicit enqueue would silently return `null`.
 
 **Public-surface impact (checked)**
 
@@ -231,7 +231,7 @@ CPU time is not asserted because it is not deterministic in tests. The orchestra
 - `:96-112` holds `buildJobIds` with `JOBIDS_SEP`, `MAX_LONG_TEXT_LENGTH`, `ID_15_LENGTH` and the trim `while` loop.
 - The selector reads the field (`JobSelectorImpl.cls:41`) because appending needs the previous value. No other code reads it.
 
-**Change** (N = 20 pending D11; no decision ids go in source)
+**Change** (N = 20 per R-010, which refuses 10 and 50; no ruling ids go in source)
 
 ```apex
 private static final Integer MAX_TRACKED_JOB_IDS = 20;
@@ -277,11 +277,11 @@ private Boolean isSignificantVariation(final Decimal observed, final Decimal exp
 
 `expected > 0` always holds here: both callers return early when the learned value is `<= UNKNOWN_*` (0).
 
-**Callers.** Both deviations are in chunk-total units, which is where measurement resolution lives (1 ms CPU over the whole chunk). See D13.
+**Callers.** Both deviations are in chunk-total units, which is where measurement resolution lives (1 ms CPU over the whole chunk). R-012 rules this single predicate for both branches and refuses comparing the per-item deviation to the floor.
 - Base: `isSignificantVariation(usage, currentBase, model.noiseFloor)`.
 - Per-item: `final Integer itemsBeyondFirst = chunkSize - 1;` then `isSignificantVariation(newPerItem * itemsBeyondFirst, currentPerItem * itemsBeyondFirst, model.noiseFloor)`. The relative part is unchanged from today because `itemsBeyondFirst` cancels. The absolute part becomes the deviation of the chunk total. Example: a reading of 0.0204 ms/item against a learned 0.0408 ms/item over 49 items gives `|1 - 2| = 1 ms`, below the 5 ms floor, so it is not counted. A real per-item doubling of a 1 ms/item job gives 48 ms, which is counted.
 
-**Floors** (D12). The values are placeholders, held as named constants on `ConsumptionModel`. Each model resolves its floor once in the constructor, so the signature does not change:
+**Floors** (R-011). The values are cpuTime 5 ms, heapSize 4,096 B, calloutTime 5 ms and 1 for every counter dimension, held as named constants on `ConsumptionModel`. Each model resolves its floor once in the constructor, so the signature does not change:
 
 ```apex
 private static final Decimal COUNTER_NOISE_FLOOR = 1;
@@ -297,7 +297,7 @@ public Decimal noiseFloor { get; private set; }   // = NOISE_FLOOR_BY_DIMENSION.
 ```
 
 - `LimitsUsage.CPU_TIME_DIMENSION`, `HEAP_SIZE_DIMENSION` and `CALLOUT_TIME_DIMENSION` go from `private` to `public` so the floor map does not repeat string literals.
-- `calloutTime` is a millisecond dimension, not a counter. The brief does not name it, so its 5 ms placeholder is part of D12.
+- `calloutTime` is a millisecond dimension, not a counter. R-011 sets its floor at 5 ms and refuses 1; it also refuses deferring the values to a measured run.
 
 **Tests** in `AdaptiveConsumptionLearnerTest.cls`:
 - Predicate on its own:
@@ -410,7 +410,37 @@ async poll() {
 - `givenDescriptions_whenGetJobDescriptionInfos_thenReturnsStatisticsFields`.
 - `givenEngineState_whenGetEngineStatus_thenReturnsThreeValues`.
 
-LWC verification is D14.
+**LWC verification (R-013)**: `sfdx-lwc-jest` fake-timer tests plus one manual scratch-org network check. R-013 refuses either one alone.
+
+Setup:
+- `package.json` `devDependencies` gains `@salesforce/sfdx-lwc-jest`.
+- New `jest.config.js` at the repo root uses the package's default config unchanged:
+
+  ```js
+  const { jestConfig } = require('@salesforce/sfdx-lwc-jest/config');
+
+  module.exports = { ...jestConfig };
+  ```
+
+- `package.json` `scripts` gains `"test:lwc": "wireit"`, with this wireit entry. It needs no org, so it does **not** depend on `build`:
+
+  ```json
+  "test:lwc": {
+    "command": "sfdx-lwc-jest",
+    "files": ["apex-job/src/monitor/lwc/**", "jest.config.js", "package.json"],
+    "output": []
+  }
+  ```
+
+- `test:lwc` joins the `test` wireit `dependencies` next to `test:unit` and `test:integration`, so `npm test` runs all three. Coverage runs as `npm run test:lwc -- --coverage`.
+- Suites live in `apex-job/src/monitor/lwc/<cmp>/__tests__/<cmp>.test.js` for `engineControls`, `requestTable` and `statusByProcessorTable`. `.forceignore` already lists `**/__tests__/**`, so no `.forceignore` change is needed and the suites never deploy.
+- Each suite mocks its Apex imports with `jest.mock('@salesforce/apex/JobMonitorController.<method>', () => ({ default: jest.fn() }), { virtual: true })`. `engineControls` also mocks `@salesforce/customPermission/Manage_Async_Job_Engine` the same way. Suites use `jest.useFakeTimers()` and flush promises between timer advances.
+- Cases per component:
+  - `givenConnected_whenIntervalElapses_thenOneApexCallPerInterval` (one call on connect, one more per `POLL_INTERVAL_MS`; for `statusByProcessorTable` one `getStatusByProcessor` plus one `getJobDescriptionInfos`).
+  - `givenDisconnected_whenIntervalElapses_thenNoFurtherCall`.
+  - `givenDisconnectedDuringInFlightCall_whenCallResolves_thenNoTimerArmed`.
+  - `givenRejectedCall_whenIntervalElapses_thenPollingResumes`.
+- Manual check, once on the scratch org: devtools Network on the console tab shows one `getEngineStatus` call per 5 s per tab, and the calls stop after navigating away.
 
 ### Item 3 — documentation only
 
@@ -431,54 +461,64 @@ No code change.
 
 | Item | Files |
 |---|---|
-| 8 | `apex-job/src/monitor/tabs/Job_Monitor_Console.tab-meta.xml` (new), `apex-job/src/monitor/applications/Async_Job_Monitor.app-meta.xml`, `apex-job/src/admin/permissionsets/AdminAsyncJob.permissionset-meta.xml` (D1), `README.md` |
-| 1+2 date | `apex-job/src/engine/domain/triggers/JobRequestBeforeInsert.trigger` (new; `JobRequestBeforeSave` if D3 = A), `apex-job/src/engine/domain/classes/JobRequestDueDate.cls` (new), `Bypass_JobRequest_Trigger.customPermission-meta.xml` description, `scripts/apex/backfill-next-execution.apex` (D4) |
-| 1 | `AsyncApexJobExecutor.cls`, `JobExecuted.cls:59` (D5) |
-| 2 | `apex-job/src/engine/domain/customindex/JobRequest__c.NextExecutionDateTime__c.indx-meta.xml` (new), `JobSelectorImpl.cls`, `IsCandidate__c.field-meta.xml` (D8), `JobMonitorController.getJobRequestPage` (D9) |
-| 4 | `ApexJobTransactionContext.cls`, `JobExecutorSpawner.cls`, `JobExecutorQueueableSpawner.cls`, `JobRequestAfterInsert.trigger` |
-| 5 | `JobRepositoryImpl.cls`, `JobIds__c.field-meta.xml` |
-| 6 | `AdaptiveConsumptionLearner.cls`, `ConsumptionModel.cls`, `LimitsUsage.cls` (3 constants made public) |
-| 7 | `JobMonitorController.cls`, `engineControls.js`, `requestTable.js`, `statusByProcessorTable.js` |
-| docs | `DESIGN.md` (`:138`, `:154`, `:296`, `:335`, `:337-339`, `:455-456`, `:553-590`, `:609`, `:677-679`, `:701-703`, new item-3 section), `README.md`, `CONTRIBUTING.md` (D16) |
+| 8 | `apex-job/src/monitor/tabs/Job_Monitor_Console.tab-meta.xml` (new), `apex-job/src/monitor/applications/Async_Job_Monitor.app-meta.xml`, `apex-job/src/admin/permissionsets/AdminAsyncJob.permissionset-meta.xml` (R-001), `README.md` |
+| 1+2 date | `apex-job/src/engine/domain/objects/JobRequest__c/fields/NextExecutionDateTime__c.field-meta.xml` (`<defaultValue>NOW()</defaultValue>`, R-002), `scripts/apex/backfill-next-execution.apex` (new, R-003). No trigger and no new class. |
+| 1 | `AsyncApexJobExecutor.cls` (R-005), `JobExecuted.cls:59` (R-004) |
+| 2 | `apex-job/src/engine/domain/customindex/JobRequest__c.NextExecutionDateTime__c.indx-meta.xml` (new, R-006), `JobSelectorImpl.cls`, `IsCandidate__c.field-meta.xml` (R-007), `JobMonitorController.getJobRequestPage` (R-008) |
+| 4 | `ApexJobTransactionContext.cls`, `JobExecutorSpawner.cls`, `JobExecutorQueueableSpawner.cls`, `JobRequestAfterInsert.trigger` (R-009) |
+| 5 | `JobRepositoryImpl.cls`, `JobIds__c.field-meta.xml` (R-010) |
+| 6 | `AdaptiveConsumptionLearner.cls` (R-012), `ConsumptionModel.cls` (R-011), `LimitsUsage.cls` (3 constants made public) |
+| 7 | `JobMonitorController.cls`, `engineControls.js`, `requestTable.js`, `statusByProcessorTable.js`, `apex-job/src/monitor/lwc/<cmp>/__tests__/<cmp>.test.js` (new ×3), `jest.config.js` (new), `package.json` (R-013) |
+| docs | `DESIGN.md` (`:138` plus the not-scheduled rule, `:154`, `:296`, `:335`, `:337-339`, `:455-456`, `:553-590`, `:677-679`, new item-3 section; `:609` and `:701-703` unchanged), `README.md` (`:170`, `:281`, `:300`), `CONTRIBUTING.md` (R-014) |
+
+## Rulings
+
+Settled in `docs/RULINGS.md`; this design implements them as written.
+
+- R-001 — `AdminAsyncJob` grants `Job_Monitor_Console` as Visible through `tabSettings`, no `applicationVisibilities` (item 8).
+- R-002 — `NextExecutionDateTime__c` carries a `NOW()` field default and no trigger stamps it; unset on insert is due now, explicit `null` or update gets no date (shared decision).
+- R-003 — operator script `scripts/apex/backfill-next-execution.apex` sets null dates of runnable rows to `CreatedDate`, 10,000 rows per run, re-run until 0 (item 2).
+- R-004 — `JobExecuted` drops the `CreatedDate` fallback; `NextExecutionDateTime__c` alone is the timing base (item 1).
+- R-005 — after a failed recording the finalizer discards the results and re-enqueues with `getEnqueueDelayInMinutes()`, never `0` (item 1).
+- R-006 — the custom index keeps `allowNullValues` `true` (item 2).
+- R-007 — `IsCandidate__c` loses its `ISNULL` branch so a null date means not scheduled, and `DESIGN.md` states it (item 2).
+- R-008 — `getJobRequestPage` adds `NextExecutionDateTime__c <= :now` and drops `ALL ROWS` with its `IsDeleted` sort key (item 2).
+- R-009 — wake-up flag in `ApexJobTransactionContext`, guard in a new `JobExecutorSpawner.wakeUp()` called only by the insert trigger, free-slot check before every enqueue (item 4).
+- R-010 — `JobIds__c` keeps the last 20 ids (item 5).
+- R-011 — noise floors as named constants: cpuTime 5 ms, heapSize 4,096 B, calloutTime 5 ms, every counter 1 (item 6).
+- R-012 — one named predicate requires chunk-total deviation above the floor and relative deviation above `VariationResetThreshold__c`, for both branches (item 6).
+- R-013 — LWC changes verified by `sfdx-lwc-jest` fake-timer tests plus one manual scratch-org network check (item 7).
+- R-014 — `CONTRIBUTING.md` documents deploying Apex Mockery from source at tag `v2.3.0` before deploying `apex-job/test` (test strategy).
 
 ## Decision candidates
 
 | # | Choice | Alternatives (≤3) | Recommendation | Why |
 |---|---|---|---|---|
-| D1 | Item 8: does `AdminAsyncJob` grant the new tab? | A. Add `<tabSettings><tab>Job_Monitor_Console</tab><visibility>Visible</visibility></tabSettings>` · B. Leave it out (admins enable the tab by hand) · C. A plus `<applicationVisibilities>` for `Async_Job_Monitor` | A | The permission set's stated purpose is full engine administration. Granting the tab makes the console reachable from it. Whether the app also needs `applicationVisibilities` to appear in the launcher is not pinned. Choose C only if the fresh-org check shows the app hidden. |
-| D2 | Items 1+2: where the date is stamped | A. `before insert` trigger that ignores the bypass permission · B. Field default `NOW()` (not pinned) · C. Builder only | A | A covers builder, plain DML, DML under bypass and API loads by code. B's behaviour on explicit `null` and API blanks is unpinned. C leaves DML rows null, so they are never selected. |
-| D3 | Also stamp on update (manual re-queue of a null-dated row to a runnable status) | A. `before update` stamps runnable rows with a null date · B. Insert only, and document that re-queues must set a date | A | Without A, an admin who flips a row back to `READY` produces a row the selector never sees. Today the `ISNULL` branch would pick it up, so B is a silent regression. The engine's own writes never hit the branch. |
-| D4 | Existing runnable rows with a null date in installed orgs | A. Operator script `scripts/apex/backfill-next-execution.apex` (date = `CreatedDate`, 10k per run, re-run until 0) · B. Release note only | A | Without a backfill those rows are invisible to the new filter forever. The script follows the existing `scripts/apex/` pattern and is never deployed. |
-| D5 | `JobExecuted.cls:59` `?? job.CreatedDate` fallback | A. Remove it (`baseRef = NextExecutionDateTime__c`) · B. Keep it and add `CreatedDate` to the selector SELECT · C. Fall back to `selectionTime` (wait 0) | A | After D2 and the `<= :now` filter, every row `JobExecuted` sees has a date, so the fallback is dead code. |
-| D6 | Re-enqueue delay after a failed recording | A. The idle delay `getEnqueueDelayInMinutes()` (1 min in business hours, ≤ 10) · B. A new fixed constant · C. No re-enqueue; the watcher restarts within 5 min | A | It reuses an existing, operator-tunable semantic and adds no constant. C costs up to 5 min of latency on every transient failure. |
-| D7 | `CustomIndex.allowNullValues` | A. `true` (tested) · B. `false` (untested) | A | Only `true` was measured. The filter never matches `null`, so B might shrink the index, but it has no measurement behind it. |
-| D8 | `IsCandidate__c` `ISNULL` branch and `DESIGN.md:138` | A. Remove the branch and update the doc (requires D3 = A) · B. Keep the formula and update the doc to say the selector excludes null-dated rows | A | With D2 = A and D3 = A the branch is unreachable for runnable rows. Removing it makes the monitor's "Is Candidate?" agree with the selector. |
-| D9 | `JobMonitorController.getJobRequestPage` | A. Add `<= :now`, drop `ALL ROWS` and the `IsDeleted` sort · B. Add `<= :now` and keep `ALL ROWS` · C. Leave as is | A | Polled every 2 s per tab, it runs the same scan as the selector. `ALL ROWS` can only surface user-deleted runnable rows, which the engine never runs. |
-| D10 | Item 4: where the once-per-transaction flag lives and where the guard sits | A. Flag in `ApexJobTransactionContext`, guard in a new `JobExecutorSpawner.wakeUp()` called only by the trigger · B. Flag in `ApexJobTransactionContext`, guard inside `enqueue(Integer)` (no interface change) · C. A private static in `JobExecutorQueueableSpawner` | A | It keeps the single home for per-transaction state, which the brief names. B silently turns a second explicit `enqueue` in the same transaction (finalizer, watcher or restart after an insert) into `null`. C scatters mutable static state, which the brief refuses. |
-| D11 | Item 5: N | A. 20 (tested) · B. 10 · C. 50 | A | Measured at 34 KB of heap and 79 ms of finalizer CPU per 50-row chunk. |
-| D12 | Item 6: floor values | A. Placeholders: cpuTime 5 ms, heapSize 4,096 B, calloutTime 5 ms, counters 1 · B. Same, but calloutTime 1 (treated as a counter) · C. Defer the values to a measured run after the change | A | These are the prototype's values (1 of 25 single-item transactions). calloutTime is wall-clock ms like cpuTime, so a 1 ms floor would not absorb clock jitter. |
-| D13 | Item 6: unit of the floor comparison | A. Chunk-total deviation (`perItemDelta × (chunkSize − 1)`) · B. Per-item deviation | A | Measurement resolution applies to the chunk total. With B, a 5 ms per-item floor would mute every real per-item drift of any job cheaper than 5 ms/item. |
-| D14 | Item 7: how the LWC changes are verified | A. Add `@salesforce/sfdx-lwc-jest` with fake-timer tests (one call per interval; no call after `disconnectedCallback`; re-arm after a rejected call) · B. A manual scratch-org checklist (devtools Network: calls per tab per 5 s; navigate away → calls stop) · C. Both | C | A is the only repeatable proof, and the code-review rules ask for TDD and ≥ 80 % coverage. B is still needed once, because jest mocks the Apex wire and cannot prove the server-side call count. |
-| D15 | Document the Apex Mockery install step (README and CONTRIBUTING have none) | A. A CONTRIBUTING step: deploy Apex Mockery from source at a pinned tag before `apex-job/test` (what the orchestrator does today) · B. A CONTRIBUTING step: install its published package by version id · C. Leave undocumented | A | It documents the path that is proven to work in this repo. B needs a version id that nobody has pinned yet. |
+| DC-1 | How the en_US requirement on the test user is held (two existing test classes depend on it, see Test strategy) | A. Add `"language": "en_US"` to `config/project-scratch-def.json` · B. A `CONTRIBUTING.md` line next to the R-014 step: create the scratch org with an en_US admin user · C. Leave it to whoever creates the org | B | B documents the condition the suite actually needs, at no risk. A is not pinned: whether the scratch-def `language` key also sets the admin user's language and locale was not measured, so A is acceptable only after one scratch org created from it shows an en_US user. C keeps the two tests locale-fragile. |
 
 ## Test strategy
 
 - **Red first, per item**:
   - 1: `AsyncProcessorTest.givenBuilderRequestWithoutScheduleAt_whenExecutorRuns_thenRequestIsRecorded` and `AsyncApexJobExecutorTest.givenExecutedResultsAndRecordingThrows_whenFinalizerRuns_thenReenqueueWithIdleDelay`.
-  - 1+2: the three per-path tests in `JobRequestTriggerTest`.
+  - 1+2: the three per-path tests and the explicit-null test in `JobRequestNextExecutionDateTimeTest`. They pin the `NOW()` field default (R-002) and the null-date formula result (R-007).
   - 4: the four measured rows plus `@future` in `JobRequestTriggerTest`.
   - 5: `JobRepositoryImplTest.givenJobIdsAtCapacity_...`.
   - 6: the two resolution-floor tests in `AdaptiveConsumptionLearnerTest`.
-  - 7: `JobMonitorControllerTest.givenRequestsAcrossTwoDescriptionsAndTwoStatuses_..._thenQueryRowsEqualGroupCount`.
+  - 7: `JobMonitorControllerTest.givenRequestsAcrossTwoDescriptionsAndTwoStatuses_..._thenQueryRowsEqualGroupCount`, and the jest suites (red because no component has a `disconnectedCallback` and `engineControls` makes 3 calls per 500 ms).
   - Every one of these fails on `main` for the reason the brief measured.
 - **Unit vs integration**:
-  - Domain logic (`JobRequestDueDate`, the learner predicate, `ConsumptionModel` floors, `buildJobIds`) gets unit tests with Apex Mockery where a factory is involved.
-  - Trigger, Batch and `@future` behaviour and the governor-limit accounting run as real-DML tests in `apex-job/test/integration/classes/JobRequestTriggerTest.cls`, because `System.isBatch()`, `System.isFuture()` and `Limits.*` cannot be mocked.
+  - Domain logic (the learner predicate, `ConsumptionModel` floors, `buildJobIds`) gets unit tests with Apex Mockery where a factory is involved.
+  - The field default, the formula, trigger, Batch and `@future` behaviour and the governor-limit accounting run as real-DML tests in `apex-job/test/integration/classes/JobRequestNextExecutionDateTimeTest.cls` and `JobRequestTriggerTest.cls`, because a field default, `System.isBatch()`, `System.isFuture()` and `Limits.*` cannot be mocked.
+  - LWC polling runs under `npm run test:lwc` (R-013), locally, without an org.
+- **Test environment** (facts the suites depend on):
+  - The scratch org's running user must be en_US. `JobExecutorQueueableSpawnerTest.cls:74`, `:92` and `:110` assert English platform exception messages (none of the three strings exists in `apex-job/src`), and `AsyncProcessorTest.cls:15` looks up the profile by `Name = 'System Administrator'`, which is the English label. `config/project-scratch-def.json` sets no `language`; DC-1 covers how the requirement is held.
+  - Apex Mockery v2.3.0 is deployed from source at that tag before `apex-job/test` (R-014, documented in `CONTRIBUTING.md`).
 - **Edge matrix**:
 
   | Edge | Covered by |
   |---|---|
   | Explicit date kept on insert | `givenExplicitDate_whenInsert_thenDateIsKept` |
+  | Explicit `null` date on insert is not scheduled | `givenExplicitNullDate_whenInsert_thenRequestIsNotSelected` |
   | Bypass user still gets a date | per-path bypass test |
   | Second wake-up in the same transaction | spawner unit test |
   | Slots exhausted | spawner unit test (50 trivial queueables) |
@@ -486,7 +526,8 @@ No code change.
   | `@future` | inner future |
   | Floor boundary (`==` floor → not counted) | predicate test |
   | `JobIds__c` below / at / above N | existing test plus the capacity test |
-  | Monitor component disconnected during an in-flight call | jest (D14) |
+  | Monitor component disconnected during an in-flight call | jest (R-013) |
+  | Re-queue by update without a date | not tested: the platform never applies defaults on update (pinned matrix); documented as "not scheduled" in `README.md` and `DESIGN.md` |
 
 - **Not unit-testable, proven by measurement (orchestrator)**:
   - The query plan (`query?explain=` with `leadingOperationType: Index`) and selector timings at 201k rows.
@@ -494,6 +535,7 @@ No code change.
   - Finalizer CPU and selector heap for item 5.
   - The share of single-item transactions for item 6 (baseline 5 of 25 and 3 of 27).
   - The fresh-org deploy for item 8.
+  - The manual network check for item 7 (R-013).
   - Each runs three times on a quiet org, with the engine paused (`ApexJobConfig__c.Enabled__c = false`) between runs.
 - **Regression guard**: the existing suites (`JobSelectorImplTest`, `AsyncProcessorTest`, `AdaptiveConsumptionLearnerTest`, `JobExecutorQueueableSpawnerTest`, `ApexJobTransactionContextTest`) stay green unchanged. The one exception is the bypass-user setup moving into `TestDataFactory`.
 
