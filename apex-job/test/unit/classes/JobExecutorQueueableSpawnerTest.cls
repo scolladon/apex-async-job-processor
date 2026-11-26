@@ -124,4 +124,54 @@ private class JobExecutorQueueableSpawnerTest {
     // Assert
     Expect.that(mocks.getEnqueueDelayInMinutesSpy).hasBeenCalled();
   }
+
+  @IsTest
+  static void givenWakeUpAlreadyAttempted_whenWakeUp_thenIsRunningNotQueried() {
+    // Arrange
+    ApexJobTransactionContext.reset();
+    ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.isRunningSpy.returns(true);
+    JobExecutorQueueableSpawner sut = new JobExecutorQueueableSpawner(mocks.factoryStub);
+
+    // Act
+    sut.wakeUp();
+    sut.wakeUp();
+
+    // Assert
+    Expect.that(mocks.isRunningSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenNoQueueableSlotLeft_whenEnqueue_thenReturnsNullWithoutQuery() {
+    // Arrange
+    ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.isRunningSpy.returns(false);
+    JobExecutorQueueableSpawner sut = new JobExecutorQueueableSpawner(mocks.factoryStub);
+
+    // Act
+    Test.startTest();
+    enqueueNoOpJobs(Limits.getLimitQueueableJobs());
+    final Id result = sut.enqueue(0);
+    Test.stopTest();
+
+    // Assert
+    Assert.isNull(result);
+    Expect.that(mocks.isRunningSpy).hasNotBeenCalled();
+  }
+
+  private static void enqueueNoOpJobs(final Integer remaining) {
+    if (remaining <= 0) {
+      return;
+    }
+    System.enqueueJob(new NoOpQueueable());
+    enqueueNoOpJobs(remaining - 1);
+  }
+
+  private class NoOpQueueable implements Queueable {
+    public void execute(final QueueableContext context) {
+      System.debug(LoggingLevel.FINEST, 'no-op');
+    }
+  }
 }

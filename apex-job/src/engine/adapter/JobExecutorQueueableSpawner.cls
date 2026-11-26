@@ -1,5 +1,7 @@
 @SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class JobExecutorQueueableSpawner implements JobExecutorSpawner {
+  private static final Integer WAKE_UP_DELAY_IN_MINUTES = 0;
+
   private ApexJobLogger logger;
   private ApexJobFactory factory;
 
@@ -16,6 +18,15 @@ public without sharing class JobExecutorQueueableSpawner implements JobExecutorS
   public Id enqueue() {
     final Integer delayInMinutes = this.factory.getConfigService().getEnqueueDelayInMinutes();
     return this.enqueue(delayInMinutes);
+  }
+
+  public void wakeUp() {
+    final ApexJobTransactionContext transactionContext = ApexJobTransactionContext.getInstance();
+    if (transactionContext.hasAttemptedWakeUp || System.isBatch() || System.isFuture()) {
+      return;
+    }
+    transactionContext.markWakeUpAttempted();
+    this.enqueue(WAKE_UP_DELAY_IN_MINUTES);
   }
 
   public Id enqueue(final Integer delayInMinutes) {
@@ -37,7 +48,12 @@ public without sharing class JobExecutorQueueableSpawner implements JobExecutorS
 
   private Boolean cannotEnqueue() {
     return System.isQueueable() || // Finalizer is not queueable ;)
+      this.hasNoQueueableSlotLeft() ||
       this.factory.getConfigService().isSystemEnabled() == false ||
       this.factory.getExecutorService().isRunning(null) == true;
+  }
+
+  private Boolean hasNoQueueableSlotLeft() {
+    return Limits.getQueueableJobs() >= Limits.getLimitQueueableJobs();
   }
 }

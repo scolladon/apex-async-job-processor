@@ -295,7 +295,7 @@ Tracks 18 governor limit dimensions. `startSnapshot()` / `stopSnapshot()` measur
 
 ### ApexJobTransactionContext
 
-Static singleton holding a `hasExecutedJobs` boolean. Set to `true` after the first chunk executes. Consumed by `JobSelectorImpl` to control whether unknown-model jobs (`MaxChunkSize = -1`) are included in the candidate query.
+Static singleton holding a `hasExecutedJobs` boolean and a `hasAttemptedWakeUp` boolean set by `JobExecutorQueueableSpawner.wakeUp()` so the insert trigger attempts at most one wake-up per transaction. Set to `true` after the first chunk executes. Consumed by `JobSelectorImpl` to control whether unknown-model jobs (`MaxChunkSize = -1`) are included in the candidate query.
 
 ### ApexJobConfigService
 
@@ -341,7 +341,7 @@ LIMIT 50
 
 ### JobExecutorQueueableSpawner
 
-Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped.
+Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped. Every enqueue first checks for a free queueable slot (`Limits.getQueueableJobs() < Limits.getLimitQueueableJobs()`) and returns `null` otherwise, ahead of the `isRunning` query. `wakeUp()` is the trigger's entry point: once per transaction, skipped in Batch and `@future` contexts.
 
 ### ApexJobWatcher — Schedulable Watchdog
 

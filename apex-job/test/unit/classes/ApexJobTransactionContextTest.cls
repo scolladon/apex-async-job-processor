@@ -68,4 +68,43 @@ private class ApexJobTransactionContextTest {
     // Assert
     Assert.isTrue(sut.hasExecutedJobs, 'Should remain true after multiple calls');
   }
+
+  @IsTest
+  static void givenNewTransaction_whenHasAttemptedWakeUp_thenReturnsFalse() {
+    // Arrange
+    ApexJobTransactionContext.reset();
+
+    // Act
+    final ApexJobTransactionContext sut = ApexJobTransactionContext.getInstance();
+
+    // Assert
+    Assert.isFalse(sut.hasAttemptedWakeUp, 'Should be false for a new transaction');
+  }
+
+  @IsTest
+  static void givenTransactionContext_whenMarkWakeUpAttempted_thenFlagIsSet() {
+    // Arrange
+    ApexJobTransactionContext.reset();
+    final ApexJobTransactionContext sut = ApexJobTransactionContext.getInstance();
+
+    // Act
+    sut.markWakeUpAttempted();
+
+    // Assert
+    Assert.isTrue(sut.hasAttemptedWakeUp, 'Should be true after marking the wake-up as attempted');
+  }
+
+  @IsTest
+  static void givenWakeUpAttempted_whenReset_thenNewInstanceHasFlagCleared() {
+    // Arrange
+    ApexJobTransactionContext.reset();
+    ApexJobTransactionContext.getInstance().markWakeUpAttempted();
+
+    // Act
+    ApexJobTransactionContext.reset();
+    final ApexJobTransactionContext sut = ApexJobTransactionContext.getInstance();
+
+    // Assert
+    Assert.isFalse(sut.hasAttemptedWakeUp, 'New instance should have the wake-up flag cleared');
+  }
 }
