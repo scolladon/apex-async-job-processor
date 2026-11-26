@@ -1,5 +1,7 @@
 @IsTest
 private class JobRepositoryImplTest {
+  private static final Integer TRACKED_JOB_ID_CAPACITY = 20;
+  private static final Integer ID_15_LENGTH = 15;
   @IsTest
   static void givenGetJobCandidates_whenCalledWithNotEnoughQueries_thenReturnEmptyList() {
     // Arrange
@@ -336,8 +338,8 @@ private class JobRepositoryImplTest {
     final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').enabled().withMaxChunkSize(-1).build();
     insert jobDesc;
     final List<String> existingIds = new List<String>();
-    for (Integer i = 0; i < 20; ++i) {
-      existingIds.add(String.valueOf(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)).left(15));
+    for (Integer i = 0; i < TRACKED_JOB_ID_CAPACITY; ++i) {
+      existingIds.add(String.valueOf(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)).left(ID_15_LENGTH));
     }
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob').withJobDescription(jobDesc.Id).failure().enabled().build();
     jobRequest.JobDescription__r = jobDesc;
@@ -359,10 +361,10 @@ private class JobRepositoryImplTest {
 
     // Assert
     final List<String> result = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id].JobIds__c.split(';');
-    Assert.areEqual(20, result.size(), 'Should keep only the last 20 ids');
+    Assert.areEqual(TRACKED_JOB_ID_CAPACITY, result.size(), 'Should keep only the most recent ids');
     Assert.areNotEqual(existingIds[0], result[0], 'Oldest id should be dropped');
     Assert.areEqual(existingIds[1], result[0], 'Second oldest id should now be first');
-    Assert.areEqual(String.valueOf(asyncJobId).left(15), result[19], 'Newest id should be appended last');
+    Assert.areEqual(String.valueOf(asyncJobId).left(ID_15_LENGTH), result[TRACKED_JOB_ID_CAPACITY - 1], 'Newest id should be appended last');
   }
 
   private class TestFinalizerContext implements FinalizerContext {

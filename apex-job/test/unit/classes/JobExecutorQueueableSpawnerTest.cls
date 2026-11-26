@@ -126,7 +126,7 @@ private class JobExecutorQueueableSpawnerTest {
   }
 
   @IsTest
-  static void givenWakeUpAlreadyAttempted_whenWakeUp_thenIsRunningNotQueried() {
+  static void givenWakeUpAlreadyAttempted_whenWakeUpAgain_thenIsRunningQueriedOnce() {
     // Arrange
     ApexJobTransactionContext.reset();
     ApexJobTestMock mocks = new ApexJobTestMock();

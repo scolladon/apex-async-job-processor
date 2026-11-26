@@ -52,7 +52,7 @@ private class JobRequestNextExecutionDateTimeTest {
     // Arrange
     final JobDescription__c description = insertDescription();
     final JobRequest__c request = readyRequest(description);
-    final Datetime explicitDate = Datetime.now().addHours(1);
+    final Datetime explicitDate = wholeSecondNow().addHours(1);
     request.NextExecutionDateTime__c = explicitDate;
 
     // Act

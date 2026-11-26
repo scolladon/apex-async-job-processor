@@ -85,7 +85,7 @@ private class JobMonitorControllerTest {
   }
 
   @IsTest
-  static void givenEngineState_whenGetEngineStatus_thenReturnsThreeValues() {
+  static void givenEnabledEngineAndNoAsyncJob_whenGetEngineStatus_thenReportsEnabledAndIdle() {
     // Arrange
     insert new ApexJobConfig__c(Enabled__c = true);
 
@@ -96,5 +96,23 @@ private class JobMonitorControllerTest {
     Assert.isTrue(result.enabled, 'Should report the engine enabled');
     Assert.areEqual(0, result.executorCount, 'Should report no executor');
     Assert.isFalse(result.watcherScheduled, 'Should report no watcher');
+  }
+
+  @IsTest
+  static void givenDisabledEngineWithQueuedExecutorAndScheduledWatcher_whenGetEngineStatus_thenReportsThem() {
+    // Arrange
+    insert new ApexJobConfig__c(Enabled__c = false);
+    Test.startTest();
+    final Id executorId = System.enqueueJob(new AsyncApexJobExecutor());
+    ApexJobWatcher.schedule();
+
+    // Act
+    final JobMonitorController.EngineStatus result = JobMonitorController.getEngineStatus();
+
+    // Assert
+    Assert.isFalse(result.enabled, 'Should report the engine disabled');
+    Assert.areEqual(1, result.executorCount, 'Should count the queued executor');
+    Assert.isTrue(result.watcherScheduled, 'Should report the scheduled watcher');
+    System.abortJob(executorId);
   }
 }

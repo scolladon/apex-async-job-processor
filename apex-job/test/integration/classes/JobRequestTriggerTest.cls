@@ -28,7 +28,7 @@ private class JobRequestTriggerTest {
   }
 
   @IsTest
-  private static void givenEngineIdle_whenSingleRowInsertsRepeat120Times_thenNoQueueableLimitException() {
+  private static void givenEngineIdle_whenSingleRowInsertsRepeat120Times_thenNoSoqlLimitExceptionAndOneQueueable() {
     // Arrange
     final Id descriptionId = insertDisabledDescriptionWithEngineEnabled();
     Test.startTest();
