@@ -222,4 +222,150 @@ private class JobMonitorControllerTest {
     Assert.areEqual(new List<String>{ 'pause', 'resume', 'restart' }, failures, 'Should refuse every engine control');
     Assert.isTrue(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should leave the engine untouched');
   }
+
+  private static JobDescription__c insertDescriptionAsAdmin(final String processorName) {
+    final JobDescription__c description = ApexJobTestFixture.aJobDescription().withProcessorName(processorName).withMaxChunkSize(MAX_CHUNK_SIZE).build();
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      insert as system description;
+    }
+    return description;
+  }
+
+  private static void insertAsAdmin(final List<SObject> records) {
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      insert as system records;
+    }
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenGetJobRequestPage_thenReturnsRunnableRequests() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobDescription__c description = insertDescriptionAsAdmin('MonitorPage');
+    final JobRequest__c request = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
+    insertAsAdmin(new List<SObject>{ request });
+
+    // Act
+    List<JobRequest__c> result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getJobRequestPage(PAGE_SIZE, FIRST_OFFSET);
+    }
+
+    // Assert
+    final Map<Id, JobRequest__c> resultById = new Map<Id, JobRequest__c>(result);
+    Assert.isTrue(resultById.containsKey(request.Id), 'Should return the arranged request');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenGetStatusByProcessor_thenReturnsGroupCounts() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobDescription__c description = insertDescriptionAsAdmin('MonitorStatus');
+    final List<JobRequest__c> requests = new List<JobRequest__c>();
+    for (Integer i = 0; i < 2; i++) {
+      requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build());
+      requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).failure().build());
+    }
+    insertAsAdmin(requests);
+
+    // Act
+    List<Map<String, Object>> result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getStatusByProcessor();
+    }
+
+    // Assert
+    Assert.areEqual(2, result.size(), 'Should return one entry per status');
+    for (Map<String, Object> statusGroup : result) {
+      Assert.areEqual(2, statusGroup.get('nbRows'), 'Should count the requests of the group');
+    }
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenGetJobDescriptionInfos_thenReturnsStatistics() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobDescription__c description = insertDescriptionAsAdmin('MonitorInfos');
+
+    // Act
+    List<JobDescription__c> result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getJobDescriptionInfos(new List<Id>{ description.Id });
+    }
+
+    // Assert
+    Assert.areEqual(1, result.size(), 'Should return the description');
+    Assert.areEqual(MAX_CHUNK_SIZE, result[0].MaxChunkSize__c, 'Should expose MaxChunkSize__c');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserAndEnabledEngine_whenGetEngineStatus_thenReportsEngineState() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+
+    // Act
+    JobMonitorController.EngineStatus result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getEngineStatus();
+    }
+
+    // Assert
+    Assert.isTrue(result.enabled, 'Should report the engine enabled');
+    Assert.areEqual(0, result.executorCount, 'Should report no executor');
+    Assert.isFalse(result.watcherScheduled, 'Should report no watcher');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserWithManagePermission_whenPauseEngine_thenEngineDisabled() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission('Manage_Async_Job_Engine');
+    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+
+    // Act
+    Boolean result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.pauseEngine();
+    }
+
+    // Assert
+    Assert.isTrue(result, 'Should report the engine paused');
+    Assert.isFalse(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should persist the engine disabled');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserWithManagePermission_whenResumeEngine_thenEngineEnabled() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission('Manage_Async_Job_Engine');
+    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
+
+    // Act
+    Boolean result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.resumeEngine();
+    }
+
+    // Assert
+    Assert.isTrue(result, 'Should report the engine resumed');
+    Assert.isTrue(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should persist the engine enabled');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserWithManagePermissionAndEnabledEngine_whenRestartEngine_thenExecutorEnqueued() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission('Manage_Async_Job_Engine');
+    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+
+    // Act
+    Test.startTest();
+    Id result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.restartEngine();
+    }
+
+    // Assert
+    Assert.isNotNull(result, 'Should enqueue an executor');
+    System.abortJob(result);
+    Test.stopTest();
+  }
 }

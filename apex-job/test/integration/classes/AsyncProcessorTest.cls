@@ -794,4 +794,36 @@ public class AsyncProcessorTest {
 
   public class TestException extends Exception {
   }
+
+  @IsTest
+  private static void givenMinimumAccessUserAndEnabledEngine_whenExecutorRuns_thenSuccessfulJobDeleted() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    System.runAs(getRunningUser()) {
+      insert as system new JobDescription__c(Name = 'MinimumAccessProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);
+      insert as system new JobRequest__c(
+        Name = 'MinimumAccessJob1',
+        Argument__c = '{"test": "data2"}',
+        Enabled__c = true,
+        Status__c = ApexJobStatus.READY.name(),
+        NextExecutionDateTime__c = System.now().addMinutes(-10),
+        LastExecutionDateTime__c = null,
+        AttemptNumber__c = 0,
+        JobDescription__r = new JobDescription__c(ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor')
+      );
+      insert as system new ApexJobConfig__c(Enabled__c = true);
+    }
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(new ApexJobFactoryForTest());
+
+    // Act
+    System.runAs(minimumAccessUser) {
+      Test.startTest();
+      System.enqueueJob(sut);
+      Test.stopTest();
+    }
+
+    // Assert
+    final Integer remaining = [SELECT COUNT() FROM JobRequest__c WHERE Name = 'MinimumAccessJob1' WITH SYSTEM_MODE];
+    Assert.areEqual(0, remaining, 'Successful job should have been deleted');
+  }
 }
