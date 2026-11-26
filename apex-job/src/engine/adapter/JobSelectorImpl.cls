@@ -2,7 +2,6 @@
  * @description Implementation of JobSelector interface for retrieving JobRequest__c records
  * This class is used inside a system class and runs in without sharing context
  */
-@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class JobSelectorImpl implements JobSelector {
   private final ApexJobFactory factory;
 
@@ -144,6 +143,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
         AND JobDescription__r.MobilePushApexCallsBaseConsumption__c <= :availableLimits.mobilePushApexCalls
         AND JobDescription__r.QueryLocatorRowsBaseConsumption__c <= :availableLimits.queryLocatorRows
         AND JobDescription__r.QueueableJobsBaseConsumption__c <= :availableLimits.queueableJobs
+      WITH SYSTEM_MODE
       ORDER BY
         JobDescription__r.Priority__c DESC,
         JobDescription__r.MaxChunkSize__c ASC,

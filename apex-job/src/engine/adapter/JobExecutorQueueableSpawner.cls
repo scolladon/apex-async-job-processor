@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class JobExecutorQueueableSpawner implements JobExecutorSpawner {
   private static final Integer WAKE_UP_DELAY_IN_MINUTES = 0;
 

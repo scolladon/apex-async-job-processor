@@ -9,18 +9,18 @@ Thank you for considering a contribution! This project follows clean code, SOLID
 
 ## Development Setup
 1. Prerequisites
-   - Node.js 22+
+   - Node.js 22.22.1+ (lint-staged 17 refuses older versions)
    - npm 10+
    - Salesforce CLI (installed automatically via postinstall): `@salesforce/cli`
 2. Install dependencies
    - `npm install`
 3. Create or select a dev org
    - Scratch org (example):
-     - `sf org create scratch -f config/project-scratch-def.json -a dev -d 1`
+     - `sf org create scratch -f config/project-scratch-def.json -a dev -d -y 1`
      - `sf org open -o dev`
 4. Deploy Apex Mockery v3.0.0 from source before deploying `apex-job/test`
    - `git clone --depth 1 --branch v3.0.0 https://github.com/scolladon/apex-mockery.git <apex-mockery-dir>`
-   - `sf project deploy start -d <apex-mockery-dir>/force-app/src -o <org-alias>`
+   - `(cd <apex-mockery-dir> && sf project deploy start -d force-app/src -o <org-alias> --ignore-conflicts)` (run it from inside the clone: the CLI refuses a source path outside the current project)
    - `force-app/src` is the package directory in that tag's `sfdx-project.json`. The scratch definition sets `"language": "en_US"` because some tests assert English platform messages.
 5. Deploy
    - `npm run build` (deploys `apex-job/` to the default org)

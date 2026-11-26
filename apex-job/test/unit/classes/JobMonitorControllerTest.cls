@@ -9,16 +9,18 @@ private class JobMonitorControllerTest {
   private static final Integer SUCCESS_STREAK = 7;
   private static final Integer CONSECUTIVE_FAILURES = 2;
   private static final Datetime LAST_EXECUTION = Datetime.newInstanceGmt(2026, 1, 15, 10, 30, 0);
+  private static final String MANAGE_ENGINE_PERMISSION = 'Manage_Async_Job_Engine';
+  private static final String ADMIN_PERMISSION_SET = 'AdminAsyncJob';
 
   @IsTest
   static void givenDeletedRunnableRequest_whenGetJobRequestPage_thenDeletedRequestIsNotReturned() {
     // Arrange
     final JobDescription__c description = ApexJobTestFixture.aJobDescription().build();
-    insert description;
+    insert as system description;
     final JobRequest__c kept = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
     final JobRequest__c deleted = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
-    insert new List<JobRequest__c>{ kept, deleted };
-    delete deleted;
+    insert as system new List<JobRequest__c>{ kept, deleted };
+    delete as system deleted;
 
     // Act
     final List<JobRequest__c> result = JobMonitorController.getJobRequestPage(PAGE_SIZE, FIRST_OFFSET);
@@ -36,7 +38,7 @@ private class JobMonitorControllerTest {
       ApexJobTestFixture.aJobDescription().withProcessorName('ProcessorA').build(),
       ApexJobTestFixture.aJobDescription().withProcessorName('ProcessorB').build()
     };
-    insert descriptions;
+    insert as system descriptions;
     final List<JobRequest__c> requests = new List<JobRequest__c>();
     for (JobDescription__c description : descriptions) {
       for (Integer j = 0; j < REQUESTS_PER_GROUP; j++) {
@@ -44,7 +46,7 @@ private class JobMonitorControllerTest {
         requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).failure().build());
       }
     }
-    insert requests;
+    insert as system requests;
 
     // Act
     Test.startTest();
@@ -70,7 +72,7 @@ private class JobMonitorControllerTest {
       .withConsecutiveFailures(CONSECUTIVE_FAILURES)
       .build();
     description.LastExecutionDateTime__c = LAST_EXECUTION;
-    insert description;
+    insert as system description;
 
     // Act
     final List<JobDescription__c> result = JobMonitorController.getJobDescriptionInfos(new List<Id>{ description.Id });
@@ -87,7 +89,7 @@ private class JobMonitorControllerTest {
   @IsTest
   static void givenEnabledEngineAndNoAsyncJob_whenGetEngineStatus_thenReportsEnabledAndIdle() {
     // Arrange
-    insert new ApexJobConfig__c(Enabled__c = true);
+    insert as system new ApexJobConfig__c(Enabled__c = true);
 
     // Act
     final JobMonitorController.EngineStatus result = JobMonitorController.getEngineStatus();
@@ -101,7 +103,7 @@ private class JobMonitorControllerTest {
   @IsTest
   static void givenDisabledEngineWithQueuedExecutorAndScheduledWatcher_whenGetEngineStatus_thenReportsThem() {
     // Arrange
-    insert new ApexJobConfig__c(Enabled__c = false);
+    insert as system new ApexJobConfig__c(Enabled__c = false);
     Test.startTest();
     final Id executorId = System.enqueueJob(new AsyncApexJobExecutor());
     ApexJobWatcher.schedule();
@@ -118,8 +120,7 @@ private class JobMonitorControllerTest {
 
   private static User createEngineManager() {
     final User manager = TestDataFactory.createUserWithTriggerBypass();
-    final PermissionSet adminPermissionSet = [SELECT Id FROM PermissionSet WHERE Name = 'AdminAsyncJob'];
-    insert new PermissionSetAssignment(AssigneeId = manager.Id, PermissionSetId = adminPermissionSet.Id);
+    TestDataFactory.assignPermissionSet(manager.Id, ADMIN_PERMISSION_SET);
     return manager;
   }
 
@@ -127,11 +128,11 @@ private class JobMonitorControllerTest {
   static void givenEnabledEngineAndManagePermission_whenPauseEngine_thenEngineDisabledAndTrueReturned() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
 
     // Act
     Boolean result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = true);
       result = JobMonitorController.pauseEngine();
     }
 
@@ -144,11 +145,11 @@ private class JobMonitorControllerTest {
   static void givenDisabledEngineAndManagePermission_whenResumeEngine_thenEngineEnabledAndTrueReturned() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
 
     // Act
     Boolean result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = false);
       result = JobMonitorController.resumeEngine();
     }
 
@@ -161,11 +162,11 @@ private class JobMonitorControllerTest {
   static void givenDisabledEngineAndManagePermission_whenRestartEngine_thenNothingEnqueued() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
 
     // Act
     Id result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = false);
       result = JobMonitorController.restartEngine();
     }
 
@@ -177,12 +178,12 @@ private class JobMonitorControllerTest {
   static void givenEnabledEngineAndManagePermission_whenRestartEngine_thenExecutorEnqueued() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
 
     // Act
     Test.startTest();
     Id result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = true);
       result = JobMonitorController.restartEngine();
     }
 
@@ -196,11 +197,11 @@ private class JobMonitorControllerTest {
   static void givenNoManagePermission_whenPauseResumeOrRestartEngine_thenAuthorizationExceptionThrown() {
     // Arrange
     final User nonManager = TestDataFactory.createUserWithTriggerBypass();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
     final List<String> failures = new List<String>();
 
     // Act
     System.runAs(nonManager) {
-      insert new ApexJobConfig__c(Enabled__c = true);
       try {
         JobMonitorController.pauseEngine();
       } catch (JobMonitorController.AuthorizationException ex) {
@@ -221,5 +222,147 @@ private class JobMonitorControllerTest {
     // Assert
     Assert.areEqual(new List<String>{ 'pause', 'resume', 'restart' }, failures, 'Should refuse every engine control');
     Assert.isTrue(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should leave the engine untouched');
+  }
+
+  private static JobDescription__c insertDescriptionAsAdmin(final String processorName) {
+    final JobDescription__c description = ApexJobTestFixture.aJobDescription().withProcessorName(processorName).withMaxChunkSize(MAX_CHUNK_SIZE).build();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ description });
+    return description;
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenGetJobRequestPage_thenReturnsRunnableRequests() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobDescription__c description = insertDescriptionAsAdmin('MonitorPage');
+    final JobRequest__c request = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ request });
+
+    // Act
+    List<JobRequest__c> result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getJobRequestPage(PAGE_SIZE, FIRST_OFFSET);
+    }
+
+    // Assert
+    final Map<Id, JobRequest__c> resultById = new Map<Id, JobRequest__c>(result);
+    Assert.isTrue(resultById.containsKey(request.Id), 'Should return the arranged request');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenGetStatusByProcessor_thenReturnsGroupCounts() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobDescription__c description = insertDescriptionAsAdmin('MonitorStatus');
+    final List<JobRequest__c> requests = new List<JobRequest__c>();
+    for (Integer i = 0; i < 2; i++) {
+      requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build());
+      requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).failure().build());
+    }
+    TestDataFactory.insertAsAdmin(requests);
+
+    // Act
+    List<Map<String, Object>> result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getStatusByProcessor();
+    }
+
+    // Assert
+    Assert.areEqual(2, result.size(), 'Should return one entry per status');
+    for (Map<String, Object> statusGroup : result) {
+      Assert.areEqual(2, statusGroup.get('nbRows'), 'Should count the requests of the group');
+    }
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenGetJobDescriptionInfos_thenReturnsStatistics() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobDescription__c description = insertDescriptionAsAdmin('MonitorInfos');
+
+    // Act
+    List<JobDescription__c> result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getJobDescriptionInfos(new List<Id>{ description.Id });
+    }
+
+    // Assert
+    Assert.areEqual(1, result.size(), 'Should return the description');
+    Assert.areEqual(MAX_CHUNK_SIZE, result[0].MaxChunkSize__c, 'Should expose MaxChunkSize__c');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserAndJobsQueuedByAdmin_whenGetEngineStatus_thenCountsThem() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
+    Test.startTest();
+    final Id executorId = System.enqueueJob(new AsyncApexJobExecutor());
+    ApexJobWatcher.schedule();
+
+    // Act
+    JobMonitorController.EngineStatus result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.getEngineStatus();
+    }
+
+    // Assert
+    Assert.isFalse(result.enabled, 'Should report the engine disabled');
+    Assert.areEqual(1, result.executorCount, 'Should count the executor queued by another user');
+    Assert.isTrue(result.watcherScheduled, 'Should report the watcher scheduled by another user');
+    System.abortJob(executorId);
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserWithManagePermission_whenPauseEngine_thenEngineDisabled() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission(MANAGE_ENGINE_PERMISSION);
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+
+    // Act
+    Boolean result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.pauseEngine();
+    }
+
+    // Assert
+    Assert.isTrue(result, 'Should report the engine paused');
+    Assert.isFalse(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should persist the engine disabled');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserWithManagePermission_whenResumeEngine_thenEngineEnabled() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission(MANAGE_ENGINE_PERMISSION);
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
+
+    // Act
+    Boolean result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.resumeEngine();
+    }
+
+    // Assert
+    Assert.isTrue(result, 'Should report the engine resumed');
+    Assert.isTrue(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should persist the engine enabled');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUserWithManagePermissionAndEnabledEngine_whenRestartEngine_thenExecutorEnqueued() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission(MANAGE_ENGINE_PERMISSION);
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+
+    // Act
+    Test.startTest();
+    Id result;
+    System.runAs(minimumAccessUser) {
+      result = JobMonitorController.restartEngine();
+    }
+
+    // Assert
+    Assert.isNotNull(result, 'Should enqueue an executor');
+    System.abortJob(result);
+    Test.stopTest();
   }
 }

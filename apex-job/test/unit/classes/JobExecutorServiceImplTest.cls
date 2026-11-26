@@ -10,6 +10,20 @@ private class JobExecutorServiceImplTest {
     Assert.areEqual(false, result);
   }
 
+  @IsTest
+  static void givenMinimumAccessUser_whenIsRunningWithoutJobs_thenFalse() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final JobExecutorServiceImpl sut = new JobExecutorServiceImpl();
+    // Act
+    Boolean result;
+    System.runAs(minimumAccessUser) {
+      result = sut.isRunning(null);
+    }
+    // Assert
+    Assert.isFalse(result, 'Should report no running executor');
+  }
+
   private class DummyQueueable implements Queueable {
     public void execute(QueueableContext context) {
       System.Debug('Just a Statement');

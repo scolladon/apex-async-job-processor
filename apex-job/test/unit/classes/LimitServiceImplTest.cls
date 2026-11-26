@@ -26,10 +26,10 @@ private class LimitServiceImplTest {
     for (Integer i = 0; i < 5; i++) {
       accounts.add(new Account(Name = 'Test Account ' + i));
     }
-    insert accounts;
+    insert as system accounts;
 
     // Query to consume SOQL limits
-    List<Account> queriedAccounts = [SELECT Id, Name FROM Account WHERE Name LIKE 'Test Account%']; //NOPMD
+    List<Account> queriedAccounts = [SELECT Id, Name FROM Account WHERE Name LIKE 'Test Account%' WITH SYSTEM_MODE]; //NOPMD
 
     LimitsUsage snapshotResult = sut.stopSnapshot();
 
@@ -67,7 +67,7 @@ private class LimitServiceImplTest {
     // Simulate some time passing and operations
     List<Account> accounts1 = new List<Account>();
     accounts1.add(new Account(Name = 'Test Account 1'));
-    insert accounts1;
+    insert as system accounts1;
 
     LimitsUsage firstSnapshot = sut.stopSnapshot();
 
@@ -76,7 +76,7 @@ private class LimitServiceImplTest {
 
     List<Account> accounts2 = new List<Account>();
     accounts2.add(new Account(Name = 'Test Account 2'));
-    insert accounts2;
+    insert as system accounts2;
 
     LimitsUsage secondSnapshot = sut.stopSnapshot();
     Test.stopTest();
@@ -99,7 +99,7 @@ private class LimitServiceImplTest {
     // Only perform operations that affect service1
     List<Account> accounts = new List<Account>();
     accounts.add(new Account(Name = 'Test Account Service1'));
-    insert accounts;
+    insert as system accounts;
 
     LimitsUsage snapshot1 = sut1.stopSnapshot();
 

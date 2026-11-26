@@ -27,17 +27,17 @@
 		"@prettier/plugin-xml": "^3.4.2",
 		"@salesforce/sfdx-lwc-jest": "^7.9.0",
 		"husky": "^9.1.7",
-		"lint-staged": "^16.1.4",
-		"prettier": "^3.6.2",
-		"prettier-plugin-apex": "^2.2.6",
-		"wireit": "^0.14.12"
+		"lint-staged": "^17.6.2",
+		"prettier": "^3.10.1",
+		"prettier-plugin-apex": "^2.4.0",
+		"wireit": "^0.15.0"
 	},
 	"lint-staged": {
 		"**/*.{cls,xml}": "sf code-analyzer run -t"
 	},
 	"wireit": {
 		"build": {
-			"command": "sf project deploy start -a 65.0 -d apex-job",
+			"command": "sf project deploy start -a 68.0 -d apex-job",
 			"files": [
 				"apex-job/**/*"
 			],

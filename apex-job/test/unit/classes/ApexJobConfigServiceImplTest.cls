@@ -4,7 +4,7 @@ private class ApexJobConfigServiceImplTest {
   static void givenSystemEnabled_whenIsSystemEnabled_thenReturnsTrue() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-    insert config;
+    insert as system config;
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 
     // Act
@@ -18,7 +18,7 @@ private class ApexJobConfigServiceImplTest {
   static void givenSystemDisabled_whenIsSystemEnabled_thenReturnsFalse() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = false);
-    insert config;
+    insert as system config;
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 
     // Act
@@ -32,11 +32,11 @@ private class ApexJobConfigServiceImplTest {
   static void givenConfigEnabledAfterFirstRead_whenIsSystemEnabled_thenReturnsTrue() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = false);
-    insert config;
+    insert as system config;
     final ApexJobConfigServiceImpl sut = new ApexJobConfigServiceImpl();
     sut.isSystemEnabled();
     config.Enabled__c = true;
-    update config;
+    update as system config;
 
     // Act
     final Boolean result = sut.isSystemEnabled();
@@ -62,7 +62,7 @@ private class ApexJobConfigServiceImplTest {
     // Arrange
     final Integer configuredDelay = 5;
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true, EnqueueDelayOutsideBusinessHours__c = configuredDelay);
-    insert config;
+    insert as system config;
 
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 
@@ -79,7 +79,7 @@ private class ApexJobConfigServiceImplTest {
     // Arrange
     final Integer excessiveDelay = 20;
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true, EnqueueDelayOutsideBusinessHours__c = excessiveDelay);
-    insert config;
+    insert as system config;
 
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 
@@ -96,7 +96,7 @@ private class ApexJobConfigServiceImplTest {
     final Integer negativeDelay = -5;
     final Integer expectedMinDelay = 1;
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true, EnqueueDelayOutsideBusinessHours__c = negativeDelay);
-    insert config;
+    insert as system config;
 
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 
@@ -125,7 +125,7 @@ private class ApexJobConfigServiceImplTest {
     // Arrange
     final Integer expectedDefaultDelay = 1;
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true, EnqueueDelayOutsideBusinessHours__c = 0);
-    insert config;
+    insert as system config;
 
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 
@@ -141,7 +141,7 @@ private class ApexJobConfigServiceImplTest {
     // Arrange
     final Integer maxDelay = 10;
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true, EnqueueDelayOutsideBusinessHours__c = maxDelay);
-    insert config;
+    insert as system config;
 
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();
 

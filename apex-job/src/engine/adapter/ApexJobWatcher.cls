@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ApexJobWatcher implements Schedulable {
   private final ApexJobFactory factory;
 
@@ -24,7 +23,7 @@ public without sharing class ApexJobWatcher implements Schedulable {
   public static void schedule() {
     // If already schedule the job, do nothing
     final String cronJobBaseName = 'Async Job Watcher';
-    final Integer jobsNumber = [SELECT COUNT() FROM CronTrigger WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE :cronJobBaseName + '%'];
+    final Integer jobsNumber = [SELECT COUNT() FROM CronTrigger WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE :cronJobBaseName + '%' WITH SYSTEM_MODE];
     if (jobsNumber >= 1) {
       return;
     }

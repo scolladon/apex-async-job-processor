@@ -25,6 +25,7 @@ private class ApexJobWatcherTest {
       SELECT COUNT()
       FROM CronTrigger
       WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(12, jobsNumber, 'Exactly 12 scheduled jobs must be created');
   }
@@ -44,7 +45,28 @@ private class ApexJobWatcherTest {
       SELECT COUNT()
       FROM CronTrigger
       WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(12, jobsNumber, 'Scheduling twice must not create duplicates');
+  }
+
+  @IsTest
+  static void givenMinimumAccessUser_whenSchedule_thenSchedulesTwelveJobs() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+
+    // Act
+    System.runAs(minimumAccessUser) {
+      ApexJobWatcher.schedule();
+    }
+
+    // Assert
+    final Integer jobsNumber = [
+      SELECT COUNT()
+      FROM CronTrigger
+      WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
+      WITH SYSTEM_MODE
+    ];
+    Assert.areEqual(12, jobsNumber, 'Exactly 12 scheduled jobs must be created');
   }
 }

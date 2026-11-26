@@ -9,7 +9,7 @@ public with sharing class JobDescriptionActionsController {
       SELECT ProcessorName__c
       FROM JobDescription__c
       WHERE Id = :recordId
-      WITH SECURITY_ENFORCED
+      WITH USER_MODE
       LIMIT 1
     ];
 

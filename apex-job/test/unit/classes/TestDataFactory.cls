@@ -1,12 +1,52 @@
 @IsTest
 public without sharing class TestDataFactory {
   public static final String TRIGGER_BYPASS_USERNAME = 'test.user@ajp.io';
+  private static final String MINIMUM_ACCESS_PROFILE = 'Minimum Access - Salesforce';
+  private static final String SYSTEM_ADMINISTRATOR_PROFILE = 'System Administrator';
+  private static final String BYPASS_TRIGGER_PERMISSION = 'Bypass_JobRequest_Trigger';
   static Integer identifier = 1;
 
   public static User createUserWithTriggerBypass() {
     final User runningUser = insertAdminUser();
-    grantTriggerBypass(runningUser.Id);
+    grantCustomPermission(runningUser.Id, BYPASS_TRIGGER_PERMISSION);
     return runningUser;
+  }
+
+  public static User createMinimumAccessUser() {
+    final String uniqueName = 'min.access.' + UUID.randomUUID() + '@ajp.io';
+    final User minimumAccessUser = new User(
+      FirstName = 'Minimum',
+      LastName = 'Access',
+      Email = uniqueName,
+      Username = uniqueName,
+      Alias = 'minacc',
+      TimeZoneSidKey = 'Europe/Paris',
+      LocaleSidKey = 'en_US',
+      EmailEncodingKey = 'UTF-8',
+      LanguageLocaleKey = 'en_US',
+      ProfileId = [SELECT Id FROM Profile WHERE Name = :MINIMUM_ACCESS_PROFILE WITH SYSTEM_MODE]
+      .Id
+    );
+    insert as system minimumAccessUser;
+    return minimumAccessUser;
+  }
+
+  public static User createMinimumAccessUserWithCustomPermission(final String customPermissionName) {
+    final User minimumAccessUser = createMinimumAccessUser();
+    grantCustomPermission(minimumAccessUser.Id, customPermissionName);
+    return minimumAccessUser;
+  }
+
+  public static void assignPermissionSet(final Id userId, final String permissionSetName) {
+    final PermissionSet permissionSet = [SELECT Id FROM PermissionSet WHERE Name = :permissionSetName WITH SYSTEM_MODE LIMIT 1];
+    insert as system new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = permissionSet.Id);
+  }
+
+  // Runs as the test's own user so record DML after a setup-object insert avoids MIXED_DML_OPERATION
+  public static void insertAsAdmin(final List<SObject> records) {
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      insert as system records;
+    }
   }
 
   private static User insertAdminUser() {
@@ -20,22 +60,23 @@ public without sharing class TestDataFactory {
       LocaleSidKey = 'en_US',
       EmailEncodingKey = 'UTF-8',
       LanguageLocaleKey = 'en_US',
-      ProfileId = [SELECT Id FROM Profile WHERE Name = 'System Administrator']
+      ProfileId = [SELECT Id FROM Profile WHERE Name = :SYSTEM_ADMINISTRATOR_PROFILE WITH SYSTEM_MODE]
       .Id
     );
-    insert runningUser;
+    insert as system runningUser;
     return runningUser;
   }
 
-  private static void grantTriggerBypass(final Id userId) {
-    final PermissionSet byPassTriggersPermissionSet = new PermissionSet(Name = 'ByPassTriggers', Label = 'ByPass Triggers');
-    insert byPassTriggersPermissionSet;
+  private static void grantCustomPermission(final Id userId, final String customPermissionName) {
+    final PermissionSet permissionSet = new PermissionSet(Name = 'Grant_' + customPermissionName, Label = 'Grant ' + customPermissionName);
+    insert as system permissionSet;
 
-    final CustomPermission byPassTriggerCustomPermission = [SELECT Id FROM CustomPermission WHERE DeveloperName = 'Bypass_JobRequest_Trigger' LIMIT 1];
-    insert new SetupEntityAccess(SetupEntityId = byPassTriggerCustomPermission.Id, ParentId = byPassTriggersPermissionSet.Id);
+    final CustomPermission customPermission = [SELECT Id FROM CustomPermission WHERE DeveloperName = :customPermissionName WITH SYSTEM_MODE LIMIT 1];
+    insert as system new SetupEntityAccess(SetupEntityId = customPermission.Id, ParentId = permissionSet.Id);
 
-    insert new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = byPassTriggersPermissionSet.Id);
+    insert as system new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = permissionSet.Id);
   }
+
   public static String generateUniqueFakeId(Schema.SObjectType sot) {
     String result = String.valueOf(identifier++);
     return sot.getDescribe().getKeyPrefix() + '0'.repeat(12 - result.length()) + result;
