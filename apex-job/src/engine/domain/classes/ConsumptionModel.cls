@@ -1,13 +1,4 @@
 public without sharing class ConsumptionModel {
-  private static final Decimal COUNTER_NOISE_FLOOR = 1;
-  private static final Decimal CPU_TIME_NOISE_FLOOR_MS = 5;
-  private static final Decimal HEAP_SIZE_NOISE_FLOOR_BYTES = 4096;
-  private static final Decimal CALLOUT_TIME_NOISE_FLOOR_MS = 5;
-  private static final Map<String, Decimal> NOISE_FLOOR_BY_DIMENSION = new Map<String, Decimal>{
-    LimitsUsage.CPU_TIME_DIMENSION => CPU_TIME_NOISE_FLOOR_MS,
-    LimitsUsage.HEAP_SIZE_DIMENSION => HEAP_SIZE_NOISE_FLOOR_BYTES,
-    LimitsUsage.CALLOUT_TIME_DIMENSION => CALLOUT_TIME_NOISE_FLOOR_MS
-  };
   private static final List<ConsumptionModel> MODELS = new List<ConsumptionModel>();
 
   public String dimension { get; private set; }
@@ -22,7 +13,7 @@ public without sharing class ConsumptionModel {
     this.base = base;
     this.perItem = perItem;
     this.safety = safety;
-    this.noiseFloor = NOISE_FLOOR_BY_DIMENSION.get(dimension) ?? COUNTER_NOISE_FLOOR;
+    this.noiseFloor = LimitsUsage.noiseFloor(dimension);
   }
 
   public Boolean isSignificantVariation(final Decimal observed, final Decimal expected, final Decimal relativeThreshold) {

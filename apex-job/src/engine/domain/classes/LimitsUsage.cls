@@ -1,9 +1,9 @@
 @SuppressWarnings('PMD.ExcessivePublicCount')
 public class LimitsUsage {
-  public static final String CPU_TIME_DIMENSION = 'cpuTime';
-  public static final String HEAP_SIZE_DIMENSION = 'heapSize';
+  private static final String CPU_TIME_DIMENSION = 'cpuTime';
+  private static final String HEAP_SIZE_DIMENSION = 'heapSize';
   private static final String CALLOUT_DIMENSION = 'callout';
-  public static final String CALLOUT_TIME_DIMENSION = 'calloutTime';
+  private static final String CALLOUT_TIME_DIMENSION = 'calloutTime';
   private static final String PUBLISH_IMMEDIATE_DML_DIMENSION = 'publishImmediateDml';
   private static final String DML_ROWS_DIMENSION = 'dmlRows';
   private static final String DML_STATEMENTS_DIMENSION = 'dmlStatements';
@@ -38,6 +38,16 @@ public class LimitsUsage {
     MOBILE_PUSH_APEX_CALLS_DIMENSION,
     QUERY_LOCATOR_ROWS_DIMENSION,
     QUEUEABLE_JOBS_DIMENSION
+  };
+
+  private static final Decimal COUNTER_NOISE_FLOOR = 1;
+  private static final Decimal CPU_TIME_NOISE_FLOOR_MS = 5;
+  private static final Decimal HEAP_SIZE_NOISE_FLOOR_BYTES = 4096;
+  private static final Decimal CALLOUT_TIME_NOISE_FLOOR_MS = 5;
+  private static final Map<String, Decimal> NOISE_FLOOR_BY_DIMENSION = new Map<String, Decimal>{
+    CPU_TIME_DIMENSION => CPU_TIME_NOISE_FLOOR_MS,
+    HEAP_SIZE_DIMENSION => HEAP_SIZE_NOISE_FLOOR_BYTES,
+    CALLOUT_TIME_DIMENSION => CALLOUT_TIME_NOISE_FLOOR_MS
   };
 
   private Map<String, Integer> store = new Map<String, Integer>();
@@ -193,5 +203,9 @@ public class LimitsUsage {
 
   public static List<String> dimensions() {
     return ALL_DIMENSIONS;
+  }
+
+  public static Decimal noiseFloor(final String dimension) {
+    return NOISE_FLOOR_BY_DIMENSION.get(dimension) ?? COUNTER_NOISE_FLOOR;
   }
 }

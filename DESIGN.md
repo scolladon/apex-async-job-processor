@@ -459,7 +459,7 @@ DEFAULT_KILL_COOLDOWN_COUNT   = 3     (consecutive successes before EWMA resumes
 4. Per dimension:
    - If the current learned value is unknown (sentinel `0`) → **cold start**: set it directly to the observed value.
    - Else, compute the variation relative to current:
-     - If the relative variation is above `VariationResetThreshold__c` **and** the absolute chunk-total deviation is above the dimension's noise floor (`ConsumptionModel.noiseFloor`, evaluated by `ConsumptionModel.isSignificantVariation`: 5 ms CPU, 4,096 B heap, 5 ms callout time, 1 for counters) → it is **not** assimilated. For the per-item value the deviation is `|newPerItem − currentPerItem| × (chunkSize − 1)`; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
+     - If the relative variation is above `VariationResetThreshold__c` **and** the absolute chunk-total deviation is above the dimension's noise floor (`LimitsUsage.noiseFloor(dimension)`, carried as `ConsumptionModel.noiseFloor` and evaluated by `ConsumptionModel.isSignificantVariation`: 5 ms CPU, 4,096 B heap, 5 ms callout time, 1 for counters) → it is **not** assimilated. For the per-item value the deviation is `|newPerItem − currentPerItem| × (chunkSize − 1)`; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
      - Otherwise (within threshold), **assimilate** depending on the post-failure cooldown window:
        - If `SuccessStreak__c < KillCooldownCount__c` → **cooldown active**: `Math.max(current, observed)` — keeps the just-inflated post-kill ceiling sticky so a single recovery chunk cannot blend it back down; this defeats the pre-remediation scenario where EWMA eroded kill penalties after 2–3 observations and re-invited the same kill.
        - Else → **EWMA blend**: `newValue = α·observed + (1−α)·current`, where α = `LearningRate__c` (default `0.30`). Smoothly absorbs small variations instead of permanently latching outliers like the old pure `max()` approach did.
@@ -651,9 +651,9 @@ Create a `JobDescription__c` record with `ProcessorName__c = 'MyProcessor'`. Cre
 2. Add three fields to `JobDescription__c` following the naming convention: `{Dimension}BaseConsumption__c`, `{Dimension}PerItemConsumption__c`, `{Dimension}Safety__c`.
 3. Add the `Limits.get*()` calls to `LimitServiceImpl`.
 4. Add the WHERE clause to `JobSelectorImpl`.
-5. If the dimension is measured in time or bytes rather than counted, add its noise floor to `ConsumptionModel.NOISE_FLOOR_BY_DIMENSION`; counters default to 1.
+5. If the dimension is measured in time or bytes rather than counted, add its noise floor to `LimitsUsage.NOISE_FLOOR_BY_DIMENSION`, next to the dimension; counters default to 1.
 
-Zero changes needed in `AdaptiveChunkCalculator`, `AdaptiveConsumptionLearner`, or `ConsumptionModel` (except a noise floor for non-counter dimensions) — they iterate `LimitsUsage.dimensions()` dynamically.
+Zero changes needed in `AdaptiveChunkCalculator`, `AdaptiveConsumptionLearner`, or `ConsumptionModel` — they iterate `LimitsUsage.dimensions()` dynamically.
 
 ---
 
