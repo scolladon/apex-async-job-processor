@@ -167,7 +167,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
 
     // Validate timestamps propagated when staging
-    final List<Object> args = mocks.recordJobExecutionSpy.callLog.get(0);
+    final List<Object> args = mocks.recordJobExecutionSpy.getArguments(0);
     final List<JobExecuted> recorded = (List<JobExecuted>) args.get(0);
     Assert.areEqual(1, recorded.size(), 'One job executed should be recorded');
     final JobExecuted captured = recorded[0];
