@@ -9,7 +9,7 @@ Thank you for considering a contribution! This project follows clean code, SOLID
 
 ## Development Setup
 1. Prerequisites
-   - Node.js 22+
+   - Node.js 22.22.1+ (lint-staged 17 refuses older versions)
    - npm 10+
    - Salesforce CLI (installed automatically via postinstall): `@salesforce/cli`
 2. Install dependencies

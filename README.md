@@ -106,7 +106,7 @@ Same backlog, drained by one disciplined executor instead of a swarm — plus a 
 
  ## Install
 
- Requires Node.js 18+, npm 9+, Salesforce CLI.
+ Requires Node.js 22.22.1+, npm 9+, Salesforce CLI.
 
  ```bash
  npm install
