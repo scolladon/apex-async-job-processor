@@ -604,7 +604,6 @@ Anonymous-Apex scripts under `scripts/apex/` (outside every `sfdx-project.json` 
 | Script | Purpose | Run |
 |---|---|---|
 | `scripts/apex/restart-watcher.apex` | Aborts every existing `Async Job Watcher` cron trigger and calls `ApexJobWatcher.schedule()` to re-register the 12 slots. Use when the scheduler drifts or after renaming classes involved. | `sf apex run -f scripts/apex/restart-watcher.apex -o <org-alias>` |
-| `scripts/apex/backfill-next-execution.apex` | Sets `NextExecutionDateTime__c = CreatedDate` on runnable (`READY`/`FAILURE`/`KILLED`) requests whose date is null, 10,000 per run. Run once after upgrading, and re-run until it reports 0. | `sf apex run -f scripts/apex/backfill-next-execution.apex -o <org-alias>` |
 
 ---
 
