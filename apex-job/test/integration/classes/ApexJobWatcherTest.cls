@@ -25,6 +25,7 @@ private class ApexJobWatcherTest {
       SELECT COUNT()
       FROM CronTrigger
       WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(12, jobsNumber, 'Exactly 12 scheduled jobs must be created');
   }
@@ -44,6 +45,7 @@ private class ApexJobWatcherTest {
       SELECT COUNT()
       FROM CronTrigger
       WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(12, jobsNumber, 'Scheduling twice must not create duplicates');
   }

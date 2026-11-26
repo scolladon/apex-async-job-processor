@@ -8,7 +8,7 @@ public class JobRequestInsertingBatch implements Database.Batchable<SObject> {
   }
 
   public Database.QueryLocator start(final Database.BatchableContext context) {
-    return Database.getQueryLocator([SELECT Id FROM JobDescription__c WHERE Id = :descriptionId]);
+    return Database.getQueryLocator([SELECT Id FROM JobDescription__c WHERE Id = :descriptionId WITH SYSTEM_MODE]);
   }
 
   public void execute(final Database.BatchableContext context, final List<SObject> scope) {
@@ -22,6 +22,6 @@ public class JobRequestInsertingBatch implements Database.Batchable<SObject> {
   }
 
   private void insertRequest() {
-    insert new JobRequest__c(JobDescription__c = descriptionId, Status__c = ApexJobStatus.READY.name(), Enabled__c = true);
+    insert as system new JobRequest__c(JobDescription__c = descriptionId, Status__c = ApexJobStatus.READY.name(), Enabled__c = true);
   }
 }

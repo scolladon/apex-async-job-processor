@@ -24,7 +24,7 @@ private class JobRequestNextExecutionDateTimeTest {
     final Datetime lowerBound = wholeSecondNow();
 
     // Act
-    insert request;
+    insert as system request;
 
     // Assert
     Assert.isTrue(isStampedSince(request.Id, lowerBound), STAMP_MESSAGE);
@@ -40,7 +40,7 @@ private class JobRequestNextExecutionDateTimeTest {
       final Datetime lowerBound = wholeSecondNow();
 
       // Act
-      insert request;
+      insert as system request;
 
       // Assert
       Assert.isTrue(isStampedSince(request.Id, lowerBound), STAMP_MESSAGE);
@@ -56,10 +56,10 @@ private class JobRequestNextExecutionDateTimeTest {
     request.NextExecutionDateTime__c = explicitDate;
 
     // Act
-    insert request;
+    insert as system request;
 
     // Assert
-    final JobRequest__c stored = [SELECT NextExecutionDateTime__c FROM JobRequest__c WHERE Id = :request.Id];
+    final JobRequest__c stored = [SELECT NextExecutionDateTime__c FROM JobRequest__c WHERE Id = :request.Id WITH SYSTEM_MODE];
     Assert.areEqual(explicitDate, stored.NextExecutionDateTime__c, 'An explicit date must not be overridden by the default');
   }
 
@@ -70,14 +70,14 @@ private class JobRequestNextExecutionDateTimeTest {
     final JobRequest__c nullDated = readyRequest(description);
     nullDated.NextExecutionDateTime__c = null;
     final JobRequest__c control = readyRequest(description);
-    insert new List<JobRequest__c>{ nullDated, control };
+    insert as system new List<JobRequest__c>{ nullDated, control };
     final JobSelectorImpl sut = new JobSelectorImpl();
 
     // Act
     final List<JobRequest__c> result = sut.getEligibleJobs(new List<Id>());
 
     // Assert
-    final Map<Id, JobRequest__c> stored = new Map<Id, JobRequest__c>([SELECT NextExecutionDateTime__c, IsCandidate__c FROM JobRequest__c]);
+    final Map<Id, JobRequest__c> stored = new Map<Id, JobRequest__c>([SELECT NextExecutionDateTime__c, IsCandidate__c FROM JobRequest__c WITH SYSTEM_MODE]);
     final Set<Id> selectedIds = new Map<Id, JobRequest__c>(result).keySet();
     Assert.isNull(stored.get(nullDated.Id).NextExecutionDateTime__c, 'An explicit null must not receive the default');
     Assert.isTrue(selectedIds.contains(control.Id), 'The control request must be selected');
@@ -88,7 +88,7 @@ private class JobRequestNextExecutionDateTimeTest {
 
   private static JobDescription__c insertDescription() {
     final JobDescription__c description = ApexJobTestFixture.aJobDescription().build();
-    insert description;
+    insert as system description;
     return description;
   }
 
@@ -102,7 +102,7 @@ private class JobRequestNextExecutionDateTimeTest {
   }
 
   private static Boolean isStampedSince(final Id requestId, final Datetime lowerBound) {
-    final Datetime stamp = [SELECT NextExecutionDateTime__c FROM JobRequest__c WHERE Id = :requestId].NextExecutionDateTime__c;
+    final Datetime stamp = [SELECT NextExecutionDateTime__c FROM JobRequest__c WHERE Id = :requestId WITH SYSTEM_MODE].NextExecutionDateTime__c;
     return stamp != null && stamp >= lowerBound && stamp <= Datetime.now();
   }
 }

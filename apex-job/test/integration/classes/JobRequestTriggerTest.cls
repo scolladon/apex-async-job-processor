@@ -56,7 +56,7 @@ private class JobRequestTriggerTest {
     final Integer queueablesBefore = Limits.getQueueableJobs();
 
     // Act
-    insert requests;
+    insert as system requests;
 
     // Assert
     final Integer queriesDelta = Limits.getQueries() - queriesBefore;
@@ -77,8 +77,8 @@ private class JobRequestTriggerTest {
     Test.stopTest();
 
     // Assert
-    Assert.areEqual(BATCH_INSERT_COUNT, [SELECT COUNT() FROM JobRequest__c], 'Both requests should persist');
-    Assert.areEqual(0, [SELECT NumberOfErrors FROM AsyncApexJob WHERE Id = :batchId].NumberOfErrors, 'The batch scope should complete without error');
+    Assert.areEqual(BATCH_INSERT_COUNT, [SELECT COUNT() FROM JobRequest__c WITH SYSTEM_MODE], 'Both requests should persist');
+    Assert.areEqual(0, [SELECT NumberOfErrors FROM AsyncApexJob WHERE Id = :batchId WITH SYSTEM_MODE].NumberOfErrors, 'The batch scope should complete without error');
     Assert.areEqual(NO_EXECUTOR, executorJobCount(), 'The batch should not wake the executor');
   }
 
@@ -93,15 +93,15 @@ private class JobRequestTriggerTest {
     Test.stopTest();
 
     // Assert
-    Assert.areEqual(BATCH_INSERT_COUNT, [SELECT COUNT() FROM JobRequest__c], 'Both requests should persist');
+    Assert.areEqual(BATCH_INSERT_COUNT, [SELECT COUNT() FROM JobRequest__c WITH SYSTEM_MODE], 'Both requests should persist');
     Assert.areEqual(NO_EXECUTOR, executorJobCount(), 'The future method should not wake the executor');
   }
 
   private static Id insertDisabledDescriptionWithEngineEnabled() {
-    insert new ApexJobConfig__c(Enabled__c = true);
+    insert as system new ApexJobConfig__c(Enabled__c = true);
     final JobDescription__c description = ApexJobTestFixture.aJobDescription().build();
     description.Enabled__c = false;
-    insert description;
+    insert as system description;
     return description.Id;
   }
 
@@ -116,11 +116,11 @@ private class JobRequestTriggerTest {
   }
 
   private static void insertSingleRow(final Id descriptionId) {
-    insert readyRequest(descriptionId);
+    insert as system readyRequest(descriptionId);
   }
 
   private static void abortQueuedExecutors() {
-    for (AsyncApexJob executor : [SELECT Id FROM AsyncApexJob WHERE ApexClass.Name = :EXECUTOR_CLASS_NAME]) {
+    for (AsyncApexJob executor : [SELECT Id FROM AsyncApexJob WHERE ApexClass.Name = :EXECUTOR_CLASS_NAME WITH SYSTEM_MODE]) {
       abortJob(executor.Id);
     }
   }
@@ -130,7 +130,7 @@ private class JobRequestTriggerTest {
   }
 
   private static Integer executorJobCount() {
-    return [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = :EXECUTOR_CLASS_NAME];
+    return [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = :EXECUTOR_CLASS_NAME WITH SYSTEM_MODE];
   }
 
   @Future

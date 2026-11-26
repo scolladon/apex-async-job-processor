@@ -6,14 +6,14 @@ public class AsyncProcessorTest {
   }
 
   static User getRunningUser() {
-    return [SELECT Id FROM User WHERE Username = :TestDataFactory.TRIGGER_BYPASS_USERNAME LIMIT 1];
+    return [SELECT Id FROM User WHERE Username = :TestDataFactory.TRIGGER_BYPASS_USERNAME WITH SYSTEM_MODE LIMIT 1];
   }
 
   @IsTest
   private static void givenSystemEnabled_whenExecutorRunsWithoutEligibleJobs_thenReenqueueAfter1Minute() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-    insert config;
+    insert as system config;
     ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -27,6 +27,7 @@ public class AsyncProcessorTest {
       SELECT Id, ApexClass.Name, JobType, Status
       FROM AsyncApexJob
       WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
   }
@@ -35,9 +36,9 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenExecutorRuns_thenSelectionAndEndTimesAreRecordedAndNextTryUsesEndOnFailure() {
     // Arrange
     System.runAs(getRunningUser()) {
-      insert new JobDescription__c(Name = 'ErrorProcessorWithInterval', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor', MinJobInterval__c = 3);
+      insert as system new JobDescription__c(Name = 'ErrorProcessorWithInterval', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor', MinJobInterval__c = 3);
 
-      insert new JobRequest__c(
+      insert as system new JobRequest__c(
         Name = 'ErrorProcessorWithInterval1',
         Argument__c = '{"test": "data2"}',
         Enabled__c = true,
@@ -49,7 +50,7 @@ public class AsyncProcessorTest {
       );
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -63,6 +64,7 @@ public class AsyncProcessorTest {
         SELECT Status__c, AttemptNumber__c, LastSelectionDateTime__c, LastExecutionDateTime__c, NextExecutionDateTime__c
         FROM JobRequest__c
         WHERE Name = 'ErrorProcessorWithInterval1'
+        WITH SYSTEM_MODE
         LIMIT 1
       ];
       Assert.areEqual(ApexJobStatus.FAILURE.name(), jobRequest.Status__c, 'Job should be marked as failure');
@@ -78,9 +80,9 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenExecutorRunsWithEligibleJobs_thenDeleteSuccessfulJob() {
     // Arrange
     System.runAs(getRunningUser()) {
-      insert new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);
+      insert as system new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);
 
-      insert new JobRequest__c(
+      insert as system new JobRequest__c(
         Name = 'NormalPriorityJob1',
         Argument__c = '{"test": "data2"}',
         Enabled__c = true,
@@ -92,7 +94,7 @@ public class AsyncProcessorTest {
       );
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -106,6 +108,7 @@ public class AsyncProcessorTest {
         SELECT Id, ApexClass.Name, JobType, Status
         FROM AsyncApexJob
         WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
       Assert.areEqual(
@@ -114,6 +117,7 @@ public class AsyncProcessorTest {
           SELECT COUNT()
           FROM JobRequest__c
           WHERE Name = 'NormalPriorityJob1'
+          WITH SYSTEM_MODE
         ],
         'Succcesfull Job should have been deleted'
       );
@@ -124,9 +128,15 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenExecutorRunsWithEligibleRecurrentJobs_thenReadySuccessfulJob() {
     // Arrange
     System.runAs(getRunningUser()) {
-      insert new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true, IsRecurrent__c = true, MinJobInterval__c = 10);
+      insert as system new JobDescription__c(
+        Name = 'NormalPriorityProcessor',
+        ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor',
+        Enabled__c = true,
+        IsRecurrent__c = true,
+        MinJobInterval__c = 10
+      );
 
-      insert new JobRequest__c(
+      insert as system new JobRequest__c(
         Name = 'NormalPriorityJob1',
         Argument__c = '{"test": "data2"}',
         Enabled__c = true,
@@ -138,7 +148,7 @@ public class AsyncProcessorTest {
       );
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -152,11 +162,13 @@ public class AsyncProcessorTest {
         SELECT Id, ApexClass.Name, JobType, Status
         FROM AsyncApexJob
         WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+        WITH SYSTEM_MODE
       ];
       final JobRequest__c jobRequest = [
         SELECT Id, Status__c, NextExecutionDateTime__c
         FROM JobRequest__c
         WHERE Name = 'NormalPriorityJob1'
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
       Assert.areEqual(ApexJobStatus.READY.name(), jobRequest.Status__c, 'Job should be marked as ready');
@@ -168,9 +180,9 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenExecutorRunsWithImpossibleToPrepareEligibleJobs_thenDoesNotUpdateRequest() {
     // Arrange
     System.runAs(getRunningUser()) {
-      insert new JobDescription__c(Name = 'ImpossibleJob', ProcessorName__c = 'ImpossibleJob', Enabled__c = true, DmlStatementsBaseConsumption__c = 999);
+      insert as system new JobDescription__c(Name = 'ImpossibleJob', ProcessorName__c = 'ImpossibleJob', Enabled__c = true, DmlStatementsBaseConsumption__c = 999);
 
-      insert new JobRequest__c(
+      insert as system new JobRequest__c(
         Name = 'ImpossibleJob1',
         Argument__c = '{"test": "data2"}',
         Enabled__c = true,
@@ -182,7 +194,7 @@ public class AsyncProcessorTest {
       );
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -196,11 +208,13 @@ public class AsyncProcessorTest {
         SELECT Id, ApexClass.Name, JobType, Status
         FROM AsyncApexJob
         WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+        WITH SYSTEM_MODE
       ];
       final JobRequest__c jobRequest = [
         SELECT Id, Status__c
         FROM JobRequest__c
         WHERE Name = 'ImpossibleJob1'
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
       Assert.areEqual(ApexJobStatus.READY.name(), jobRequest.Status__c, 'Job should be marked as ready');
@@ -211,9 +225,9 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenExecutorRunsAndJobFails_thenUpdateJobRequestToFailure() {
     // Arrange
     System.runAs(getRunningUser()) {
-      insert new JobDescription__c(Name = 'ErrorProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor');
+      insert as system new JobDescription__c(Name = 'ErrorProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor');
 
-      insert new JobRequest__c(
+      insert as system new JobRequest__c(
         Name = 'ErrorProcessor1',
         Argument__c = '{"test": "data2"}',
         Enabled__c = true,
@@ -225,7 +239,7 @@ public class AsyncProcessorTest {
       );
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -239,11 +253,13 @@ public class AsyncProcessorTest {
         SELECT Id, ApexClass.Name, JobType, Status
         FROM AsyncApexJob
         WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+        WITH SYSTEM_MODE
       ];
       final JobRequest__c jobRequest = [
         SELECT Id, Status__c
         FROM JobRequest__c
         WHERE Name = 'ErrorProcessor1'
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
       Assert.areEqual(ApexJobStatus.FAILURE.name(), jobRequest.Status__c, 'Job should be marked as failure');
@@ -254,9 +270,9 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenExecutorRunsAndJobFailsTooManyTime_thenUpdateJobRequestToAbort() {
     // Arrange
     System.runAs(getRunningUser()) {
-      insert new JobDescription__c(Name = 'ErrorProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor', MaxExecutionAttempt__c = 2);
+      insert as system new JobDescription__c(Name = 'ErrorProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.ErrorProcessor', MaxExecutionAttempt__c = 2);
 
-      insert new JobRequest__c(
+      insert as system new JobRequest__c(
         Name = 'ErrorProcessor1',
         Argument__c = '{"test": "data2"}',
         Enabled__c = true,
@@ -268,7 +284,7 @@ public class AsyncProcessorTest {
       );
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -282,11 +298,13 @@ public class AsyncProcessorTest {
         SELECT Id, ApexClass.Name, JobType, Status
         FROM AsyncApexJob
         WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+        WITH SYSTEM_MODE
       ];
       final JobRequest__c jobRequest = [
         SELECT Id, Status__c
         FROM JobRequest__c
         WHERE Name = 'ErrorProcessor1'
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
       Assert.areEqual(ApexJobStatus.ABORTED.name(), jobRequest.Status__c, 'Job should be marked as failure');
@@ -299,7 +317,7 @@ public class AsyncProcessorTest {
   public class KilledProcessor implements ApexJob {
     public ApexJobResult execute(ApexJobContext context) {
       for(Integer i = 0; i < 1000000; i++) {
-        List<JobDescription__c> jobDescriptions = [SELECT Id FROM JobDescription__c LIMIT 1];
+        List<JobDescription__c> jobDescriptions = [SELECT Id FROM JobDescription__c WITH SYSTEM_MODE LIMIT 1];
       }
       return null; // Not reachable
     }
@@ -308,9 +326,9 @@ public class AsyncProcessorTest {
   @IsTest
   private static void givenSystemEnabled_whenExecutorRunsAndJobKilled_thenUpdateJobRequestToKilled() {
     // Arrange
-    insert new JobDescription__c(Name = 'KilledProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.KilledProcessor');
+    insert as system new JobDescription__c(Name = 'KilledProcessor', Enabled__c = true, ProcessorName__c = 'AsyncProcessorTest.KilledProcessor');
 
-    insert new JobRequest__c(
+    insert as system new JobRequest__c(
       Name = 'KilledProcessor',
       Argument__c = '{"test": "data2"}',
       Enabled__c = true,
@@ -322,7 +340,7 @@ public class AsyncProcessorTest {
     );
 
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-    insert config;
+    insert as system config;
     ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -335,12 +353,12 @@ public class AsyncProcessorTest {
     final List<AsyncApexJob> jobs = [
       SELECT Id, ApexClass.Name, JobType, Status
       FROM AsyncApexJob
-      WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+      WHERE ApexClass.Name = 'AsyncApexJobExecutor' WITH SYSTEM_MODE
     ];
     final JobRequest__c jobRequest = [
       SELECT Id, Status__c
       FROM JobRequest__c
-      WHERE Name = 'KilledProcessor'
+      WHERE Name = 'KilledProcessor' WITH SYSTEM_MODE
     ];
     Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
     Assert.areEqual(ApexJobStatus.KILLED.name(), jobRequest.Status__c, 'Job should be marked as killed');
@@ -361,10 +379,10 @@ public class AsyncProcessorTest {
           MaxChunkSize__c = -1 // Unknown chunk size
         )
       };
-      insert jobDescriptions;
+      insert as system jobDescriptions;
 
       // Insert job requests - normal job first, then unknown chunk size job
-      insert new List<JobRequest__c>{
+      insert as system new List<JobRequest__c>{
         new JobRequest__c(
           Name = 'UnknownChunkJob1',
           Argument__c = '{"test": "data1"}',
@@ -386,7 +404,7 @@ public class AsyncProcessorTest {
       };
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -400,6 +418,7 @@ public class AsyncProcessorTest {
         SELECT Id, ApexClass.Name, JobType, Status
         FROM AsyncApexJob
         WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(1, jobs.size(), 'Expected exactly 1 AsyncApexJob record (initial).');
       Assert.areEqual(initialJobId, jobs[0].Id, 'Job ID should match initial job');
@@ -409,6 +428,7 @@ public class AsyncProcessorTest {
         SELECT Id, Name, Status__c, AttemptNumber__c, JobDescription__r.MaxChunkSize__c, JobDescription__r.ProcessorName__c
         FROM JobRequest__c
         WHERE Name IN ('UnknownChunkJob1', 'UnknownChunkJob2')
+        WITH SYSTEM_MODE
         ORDER BY Name
       ];
 
@@ -425,7 +445,7 @@ public class AsyncProcessorTest {
   private static void givenSystemEnabled_whenSpawnerThrows_thenLogsError() {
     // Arrange
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-    insert config;
+    insert as system config;
     ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     MethodSpy enqueueSpy = factory.spawnerMock.spyOn('enqueue');
     enqueueSpy.throwsException(new TestException('Test error'));
@@ -441,6 +461,7 @@ public class AsyncProcessorTest {
       SELECT Id, ApexClass.Name, JobType, Status
       FROM AsyncApexJob
       WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
   }
@@ -448,7 +469,7 @@ public class AsyncProcessorTest {
   @IsTest
   private static void givenSystemDisabled_whenExecutorRuns_thenNoReenqueue() {
     // Arrange
-    insert new ApexJobConfig__c(Enabled__c = false);
+    insert as system new ApexJobConfig__c(Enabled__c = false);
     ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -462,6 +483,7 @@ public class AsyncProcessorTest {
       SELECT Id, ApexClass.Name, JobType, Status
       FROM AsyncApexJob
       WHERE ApexClass.Name = 'AsyncApexJobExecutor'
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(initialJobId, jobs[0].Id, 'Expected only the initial AsyncApexJob when system is disabled.');
   }
@@ -516,7 +538,7 @@ public class AsyncProcessorTest {
         FutureCallsBaseConsumption__c = -1,
         SoslQueriesBaseConsumption__c = -1
       );
-      insert jobDesc;
+      insert as system jobDesc;
 
       final List<JobRequest__c> jobRequests = new List<JobRequest__c>();
       for (Integer i = 0; i < 5; i++) {
@@ -533,10 +555,10 @@ public class AsyncProcessorTest {
           )
         );
       }
-      insert jobRequests;
+      insert as system jobRequests;
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       final ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -550,6 +572,7 @@ public class AsyncProcessorTest {
         SELECT MaxChunkSize__c, CpuTimeBaseConsumption__c
         FROM JobDescription__c
         WHERE Id = :jobDesc.Id
+        WITH SYSTEM_MODE
       ];
       Assert.areEqual(1, updatedJobDesc.MaxChunkSize__c, 'Chunk size should be updated from -1 to 1 for first execution');
       Assert.areNotEqual(updatedJobDesc.CpuTimeBaseConsumption__c, -1, 'CPU consumption should be updated based on actual usage');
@@ -571,7 +594,7 @@ public class AsyncProcessorTest {
       QueriesBaseConsumption__c = 1,
       QueryRowsBaseConsumption__c = 100
     );
-    insert jobDesc;
+    insert as system jobDesc;
 
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>();
     for (Integer i = 0; i < 10; i++) {
@@ -588,10 +611,10 @@ public class AsyncProcessorTest {
         )
       );
     }
-    insert jobRequests;
+    insert as system jobRequests;
 
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-    insert config;
+    insert as system config;
     final ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -605,6 +628,7 @@ public class AsyncProcessorTest {
       SELECT MaxChunkSize__c
       FROM JobDescription__c
       WHERE Id = :jobDesc.Id
+      WITH SYSTEM_MODE
     ];
     Assert.isTrue(updatedJobDesc.MaxChunkSize__c >= 2, 'Chunk size should remain at least 2 or increase if limits allow');
 
@@ -612,6 +636,7 @@ public class AsyncProcessorTest {
       SELECT COUNT()
       FROM JobRequest__c
       WHERE Name LIKE 'ChunkIncreaseJob%' AND Status__c = :ApexJobStatus.SUCCESS.name()
+      WITH SYSTEM_MODE
     ];
     Assert.isTrue(deletedJobs == 0, 'Successfully processed jobs should be deleted');
   }
@@ -629,7 +654,7 @@ public class AsyncProcessorTest {
       DmlStatementsBaseConsumption__c = 140, // Near DML limit
       QueriesBaseConsumption__c = 95 // Near query limit
     );
-    insert jobDesc;
+    insert as system jobDesc;
 
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>();
     for (Integer i = 0; i < 10; i++) {
@@ -646,10 +671,10 @@ public class AsyncProcessorTest {
         )
       );
     }
-    insert jobRequests;
+    insert as system jobRequests;
 
     final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-    insert config;
+    insert as system config;
     final ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -663,6 +688,7 @@ public class AsyncProcessorTest {
       SELECT MaxChunkSize__c
       FROM JobDescription__c
       WHERE Id = :jobDesc.Id
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE, updatedJobDesc.MaxChunkSize__c, 'A seeded model the measurements contradict should be reset to unknown');
   }
@@ -681,7 +707,7 @@ public class AsyncProcessorTest {
         DmlRowsBaseConsumption__c = 20,
         QueriesBaseConsumption__c = 2
       );
-      insert jobDesc;
+      insert as system jobDesc;
 
       final List<JobRequest__c> jobRequests = new List<JobRequest__c>();
       for (Integer i = 0; i < 5; i++) {
@@ -698,10 +724,10 @@ public class AsyncProcessorTest {
           )
         );
       }
-      insert jobRequests;
+      insert as system jobRequests;
 
       final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
-      insert config;
+      insert as system config;
       final ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
 
@@ -715,6 +741,7 @@ public class AsyncProcessorTest {
         SELECT MaxChunkSize__c, CpuTimeBaseConsumption__c, HeapSizeBaseConsumption__c, DmlRowsBaseConsumption__c
         FROM JobDescription__c
         WHERE Id = :jobDesc.Id
+        WITH SYSTEM_MODE
       ];
       // When chunk size increases, consumption values should be interpolated
       Assert.isTrue(updatedJobDesc.MaxChunkSize__c > 1, 'Chunk size should be at least the executed size');
@@ -727,9 +754,9 @@ public class AsyncProcessorTest {
     // Arrange
     System.runAs(getRunningUser()) {
       final JobDescription__c description = new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);
-      insert description;
+      insert as system description;
       final JobRequest__c saved = ApexJobManager.request().forDescription(description.Id).save();
-      insert new ApexJobConfig__c(Enabled__c = true);
+      insert as system new ApexJobConfig__c(Enabled__c = true);
       final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(new ApexJobFactoryForTest());
 
       // Act
@@ -738,7 +765,7 @@ public class AsyncProcessorTest {
       Test.stopTest();
 
       // Assert
-      Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WHERE Id = :saved.Id], 'Request without scheduleAt should have been executed and deleted');
+      Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WHERE Id = :saved.Id WITH SYSTEM_MODE], 'Request without scheduleAt should have been executed and deleted');
     }
   }
 

@@ -4,15 +4,15 @@ private class ApexJobManagerTest {
   static void givenJobRequestId_whenDisableJobRequest_thenEnabledFalse() {
     // Arrange
     final JobDescription__c jdSeed = new JobDescription__c(Enabled__c = true, ProcessorName__c = 'Proc_Seed');
-    insert jdSeed;
+    insert as system jdSeed;
     final JobRequest__c jr = new JobRequest__c(Enabled__c = true, Status__c = 'READY', JobDescription__c = jdSeed.Id);
-    insert jr;
+    insert as system jr;
 
     // Act
     ApexJobManager.disableJobRequest(jr.Id);
 
     // Assert
-    final JobRequest__c reloaded = [SELECT Id, Enabled__c FROM JobRequest__c WHERE Id = :jr.Id];
+    final JobRequest__c reloaded = [SELECT Id, Enabled__c FROM JobRequest__c WHERE Id = :jr.Id WITH SYSTEM_MODE];
     Assert.isFalse(reloaded.Enabled__c, 'JobRequest must be disabled');
   }
 
@@ -20,13 +20,13 @@ private class ApexJobManagerTest {
   static void givenJobDescriptionId_whenDisableJobDescription_thenEnabledFalse() {
     // Arrange
     final JobDescription__c jd = new JobDescription__c(Enabled__c = true, ProcessorName__c = 'Proc_A');
-    insert jd;
+    insert as system jd;
 
     // Act
     ApexJobManager.disableJobDescription(jd.Id);
 
     // Assert
-    final JobDescription__c reloaded = [SELECT Id, Enabled__c FROM JobDescription__c WHERE Id = :jd.Id];
+    final JobDescription__c reloaded = [SELECT Id, Enabled__c FROM JobDescription__c WHERE Id = :jd.Id WITH SYSTEM_MODE];
     Assert.isFalse(reloaded.Enabled__c, 'JobDescription must be disabled');
   }
 
@@ -35,7 +35,7 @@ private class ApexJobManagerTest {
     // Arrange
     final String processorName = 'Proc_B';
     final JobDescription__c pre = new JobDescription__c(ProcessorName__c = processorName, Enabled__c = true);
-    insert pre;
+    insert as system pre;
 
     // Act
     ApexJobManager.disableJobDescription(processorName);
@@ -45,6 +45,7 @@ private class ApexJobManagerTest {
       SELECT Id, ProcessorName__c, Enabled__c
       FROM JobDescription__c
       WHERE ProcessorName__c = :processorName
+      WITH SYSTEM_MODE
       LIMIT 1
     ];
     Assert.areEqual(processorName, reloaded.ProcessorName__c, 'Processor name must match');
@@ -55,7 +56,7 @@ private class ApexJobManagerTest {
   static void givenProcessorName_whenResetConsumptionModel_thenAllConsumptionsAAreReset() {
     // Arrange
     final String processorName = 'Proc_E';
-    insert new JobDescription__c(
+    insert as system new JobDescription__c(
       ProcessorName__c = processorName,
       Enabled__c = true,
       MaxChunkSize__c = 10,
@@ -186,6 +187,7 @@ private class ApexJobManagerTest {
         QueryLocatorRowsSafety__c
       FROM JobDescription__c
       WHERE ProcessorName__c = :processorName
+      WITH SYSTEM_MODE
       LIMIT 1
     ];
     Assert.areEqual(-1, jd.MaxChunkSize__c, 'MaxChunkSize must be reset');
@@ -282,6 +284,7 @@ private class ApexJobManagerTest {
       SELECT ProcessorName__c, Enabled__c, Priority__c, isRecurrent__c, AllowedDays__c, AllowedStartTime__c, AllowedEndTime__c, MaxExecutionAttempt__c, MinJobInterval__c
       FROM JobDescription__c
       WHERE Id = :created.Id
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual(processorName, jd.ProcessorName__c);
     Assert.isTrue(jd.Enabled__c, 'JobDescription must be enabled by default');
@@ -299,7 +302,7 @@ private class ApexJobManagerTest {
     // Arrange
     final String processorName = 'Proc_G';
     final JobDescription__c jd = new JobDescription__c(ProcessorName__c = processorName, Enabled__c = true);
-    insert jd;
+    insert as system jd;
     final Datetime scheduled = Datetime.now().addHours(2);
     final Map<String, Object> payload = new Map<String, Object>{ 'x' => 1 };
 
@@ -312,6 +315,7 @@ private class ApexJobManagerTest {
       SELECT Id, Status__c, Enabled__c, JobDescription__c, JobDescription__r.ProcessorName__c, NextExecutionDateTime__c, Argument__c
       FROM JobRequest__c
       WHERE Id = :created.Id
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual('READY', reloaded.Status__c, 'Default status must be READY');
     Assert.isTrue(reloaded.Enabled__c, 'JobRequest must be enabled by default');
@@ -325,15 +329,15 @@ private class ApexJobManagerTest {
   static void givenDisabledJobRequest_whenEnableJobRequest_thenEnabledTrue() {
     // Arrange
     final JobDescription__c jd = new JobDescription__c(Enabled__c = true, ProcessorName__c = 'Proc_Enable_JR');
-    insert jd;
+    insert as system jd;
     final JobRequest__c jr = new JobRequest__c(Enabled__c = false, Status__c = 'READY', JobDescription__c = jd.Id);
-    insert jr;
+    insert as system jr;
 
     // Act
     ApexJobManager.enableJobRequest(jr.Id);
 
     // Assert
-    final JobRequest__c reloaded = [SELECT Id, Enabled__c FROM JobRequest__c WHERE Id = :jr.Id];
+    final JobRequest__c reloaded = [SELECT Id, Enabled__c FROM JobRequest__c WHERE Id = :jr.Id WITH SYSTEM_MODE];
     Assert.isTrue(reloaded.Enabled__c, 'JobRequest must be enabled');
   }
 
@@ -341,13 +345,13 @@ private class ApexJobManagerTest {
   static void givenDisabledJobDescriptionId_whenEnableJobDescription_thenEnabledTrue() {
     // Arrange
     final JobDescription__c jd = new JobDescription__c(Enabled__c = false, ProcessorName__c = 'Proc_Enable_JD');
-    insert jd;
+    insert as system jd;
 
     // Act
     ApexJobManager.enableJobDescription(jd.Id);
 
     // Assert
-    final JobDescription__c reloaded = [SELECT Id, Enabled__c FROM JobDescription__c WHERE Id = :jd.Id];
+    final JobDescription__c reloaded = [SELECT Id, Enabled__c FROM JobDescription__c WHERE Id = :jd.Id WITH SYSTEM_MODE];
     Assert.isTrue(reloaded.Enabled__c, 'JobDescription must be enabled');
   }
 
@@ -355,7 +359,7 @@ private class ApexJobManagerTest {
   static void givenProcessorName_whenEnableJobDescription_thenUpsertsAndEnables() {
     // Arrange
     final String processorName = 'Proc_Enable_Upsert';
-    insert new JobDescription__c(ProcessorName__c = processorName, Enabled__c = false);
+    insert as system new JobDescription__c(ProcessorName__c = processorName, Enabled__c = false);
 
     // Act
     ApexJobManager.enableJobDescription(processorName);
@@ -365,6 +369,7 @@ private class ApexJobManagerTest {
       SELECT Id, ProcessorName__c, Enabled__c
       FROM JobDescription__c
       WHERE ProcessorName__c = :processorName
+      WITH SYSTEM_MODE
       LIMIT 1
     ];
     Assert.isTrue(reloaded.Enabled__c, 'JobDescription must be enabled via upsert');
@@ -393,6 +398,7 @@ private class ApexJobManagerTest {
       SELECT Id, Status__c, Enabled__c, JobDescription__c, NextExecutionDateTime__c, Argument__c
       FROM JobRequest__c
       WHERE Id = :saved.Id
+      WITH SYSTEM_MODE
     ];
     Assert.areEqual('READY', reloaded.Status__c, 'Default status must be READY');
     Assert.isTrue(reloaded.Enabled__c, 'JobRequest must be enabled by default');
