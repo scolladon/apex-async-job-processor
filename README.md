@@ -338,7 +338,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - A logger that throws while logging: the line and the failure go to System.debug, engine flow is unchanged.
  - The setting is read in every transaction (enqueuing, Queueable, Finalizer, trigger wake-up, watcher); a change applies from the next transaction.
  - The executor carries its logger inside the next Queueable: hold only serializable state (stateless adapters).
- - Keep it cheap: a `System.LimitException` cannot be caught. The engine logs one debug line per executed chunk inside the Queueable loop, plus up to 3 lines in the Finalizer, and that cost sits outside the learned consumption model, so no job reserves room for it. Keep DML and event publishing out of `debug()`.
+ - Keep it cheap: a `System.LimitException` cannot be caught. The engine logs one debug line per executed chunk inside the Queueable loop, plus 1 line in the Finalizer on success and up to 6 (4 of them `error()`) when recording and re-enqueueing both fail, and that cost sits outside the learned consumption model, so no job reserves room for it. Keep DML and event publishing out of `debug()`.
 
  Example adapter for [Nebula Logger](https://github.com/jongpie/NebulaLogger), written and owned by the subscriber (not shipped in this package):
 
@@ -354,7 +354,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  }
  ```
 
- Nebula buffers entries in memory until `saveLog()`, and the port has no flush hook. The example saves only on `error()`, which also flushes the debug entries buffered before it; debug entries of a transaction that logs no error are discarded. Each save spends Nebula's save-path limits inside the engine transaction.
+ Nebula buffers entries in memory until `saveLog()`, and the port has no flush hook. The example saves only on `error()`, which also flushes the debug entries buffered before it; debug entries of a transaction that logs no error are discarded. The engine logs no error inside the Queueable, so with this example the per-chunk Queueable debug lines are never saved: only Finalizer entries are persisted, and only when an error is logged. Each save spends Nebula's save-path limits inside the engine transaction.
 
  Candidate rules (`JobRequest__c.IsCandidate__c`):
  - `JobRequest__c.Enabled__c` and `JobDescription__c.Enabled__c` must be true.
