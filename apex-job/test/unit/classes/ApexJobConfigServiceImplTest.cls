@@ -29,6 +29,23 @@ private class ApexJobConfigServiceImplTest {
   }
 
   @IsTest
+  static void givenConfigEnabledAfterFirstRead_whenIsSystemEnabled_thenReturnsTrue() {
+    // Arrange
+    final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = false);
+    insert config;
+    final ApexJobConfigServiceImpl sut = new ApexJobConfigServiceImpl();
+    sut.isSystemEnabled();
+    config.Enabled__c = true;
+    update config;
+
+    // Act
+    final Boolean result = sut.isSystemEnabled();
+
+    // Assert
+    Assert.isTrue(result, 'The system should reflect the configuration updated in the same transaction');
+  }
+
+  @IsTest
   static void givenSystemNotConfigured_whenIsSystemEnabled_thenReturnsFalse() {
     // Arrange
     final ApexJobConfigServiceImpl service = new ApexJobConfigServiceImpl();

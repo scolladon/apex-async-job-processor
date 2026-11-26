@@ -617,7 +617,7 @@ public class AsyncProcessorTest {
   }
 
   @IsTest
-  private static void givenJobWithHighConsumption_whenExecutorRuns_thenDoesNotIncreaseChunkSize() {
+  private static void givenSeededModelContradictedByMeasurements_whenExecutorRuns_thenResetsMaxChunkSizeToUnknown() {
     // Arrange
     final JobDescription__c jobDesc = new JobDescription__c(
       Name = 'HighConsumptionProcessor',
@@ -664,7 +664,7 @@ public class AsyncProcessorTest {
       FROM JobDescription__c
       WHERE Id = :jobDesc.Id
     ];
-    Assert.areEqual(2, updatedJobDesc.MaxChunkSize__c, 'Chunk size should not increase when consumption is high');
+    Assert.areEqual(ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE, updatedJobDesc.MaxChunkSize__c, 'A seeded model the measurements contradict should be reset to unknown');
   }
 
   @IsTest
