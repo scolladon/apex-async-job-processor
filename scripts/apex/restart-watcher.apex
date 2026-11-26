@@ -6,6 +6,7 @@ for (CronTrigger ct : [
   SELECT Id
   FROM CronTrigger
   WHERE CronJobDetail.JobType = '7' AND CronJobDetail.Name LIKE 'Async Job Watcher%'
+  WITH USER_MODE
 ]) {
   System.abortJob(ct.Id);
 }
