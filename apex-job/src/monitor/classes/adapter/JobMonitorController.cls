@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexCRUDViolation')
 public with sharing class JobMonitorController {
   private static final List<String> ALIVE_QUEUEABLE_STATUS = new List<String>{ 'Processing', 'Queued', 'Preparing', 'Holding' };
   private static final String QUEUEABLE_JOB_TYPE = 'Queueable';
@@ -31,6 +30,7 @@ public with sharing class JobMonitorController {
         Argument__c
       FROM JobRequest__c
       WHERE IsCandidate__c = TRUE AND NextExecutionDateTime__c <= :now
+      WITH SYSTEM_MODE
       ORDER BY
         JobDescription__r.Priority__c DESC,
         JobDescription__r.MaxChunkSize__c ASC,
@@ -48,6 +48,7 @@ public with sharing class JobMonitorController {
     final List<AggregateResult> rows = [
       SELECT COUNT(Id) nbRows, Status__c status, JobDescription__c processorId
       FROM JobRequest__c
+      WITH SYSTEM_MODE
       GROUP BY Status__c, JobDescription__c
       ORDER BY Status__c, JobDescription__c
     ];
@@ -76,6 +77,7 @@ public with sharing class JobMonitorController {
         LastExecutionDateTime__c
       FROM JobDescription__c
       WHERE Id IN :jobDescriptionIds
+      WITH SYSTEM_MODE
     ];
   }
 
@@ -98,6 +100,7 @@ public with sharing class JobMonitorController {
       SELECT COUNT()
       FROM AsyncApexJob
       WHERE Status IN :ALIVE_QUEUEABLE_STATUS AND JobType = :QUEUEABLE_JOB_TYPE AND ApexClass.Name = :JOB_NAME
+      WITH SYSTEM_MODE
     ];
     return asyncApexJobExecutorCount;
   }
@@ -107,6 +110,7 @@ public with sharing class JobMonitorController {
       SELECT COUNT()
       FROM AsyncApexJob
       WHERE Status IN :ALIVE_QUEUEABLE_STATUS AND JobType = :SCHEDULED_JOB_TYPE AND ApexClass.Name = :JOB_WATCHER_NAME
+      WITH SYSTEM_MODE
     ];
     return recoveryCount > 0;
   }
@@ -116,7 +120,7 @@ public with sharing class JobMonitorController {
     assertPerm();
     ApexJobConfig__c cfg = ApexJobConfig__c.getOrgDefaults();
     cfg.Enabled__c = false;
-    upsert cfg;
+    upsert as system cfg;
     return !cfg.Enabled__c;
   }
 
@@ -125,7 +129,7 @@ public with sharing class JobMonitorController {
     assertPerm();
     ApexJobConfig__c cfg = ApexJobConfig__c.getOrgDefaults();
     cfg.Enabled__c = true;
-    upsert cfg;
+    upsert as system cfg;
     return cfg.Enabled__c;
   }
 

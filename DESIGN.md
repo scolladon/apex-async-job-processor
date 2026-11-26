@@ -624,7 +624,9 @@ Full CRUD + ModifyAll + ViewAll on `JobDescription__c` and `JobRequest__c`. Read
 
 - All adapters: `without sharing` — engine runs in system context, not user context.
 - `JobMonitorController`: `with sharing` — monitoring respects user access.
+- Every SOQL query and DML statement in the package states its mode, `WITH SYSTEM_MODE` / `as system`, because API 67+ defaults to user mode. The one exception is `JobDescriptionActionsController`'s `WITH USER_MODE` read.
 - `JobDescriptionActionsController`: `with sharing` + `WITH USER_MODE` (the user's object and field access are the action's gate).
+- Anonymous scripts under `scripts/` and `apex-job/test/functional/script` run in user mode because anonymous Apex refuses system mode.
 
 ---
 
