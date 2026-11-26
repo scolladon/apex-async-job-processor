@@ -33,6 +33,7 @@ Thank you for considering a contribution! This project follows clean code, SOLID
   - `npm run test:functional:start` / `npm run test:functional:stop`
 - Anonymous-Apex operator scripts under `scripts/apex/`:
   - `scripts/apex/restart-watcher.apex` — aborts every existing `Async Job Watcher` cron trigger and calls `ApexJobWatcher.schedule()` to re-register them. Run: `sf apex run -f scripts/apex/restart-watcher.apex -o <org-alias>`.
+  - `scripts/apex/backfill-next-execution.apex` — sets `NextExecutionDateTime__c = CreatedDate` on runnable requests whose date is null, 10,000 per run; re-run until it reports 0. Run: `sf apex run -f scripts/apex/backfill-next-execution.apex -o <org-alias>`.
   - `scripts/` is outside every `sfdx-project.json` packageDirectory, so it never deploys to orgs.
 
 ### Pre-commit hook

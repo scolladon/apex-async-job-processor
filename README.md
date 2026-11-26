@@ -167,7 +167,7 @@ Same backlog, drained by one disciplined executor instead of a swarm — plus a 
 
  - Job Description builder: `define()` → chain `processor(String)`, `priority(Integer)`, `minInterval(Integer)`, `maxAttempts(Integer)`, `recurrent()`, `allowedOn(List<String>)`, `allowedBetween(Time, Time)`, then `save()`. Without `scheduleAt`, the request is due as soon as it is inserted (`NextExecutionDateTime__c` defaults to `NOW()`).
  - Manage descriptions: `enableJobDescription(Id|String)`, `disableJobDescription(Id|String)`, `resetConsumptionModel(String processorName)`.
- - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`.
+ - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`. A request runs when `NextExecutionDateTime__c <= now`; a `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
  - Manage requests: `enableJobRequest(Id)`, `disableJobRequest(Id)`.
 
  Your Apex processor implements [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls) and returns [ApexJobResult](apex-job/src/engine/domain/classes/ApexJobResult.cls). Context arrives in `ApexJobContext.arguments`.
@@ -278,7 +278,7 @@ File: [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls)
 
 - `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
 - Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
-- Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`.
+- Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`. A `null` `NextExecutionDateTime__c` on a `READY`/`FAILURE`/`KILLED` row means not scheduled.
 - Bypass `JobRequest__c` after insert trigger via the `Bypass_JobRequest_Trigger` custom permission.
 
 ## Monitoring console
@@ -329,6 +329,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Status in READY, FAILURE, KILLED. (Terminal statuses — `SUCCESS`, `ABORTED`, `MALFORMED_ARGUMENT` — are never re-selected.)
  - Time window and days respected (`AllowedDays__c`, `AllowedStartTime__c`, `AllowedEndTime__c`).
  - Attempts below `MaxExecutionAttempt__c` (or -1 for unlimited).
+ - `NextExecutionDateTime__c <= now` (a null date is not scheduled).
 
  Tip: The learner updates consumption fields on `JobDescription__c`. You rarely set them by hand.
 

@@ -63,6 +63,29 @@ private class JobRequestNextExecutionDateTimeTest {
     Assert.areEqual(explicitDate, stored.NextExecutionDateTime__c, 'An explicit date must not be overridden by the default');
   }
 
+  @IsTest
+  private static void givenExplicitNullDate_whenInsert_thenRequestIsNotSelected() {
+    // Arrange
+    final JobDescription__c description = insertDescription();
+    final JobRequest__c nullDated = readyRequest(description);
+    nullDated.NextExecutionDateTime__c = null;
+    final JobRequest__c control = readyRequest(description);
+    insert new List<JobRequest__c>{ nullDated, control };
+    final JobSelectorImpl sut = new JobSelectorImpl();
+
+    // Act
+    final List<JobRequest__c> result = sut.getEligibleJobs(new List<Id>());
+
+    // Assert
+    final Map<Id, JobRequest__c> stored = new Map<Id, JobRequest__c>([SELECT NextExecutionDateTime__c, IsCandidate__c FROM JobRequest__c]);
+    final Set<Id> selectedIds = new Map<Id, JobRequest__c>(result).keySet();
+    Assert.isNull(stored.get(nullDated.Id).NextExecutionDateTime__c, 'An explicit null must not receive the default');
+    Assert.isTrue(selectedIds.contains(control.Id), 'The control request must be selected');
+    Assert.isFalse(selectedIds.contains(nullDated.Id), 'A null date means not scheduled');
+    Assert.isFalse(stored.get(nullDated.Id).IsCandidate__c, 'IsCandidate__c must be false for a null date');
+    Assert.isTrue(stored.get(control.Id).IsCandidate__c, 'IsCandidate__c must be true for the control');
+  }
+
   private static JobDescription__c insertDescription() {
     final JobDescription__c description = ApexJobTestFixture.aJobDescription().build();
     insert description;

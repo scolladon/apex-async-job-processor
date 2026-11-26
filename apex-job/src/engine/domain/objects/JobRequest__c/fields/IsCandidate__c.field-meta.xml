@@ -10,7 +10,7 @@
     ISPICKVAL(Status__c, &quot;KILLED&quot;),
     ISPICKVAL(Status__c, &quot;READY&quot;)
   )
-  ,OR( NOW() &gt;= NextExecutionDateTime__c , ISNULL(NextExecutionDateTime__c) )
+  ,NOW() &gt;= NextExecutionDateTime__c
   ,OR( ISNULL(AttemptNumber__c), JobDescription__r.MaxExecutionAttempt__c = -1, AttemptNumber__c &lt; JobDescription__r.MaxExecutionAttempt__c )
   ,OR(ISBLANK(JobDescription__r.AllowedDays__c) ,
     CASE(WEEKDAY(TODAY())

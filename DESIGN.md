@@ -135,13 +135,15 @@ All scheduling eligibility is encapsulated in a single formula on `JobRequest__c
 Enabled__c = TRUE
 AND JobDescription__r.Enabled__c = TRUE
 AND Status__c IN (READY, FAILURE, KILLED)
-AND (NextExecutionDateTime__c <= NOW() OR NextExecutionDateTime__c IS NULL)
+AND NextExecutionDateTime__c <= NOW()
 AND (AttemptNumber__c < MaxExecutionAttempt__c OR MaxExecutionAttempt__c = -1)
 AND (AllowedDays__c includes current day OR AllowedDays__c IS NULL)
 AND (TIMENOW() between AllowedStartTime__c and AllowedEndTime__c, or both NULL)
 ```
 
 The selector query only needs `WHERE IsCandidate__c = TRUE`.
+
+A request runs when `NextExecutionDateTime__c <= now`; leave the field unset on insert to run as soon as possible. A `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
 
 ---
 
@@ -596,6 +598,7 @@ Anonymous-Apex scripts under `scripts/apex/` (outside every `sfdx-project.json` 
 | Script | Purpose | Run |
 |---|---|---|
 | `scripts/apex/restart-watcher.apex` | Aborts every existing `Async Job Watcher` cron trigger and calls `ApexJobWatcher.schedule()` to re-register the 12 slots. Use when the scheduler drifts or after renaming classes involved. | `sf apex run -f scripts/apex/restart-watcher.apex -o <org-alias>` |
+| `scripts/apex/backfill-next-execution.apex` | Sets `NextExecutionDateTime__c = CreatedDate` on runnable (`READY`/`FAILURE`/`KILLED`) requests whose date is null, 10,000 per run. Run once after upgrading, and re-run until it reports 0. | `sf apex run -f scripts/apex/backfill-next-execution.apex -o <org-alias>` |
 
 ---
 
