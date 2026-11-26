@@ -141,7 +141,7 @@ AND (AllowedDays__c includes current day OR AllowedDays__c IS NULL)
 AND (TIMENOW() between AllowedStartTime__c and AllowedEndTime__c, or both NULL)
 ```
 
-The selector query only needs `WHERE IsCandidate__c = TRUE`.
+The selector query filters on `IsCandidate__c = TRUE AND NextExecutionDateTime__c <= :now`; the date filter is indexed.
 
 A request runs when `NextExecutionDateTime__c <= now`; leave the field unset on insert to run as soon as possible. A `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
 
@@ -168,7 +168,7 @@ System.enqueueJob(new AsyncApexJobExecutor(), options)
      │
      └── LOOP:
           ├── JobRepository.getJobCandidates(alreadyExecuted)
-          │     └── JobSelectorImpl: 18-dimension WHERE + IsCandidate__c = TRUE
+          │     └── JobSelectorImpl: 18-dimension WHERE + IsCandidate__c = TRUE + NextExecutionDateTime__c <= now (indexed)
           │          ORDER BY Priority DESC, MaxChunkSize ASC, ...
           │
           ├── JobCandidate.getExecutableChunk()
@@ -318,6 +318,7 @@ The WHERE clause includes all 18 base-consumption checks plus structural filters
 ```sql
 WHERE JobDescription__c NOT IN :excludedIds
   AND IsCandidate__c = TRUE
+  AND NextExecutionDateTime__c <= :now
   AND JobDescription__r.MaxChunkSize__c >= :minMaxChunkSize
   AND JobDescription__r.CpuTimeBaseConsumption__c <= :availableLimits.cpuTime
   AND JobDescription__r.HeapSizeBaseConsumption__c <= :availableLimits.heapSize
@@ -327,6 +328,8 @@ ORDER BY Priority__c DESC, MaxChunkSize__c ASC,
          NextExecutionDateTime__c ASC
 LIMIT 50
 ```
+
+`NextExecutionDateTime__c` carries a custom index (`allowNullValues` true); the explicit filter lets the optimizer lead with it, and the formula stays as the residual check.
 
 **Callout guard**: If DML has occurred in the transaction, `maxCallout` is set to 0, excluding callout-making jobs (prevents Salesforce's "Uncommitted Work Pending" error).
 
@@ -727,6 +730,7 @@ apex-job/
 │   │   │   ├── classes/       (ApexJob, JobCandidate, JobExecutable, JobExecuted, ...)
 │   │   │   │   ├── chunk-calculation/     (AdaptiveChunkCalculator)
 │   │   │   │   └── consumption-learning/  (AdaptiveConsumptionLearner)
+│   │   │   ├── customindex/   (JobRequest__c.NextExecutionDateTime__c)
 │   │   │   ├── lwc/           (jobDescriptionResetConsumption)
 │   │   │   ├── objects/       (JobDescription__c, JobRequest__c, ApexJobConfig__c)
 │   │   │   ├── triggers/      (JobRequestAfterInsert)
@@ -741,7 +745,7 @@ apex-job/
 │       ├── lwc/               (jobMonitorConsole, engineControls, statusByProcessorTable, requestTable)
 │       └── tabs/              (Job_Monitor_Console)
 └── test/
-    ├── unit/                  (16 test classes + helpers)
+    ├── unit/                  (17 test classes + helpers)
     ├── integration/           (4 test classes)
     └── functional/            (6 test classes + test data)
 ```

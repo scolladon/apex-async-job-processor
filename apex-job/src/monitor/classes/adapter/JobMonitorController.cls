@@ -9,6 +9,7 @@ public with sharing class JobMonitorController {
 
   @AuraEnabled
   public static List<JobRequest__c> getJobRequestPage(final Integer limitSize, final Integer offsetVal) {
+    final Datetime now = Datetime.now();
     return [
       SELECT
         Id,
@@ -29,9 +30,8 @@ public with sharing class JobMonitorController {
         LastExecutionMessage__c,
         Argument__c
       FROM JobRequest__c
-      WHERE IsCandidate__c = TRUE
+      WHERE IsCandidate__c = TRUE AND NextExecutionDateTime__c <= :now
       ORDER BY
-        IsDeleted ASC,
         JobDescription__r.Priority__c DESC,
         JobDescription__r.MaxChunkSize__c ASC,
         JobDescription__r.CalloutBaseConsumption__c ASC,
@@ -39,7 +39,6 @@ public with sharing class JobMonitorController {
         NextExecutionDateTime__c ASC
       LIMIT :limitSize
       OFFSET :offsetVal
-      ALL ROWS
     ];
   }
 

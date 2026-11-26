@@ -22,6 +22,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
     final LimitsUsage availableLimits = limitService.getAvailableLimits();
     final Integer minMaxChunkSize = this.getMinimumMaxChunkSize();
     final Integer maxCallout = this.getMaxCallout(availableLimits);
+    final Datetime now = Datetime.now();
     return [
       SELECT
         Id,
@@ -123,6 +124,7 @@ public without sharing class JobSelectorImpl implements JobSelector {
       WHERE
         JobDescription__c NOT IN :jobDescriptionIdsToExclude
         AND IsCandidate__c = TRUE
+        AND NextExecutionDateTime__c <= :now
         AND JobDescription__r.MaxChunkSize__c >= :minMaxChunkSize
         AND JobDescription__r.CpuTimeBaseConsumption__c <= :availableLimits.cpuTime
         AND JobDescription__r.HeapSizeBaseConsumption__c <= :availableLimits.heapSize
