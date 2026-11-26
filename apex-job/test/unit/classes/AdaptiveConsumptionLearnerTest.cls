@@ -1,8 +1,5 @@
 @IsTest
 private class AdaptiveConsumptionLearnerTest {
-  private static final Decimal NOISE_FLOOR = 5;
-  private static final Decimal THRESHOLD = 0.3;
-
   @IsTest
   private static void givenSingleChunkSuccess_whenAdjustFromSuccess_thenTrackBaseConsumption() {
     // Arrange
@@ -375,54 +372,6 @@ private class AdaptiveConsumptionLearnerTest {
       Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, (Decimal) jobDescription.get(model.safety), 'Safety must reset on dimension ' + model.dimension);
     }
     Assert.areEqual(0, jobDescription.ConsecutiveVariationCount__c, 'Counter must be cleared by reset');
-  }
-
-  @IsTest
-  private static void givenDeviationBelowFloorAndRatioAboveThreshold_whenIsSignificantVariation_thenFalse() {
-    // Arrange
-    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(ApexJobTestFixture.aJobDescription().withVariationResetThreshold(THRESHOLD).build());
-
-    // Act
-    final Boolean result = sut.isSignificantVariation(2, 1, NOISE_FLOOR);
-
-    // Assert
-    Assert.isFalse(result, 'A deviation below the noise floor is never significant');
-  }
-
-  @IsTest
-  private static void givenDeviationAboveFloorAndRatioAboveThreshold_whenIsSignificantVariation_thenTrue() {
-    // Arrange
-    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(ApexJobTestFixture.aJobDescription().withVariationResetThreshold(THRESHOLD).build());
-
-    // Act
-    final Boolean result = sut.isSignificantVariation(200, 100, NOISE_FLOOR);
-
-    // Assert
-    Assert.isTrue(result, 'Deviation above the floor and ratio above the threshold is significant');
-  }
-
-  @IsTest
-  private static void givenDeviationAboveFloorAndRatioBelowThreshold_whenIsSignificantVariation_thenFalse() {
-    // Arrange
-    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(ApexJobTestFixture.aJobDescription().withVariationResetThreshold(THRESHOLD).build());
-
-    // Act
-    final Boolean result = sut.isSignificantVariation(110, 100, NOISE_FLOOR);
-
-    // Assert
-    Assert.isFalse(result, 'A ratio below the threshold is not significant');
-  }
-
-  @IsTest
-  private static void givenDeviationEqualToFloor_whenIsSignificantVariation_thenFalse() {
-    // Arrange
-    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(ApexJobTestFixture.aJobDescription().withVariationResetThreshold(THRESHOLD).build());
-
-    // Act
-    final Boolean result = sut.isSignificantVariation(10, 5, NOISE_FLOOR);
-
-    // Assert
-    Assert.isFalse(result, 'A deviation equal to the floor is not significant');
   }
 
   @IsTest

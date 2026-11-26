@@ -5,9 +5,11 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
   private static final Decimal KILL_PENALTY = 1.1;
 
   private final JobDescription__c job;
+  private final Decimal variationThreshold;
 
   public AdaptiveConsumptionLearner(final JobDescription__c jobDescription) {
     this.job = jobDescription;
+    this.variationThreshold = this.job.VariationResetThreshold__c ?? ApexJobConstant.DEFAULT_VARIATION_RESET_THRESHOLD;
   }
 
   public void adjustFromSuccess(final LimitsUsage consumed, final Integer chunkSize) {
@@ -59,7 +61,7 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
       this.job.put(model.base, usage);
       return false;
     }
-    if (this.isSignificantVariation(usage, currentBase, model.noiseFloor)) {
+    if (model.isSignificantVariation(usage, currentBase, this.variationThreshold)) {
       return this.recordVariationHit();
     }
     this.job.put(model.base, inCooldown ? Math.max(currentBase, usage) : this.blend(currentBase, usage));
@@ -77,18 +79,12 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
       return false;
     }
     final Integer itemsBeyondFirst = chunkSize - 1;
-    if (this.isSignificantVariation(newPerItem * itemsBeyondFirst, currentPerItem * itemsBeyondFirst, model.noiseFloor)) {
+    if (model.isSignificantVariation(newPerItem * itemsBeyondFirst, currentPerItem * itemsBeyondFirst, this.variationThreshold)) {
       return this.recordVariationHit();
     }
     this.job.put(model.perItem, inCooldown ? Math.max(currentPerItem, newPerItem) : this.blend(currentPerItem, newPerItem));
     this.job.ConsecutiveVariationCount__c = 0;
     return false;
-  }
-
-  @TestVisible
-  private Boolean isSignificantVariation(final Decimal observed, final Decimal expected, final Decimal noiseFloor) {
-    final Decimal relativeLimit = (this.job.VariationResetThreshold__c ?? ApexJobConstant.DEFAULT_VARIATION_RESET_THRESHOLD) * expected;
-    return Math.abs(observed - expected) > Math.max(noiseFloor, relativeLimit);
   }
 
   private Boolean isInKillCooldown() {

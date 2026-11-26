@@ -25,6 +25,10 @@ public without sharing class ConsumptionModel {
     this.noiseFloor = NOISE_FLOOR_BY_DIMENSION.get(dimension) ?? COUNTER_NOISE_FLOOR;
   }
 
+  public Boolean isSignificantVariation(final Decimal observed, final Decimal expected, final Decimal relativeThreshold) {
+    return Math.abs(observed - expected) > Math.max(this.noiseFloor, relativeThreshold * expected);
+  }
+
   public static List<ConsumptionModel> asList() {
     if (ConsumptionModel.MODELS.isEmpty()) {
       for (String dimension : LimitsUsage.dimensions()) {
