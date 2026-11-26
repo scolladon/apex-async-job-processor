@@ -300,7 +300,7 @@ Static singleton holding two per-transaction booleans. `hasExecutedJobs` is set 
 
 ### ApexJobConfigService
 
-Reads `ApexJobConfig__c.getOrgDefaults()` on every call, so a change made earlier in the same transaction is seen (a custom setting read costs no SOQL). Provides `isSystemEnabled()` (global kill switch) `getEnqueueDelayInMinutes()` (idle re-enqueue delay, considering business hours, clamped to [0, 10] minutes) and `getLoggerClassName()` (the configured logger class name, blank when unset).
+Reads `ApexJobConfig__c.getOrgDefaults()` on every call, so a change made earlier in the same transaction is seen (a custom setting read costs no SOQL). Provides `isSystemEnabled()` (global kill switch), `getEnqueueDelayInMinutes()` (idle re-enqueue delay, considering business hours, clamped to [0, 10] minutes) and `getLoggerClassName()` (the configured logger class name, null when unset).
 
 ### JobExecutorService
 
