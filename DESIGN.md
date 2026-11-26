@@ -583,7 +583,7 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 
 **`engineControls`** — Polls every 5 s with one `getEngineStatus()` call (enabled flag, executor count, watcher status); the timer is cleared on disconnect and re-armed after each call, and a failed call is logged and does not stop polling. Provides pause/resume/restart actions gated by `Manage_Async_Job_Engine` custom permission (client-side check + server-side `assertPerm()`).
 
-**`statusByProcessorTable`** — Polls at 5s. Aggregate `GROUP BY Status__c, JobDescription__c` with a second cacheable call for processor name resolution.
+**`statusByProcessorTable`** — Polls every 5 s: `getStatusByProcessor()` returns count-only groups (`GROUP BY Status__c, JobDescription__c`), then `getJobDescriptionInfos(ids)` supplies the processor name, the statistics (`MaxChunkSize__c`, `SmallestFailingChunk__c`, `SuccessStreak__c`, `ConsecutiveFailures__c`, `LastExecutionDateTime__c`) and the rate-limit fields, merged per processor. The timer is cleared on disconnect and re-armed after each call, so a failed call does not stop polling.
 
 **`requestTable`** — Polls at 2s: the timer is cleared on disconnect and re-armed after each call, so a failed call does not stop polling. Paginated with infinite scroll (page size 50). Diff-and-replace strategy: only refreshes the first page and compares IDs before triggering a full update. Row styling encodes status (red=FAILURE, darker red=KILLED, green=SUCCESS, striped=not candidate).
 

@@ -2,6 +2,8 @@ import { LightningElement } from "lwc";
 import getStatusByProcessor from "@salesforce/apex/JobMonitorController.getStatusByProcessor";
 import getJobDescriptionInfos from "@salesforce/apex/JobMonitorController.getJobDescriptionInfos";
 
+const POLL_INTERVAL_MS = 5000;
+
 export default class StatusByProcessorTable extends LightningElement {
   rowValues = [];
 
@@ -10,15 +12,20 @@ export default class StatusByProcessorTable extends LightningElement {
       { label: "Processor", fieldName: "processorUrl", type: "url", typeAttributes: { label: { fieldName: "processorName" }, target: "_blank" }, hideDefaultActions: true, wrapText: true },
       { label: "Status", fieldName: "status", hideDefaultActions: true },
       { label: "Count", fieldName: "nbRows", type: "number", hideDefaultActions: true },
-      { label: "Nb Try", fieldName: "nbTry", type: "number", hideDefaultActions: true },
       { label: "Max Chunk", fieldName: "maxBulk", type: "number", hideDefaultActions: true },
       { label: "Smallest Failing", fieldName: "smallestFailingChunk", type: "number", hideDefaultActions: true },
       { label: "Success Streak", fieldName: "successStreak", type: "number", hideDefaultActions: true },
       { label: "Consecutive Failure", fieldName: "consecutiveFailure", type: "number", hideDefaultActions: true },
       { label: "Rate Limit", fieldName: "maxExecutionsPerMinute", type: "number", hideDefaultActions: true },
       { label: "Exec/min", fieldName: "executionsInCurrentWindow", type: "number", hideDefaultActions: true },
-      { label: "Next Exec", fieldName: "nextExecutionDateTime", hideDefaultActions: true, wrapText: true },
-      { label: "Last Exec", fieldName: "lastExecutionDateTime", hideDefaultActions: true, wrapText: true }
+      {
+        label: "Last Exec",
+        fieldName: "lastExecutionDateTime",
+        type: "date",
+        typeAttributes: { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" },
+        hideDefaultActions: true,
+        wrapText: true
+      }
     ];
   }
 
@@ -27,42 +34,46 @@ export default class StatusByProcessorTable extends LightningElement {
   }
 
   connectedCallback() {
-    this.pollStatusByProcessor();
+    this.stopped = false;
+    this.poll();
   }
 
-  async resolveProcessorNames(ids) {
-    const result = await getJobDescriptionInfos({ jobDescriptionIds: ids });
-    return result.reduce((acc, r) => {
-      acc[r?.Id] = {
-        name: r?.ProcessorName__c,
-        maxExecutionsPerMinute: r?.MaxExecutionsPerMinute__c,
-        executionsInCurrentWindow: r?.ExecutionsInCurrentWindow__c
-      };
-      return acc;
-    }, {});
+  disconnectedCallback() {
+    this.stopped = true;
+    clearTimeout(this.pollTimer);
   }
 
-  async pollStatusByProcessor() {
-    const rows = await getStatusByProcessor();
-
-    if (this.arePagesDifferent(rows, this.rowValues)) {
-      const names = await this.resolveProcessorNames(rows.map((row) => row.processorId));
-      this.rowValues = rows.map((row) => {
-        const info = names[row.processorId] ?? {};
-        row.processorUrl = "/" + row.processorId;
-        row.processorName = info.name;
-        row.maxExecutionsPerMinute = info.maxExecutionsPerMinute;
-        row.executionsInCurrentWindow = info.executionsInCurrentWindow;
-        return row;
-      });
+  async poll() {
+    try {
+      await this.refresh();
+    } catch (error) {
+      console.error("statusByProcessorTable: refresh failed", error);
+    } finally {
+      if (!this.stopped) {
+        this.pollTimer = setTimeout(() => this.poll(), POLL_INTERVAL_MS);
+      }
     }
-
-    setTimeout(() => {
-      this.pollStatusByProcessor();
-    }, 5000);
   }
 
-  arePagesDifferent(newPage, currentPage) {
-    return JSON.stringify(newPage) !== JSON.stringify(currentPage);
+  async refresh() {
+    const groups = await getStatusByProcessor();
+    const infos = await getJobDescriptionInfos({ jobDescriptionIds: groups.map((group) => group.processorId) });
+    const infoById = new Map(infos.map((info) => [info.Id, info]));
+    this.rowValues = groups.map((group) => this.mergeRow(group, infoById.get(group.processorId) ?? {}));
+  }
+
+  mergeRow(group, info) {
+    return {
+      ...group,
+      processorUrl: "/" + group.processorId,
+      processorName: info.ProcessorName__c,
+      maxBulk: info.MaxChunkSize__c,
+      smallestFailingChunk: info.SmallestFailingChunk__c,
+      successStreak: info.SuccessStreak__c,
+      consecutiveFailure: info.ConsecutiveFailures__c,
+      lastExecutionDateTime: info.LastExecutionDateTime__c,
+      maxExecutionsPerMinute: info.MaxExecutionsPerMinute__c,
+      executionsInCurrentWindow: info.ExecutionsInCurrentWindow__c
+    };
   }
 }
