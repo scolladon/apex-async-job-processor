@@ -170,6 +170,24 @@ private class JobSelectorImplTest {
   }
 
   @IsTest
+  static void givenMinimumAccessUser_whenGetEligibleJobs_thenReturnsEligibleJobs() {
+    // Arrange
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.getAvailableLimitsSpy.returns(buildMaxAvailableGovernorLimits());
+    final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
+    // Act
+    List<JobRequest__c> result;
+    System.runAs(minimumAccessUser) {
+      result = sut.getEligibleJobs(new List<Id>());
+    }
+    // Assert
+    Assert.areEqual(2, result.size());
+    Assert.areEqual('HighPriorityJob1', result[0].Name);
+    Assert.areEqual('NormalPriorityJob1', result[1].Name);
+  }
+
+  @IsTest
   static void givenEnabledJobReadyForProcessingAndAlreadyExecutedJobs_whenGetJobs_thenReturnsValidJobsWithoutUnknownChunkSizeJobs() {
     // Arrange
     ApexJobTransactionContext.getInstance().markExecutedJobs();
