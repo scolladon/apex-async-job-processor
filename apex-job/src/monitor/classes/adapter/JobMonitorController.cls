@@ -46,17 +46,7 @@ public with sharing class JobMonitorController {
   @SuppressWarnings('PMD.AvoidNonRestrictiveQueries ')
   public static List<Map<String, Object>> getStatusByProcessor() {
     final List<AggregateResult> rows = [
-      SELECT
-        Count(Id) nbRows,
-        Status__c status,
-        JobDescription__c processorId,
-        MAX(JobDescription__r.MaxChunkSize__c) maxBulk,
-        MAX(JobDescription__r.SmallestFailingChunk__c) smallestFailingChunk,
-        MAX(JobDescription__r.SuccessStreak__c) successStreak,
-        MAX(JobDescription__r.ConsecutiveFailures__c) consecutiveFailure,
-        SUM(AttemptNumber__c) nbTry,
-        FORMAT(MIN(NextExecutionDateTime__c)) nextExecutionDateTime,
-        FORMAT(MIN(LastModifiedDate)) lastExecutionDateTime
+      SELECT COUNT(Id) nbRows, Status__c status, JobDescription__c processorId
       FROM JobRequest__c
       GROUP BY Status__c, JobDescription__c
       ORDER BY Status__c, JobDescription__c
@@ -72,7 +62,30 @@ public with sharing class JobMonitorController {
   // Not cacheable: ExecutionsInCurrentWindow__c and CurrentWindowStart__c are volatile runtime state
   @AuraEnabled
   public static List<JobDescription__c> getJobDescriptionInfos(final List<Id> jobDescriptionIds) {
-    return [SELECT Id, ProcessorName__c, MaxExecutionsPerMinute__c, ExecutionsInCurrentWindow__c, CurrentWindowStart__c FROM JobDescription__c WHERE Id IN :jobDescriptionIds];
+    return [
+      SELECT
+        Id,
+        ProcessorName__c,
+        MaxExecutionsPerMinute__c,
+        ExecutionsInCurrentWindow__c,
+        CurrentWindowStart__c,
+        MaxChunkSize__c,
+        SmallestFailingChunk__c,
+        SuccessStreak__c,
+        ConsecutiveFailures__c,
+        LastExecutionDateTime__c
+      FROM JobDescription__c
+      WHERE Id IN :jobDescriptionIds
+    ];
+  }
+
+  @AuraEnabled
+  public static EngineStatus getEngineStatus() {
+    final EngineStatus status = new EngineStatus();
+    status.enabled = isEnabled();
+    status.executorCount = getExecutorCount();
+    status.watcherScheduled = isRecoveryBatchAlive();
+    return status;
   }
 
   @AuraEnabled
@@ -133,5 +146,14 @@ public with sharing class JobMonitorController {
   }
 
   public class AuthorizationException extends Exception {
+  }
+
+  public class EngineStatus {
+    @AuraEnabled
+    public Boolean enabled;
+    @AuraEnabled
+    public Integer executorCount;
+    @AuraEnabled
+    public Boolean watcherScheduled;
   }
 }

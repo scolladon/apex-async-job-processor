@@ -308,6 +308,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
   - Resume engine → sets `ApexJobConfig__c.Enabled__c = true`.
   - Restart executor → enqueues a new `AsyncApexJobExecutor` now.
   - Guard rails: live counts from `AsyncApexJob` for executors and the scheduled watcher.
+  - Engine status: one `getEngineStatus()` call (enabled flag, executor count, watcher scheduled).
 
 - **Tables and status**
   - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution.

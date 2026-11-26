@@ -593,6 +593,8 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 
 `JobMonitorController` (`with sharing`) provides all backend methods. Read methods respect sharing; mutation methods (`pauseEngine`, `resumeEngine`, `restartEngine`) additionally require the `Manage_Async_Job_Engine` custom permission, enforced via `FeatureManagement.checkPermission`.
 
+`getEngineStatus()` returns `EngineStatus { enabled, executorCount, watcherScheduled }` in one round trip. `getStatusByProcessor()` counts rows per group only (one query row per group); per-processor statistics come from `getJobDescriptionInfos()`.
+
 ---
 
 ## Operator Scripts
