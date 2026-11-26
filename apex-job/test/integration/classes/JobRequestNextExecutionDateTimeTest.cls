@@ -1,6 +1,7 @@
 @IsTest
 private class JobRequestNextExecutionDateTimeTest {
   private static final Integer MILLIS_PER_SECOND = 1000;
+  private static final String STAMP_MESSAGE = 'NextExecutionDateTime__c should be stamped between the insert and the re-query';
 
   @IsTest
   private static void givenBuilderWithoutScheduleAt_whenSave_thenNextExecutionDateTimeIsStamped() {
@@ -12,7 +13,7 @@ private class JobRequestNextExecutionDateTimeTest {
     final JobRequest__c saved = ApexJobManager.request().forDescription(description.Id).save();
 
     // Assert
-    assertStamped(saved.Id, lowerBound);
+    Assert.isTrue(isStampedSince(saved.Id, lowerBound), STAMP_MESSAGE);
   }
 
   @IsTest
@@ -26,7 +27,7 @@ private class JobRequestNextExecutionDateTimeTest {
     insert request;
 
     // Assert
-    assertStamped(request.Id, lowerBound);
+    Assert.isTrue(isStampedSince(request.Id, lowerBound), STAMP_MESSAGE);
   }
 
   @IsTest
@@ -42,7 +43,7 @@ private class JobRequestNextExecutionDateTimeTest {
       insert request;
 
       // Assert
-      assertStamped(request.Id, lowerBound);
+      Assert.isTrue(isStampedSince(request.Id, lowerBound), STAMP_MESSAGE);
     }
   }
 
@@ -77,11 +78,8 @@ private class JobRequestNextExecutionDateTimeTest {
     return Datetime.newInstance(now.getTime() - Math.mod(now.getTime(), MILLIS_PER_SECOND));
   }
 
-  private static void assertStamped(final Id requestId, final Datetime lowerBound) {
-    final JobRequest__c stored = [SELECT NextExecutionDateTime__c FROM JobRequest__c WHERE Id = :requestId];
-    final Datetime upperBound = Datetime.now();
-    Assert.isNotNull(stored.NextExecutionDateTime__c, 'NextExecutionDateTime__c should be stamped on insert');
-    Assert.isTrue(stored.NextExecutionDateTime__c >= lowerBound, 'Stamp should not precede the insert');
-    Assert.isTrue(stored.NextExecutionDateTime__c <= upperBound, 'Stamp should not follow the re-query');
+  private static Boolean isStampedSince(final Id requestId, final Datetime lowerBound) {
+    final Datetime stamp = [SELECT NextExecutionDateTime__c FROM JobRequest__c WHERE Id = :requestId].NextExecutionDateTime__c;
+    return stamp != null && stamp >= lowerBound && stamp <= Datetime.now();
   }
 }
