@@ -489,12 +489,11 @@ Settled in `docs/RULINGS.md`; this design implements them as written.
 - R-012 — one named predicate requires chunk-total deviation above the floor and relative deviation above `VariationResetThreshold__c`, for both branches (item 6).
 - R-013 — LWC changes verified by `sfdx-lwc-jest` fake-timer tests plus one manual scratch-org network check (item 7).
 - R-014 — `CONTRIBUTING.md` documents deploying Apex Mockery from source at tag `v2.3.0` before deploying `apex-job/test` (test strategy).
+- R-015 — `config/project-scratch-def.json` sets `"language": "en_US"` so the suite runs under an English admin user (test strategy).
 
 ## Decision candidates
 
-| # | Choice | Alternatives (≤3) | Recommendation | Why |
-|---|---|---|---|---|
-| DC-1 | How the en_US requirement on the test user is held (two existing test classes depend on it, see Test strategy) | A. Add `"language": "en_US"` to `config/project-scratch-def.json` · B. A `CONTRIBUTING.md` line next to the R-014 step: create the scratch org with an en_US admin user · C. Leave it to whoever creates the org | B | B documents the condition the suite actually needs, at no risk. A is not pinned: whether the scratch-def `language` key also sets the admin user's language and locale was not measured, so A is acceptable only after one scratch org created from it shows an en_US user. C keeps the two tests locale-fragile. |
+None open. DC-1 (how the en_US test user is held) was ruled R-015: `config/project-scratch-def.json` gains `"language": "en_US"`, pinned by a scratch org created from it.
 
 ## Test strategy
 
@@ -511,7 +510,7 @@ Settled in `docs/RULINGS.md`; this design implements them as written.
   - The field default, the formula, trigger, Batch and `@future` behaviour and the governor-limit accounting run as real-DML tests in `apex-job/test/integration/classes/JobRequestNextExecutionDateTimeTest.cls` and `JobRequestTriggerTest.cls`, because a field default, `System.isBatch()`, `System.isFuture()` and `Limits.*` cannot be mocked.
   - LWC polling runs under `npm run test:lwc` (R-013), locally, without an org.
 - **Test environment** (facts the suites depend on):
-  - The scratch org's running user must be en_US. `JobExecutorQueueableSpawnerTest.cls:74`, `:92` and `:110` assert English platform exception messages (none of the three strings exists in `apex-job/src`), and `AsyncProcessorTest.cls:15` looks up the profile by `Name = 'System Administrator'`, which is the English label. `config/project-scratch-def.json` sets no `language`; DC-1 covers how the requirement is held.
+  - The scratch org's running user must be en_US. `JobExecutorQueueableSpawnerTest.cls:74`, `:92` and `:110` assert English platform exception messages (none of the three strings exists in `apex-job/src`), and `AsyncProcessorTest.cls:15` looks up the profile by `Name = 'System Administrator'`, which is the English label. `config/project-scratch-def.json` gains `"language": "en_US"` (R-015).
   - Apex Mockery v2.3.0 is deployed from source at that tag before `apex-job/test` (R-014, documented in `CONTRIBUTING.md`).
 - **Edge matrix**:
 
