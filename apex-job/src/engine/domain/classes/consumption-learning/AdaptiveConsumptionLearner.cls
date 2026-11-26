@@ -59,8 +59,7 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
       this.job.put(model.base, usage);
       return false;
     }
-    final Decimal variation = Math.abs((usage - currentBase) / currentBase);
-    if (variation > this.job.VariationResetThreshold__c) {
+    if (this.isSignificantVariation(usage, currentBase, model.noiseFloor)) {
       return this.recordVariationHit();
     }
     this.job.put(model.base, inCooldown ? Math.max(currentBase, usage) : this.blend(currentBase, usage));
@@ -77,13 +76,19 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
       this.job.put(model.perItem, newPerItem);
       return false;
     }
-    final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
-    if (variation > this.job.VariationResetThreshold__c) {
+    final Integer itemsBeyondFirst = chunkSize - 1;
+    if (this.isSignificantVariation(newPerItem * itemsBeyondFirst, currentPerItem * itemsBeyondFirst, model.noiseFloor)) {
       return this.recordVariationHit();
     }
     this.job.put(model.perItem, inCooldown ? Math.max(currentPerItem, newPerItem) : this.blend(currentPerItem, newPerItem));
     this.job.ConsecutiveVariationCount__c = 0;
     return false;
+  }
+
+  @TestVisible
+  private Boolean isSignificantVariation(final Decimal observed, final Decimal expected, final Decimal noiseFloor) {
+    final Decimal relativeLimit = this.job.VariationResetThreshold__c * expected;
+    return Math.abs(observed - expected) > Math.max(noiseFloor, relativeLimit);
   }
 
   private Boolean isInKillCooldown() {

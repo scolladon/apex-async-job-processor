@@ -391,7 +391,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Failure: safety -0.05, track `ConsecutiveFailures__c` and `SmallestFailingChunk__c`.
  - Kill: penalize `Base` and `PerItem` by 1.1, lower safety. Reset if failures reach configured max.
  - Per-dimension base/per-item updates use an **EWMA blend** (`α·observed + (1−α)·current`, α = `LearningRate__c`, default 0.30) — smooth adaptation instead of a hard `max()` ratchet that outliers could stick permanently.
- - Observations whose variation exceeds `VariationResetThreshold__c` are not assimilated; instead `ConsecutiveVariationCount__c` increments. A full model reset fires only once the counter reaches `VariationResetCount__c` (default 3), so a single noisy sample can no longer wipe months of learning.
+ - Observations whose variation exceeds `VariationResetThreshold__c`, and only when the absolute deviation of the chunk total also exceeds the dimension's noise floor, are not assimilated; instead `ConsecutiveVariationCount__c` increments. A full model reset fires only once the counter reaches `VariationResetCount__c` (default 3), so a single noisy sample can no longer wipe months of learning.
  - After a `KILL` or `FAILURE` (which zeroes `SuccessStreak__c`), the next `KillCooldownCount__c` successful chunks (default 3) still fall back to `Math.max` semantics so the post-kill `base × 1.1` / `perItem × 1.1` inflation stays sticky until the smaller chunk size is proven safe. Once the streak catches up, EWMA resumes.
  - Safety floor still triggers a reset (safety would drop below `MIN_SAFETY = 0.5`).
  - Per-item update applies when chunk size > 1; when chunk size == 1, update base only.

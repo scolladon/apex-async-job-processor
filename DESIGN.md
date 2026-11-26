@@ -459,7 +459,7 @@ DEFAULT_KILL_COOLDOWN_COUNT   = 3     (consecutive successes before EWMA resumes
 4. Per dimension:
    - If the current learned value is unknown (sentinel `0`) → **cold start**: set it directly to the observed value.
    - Else, compute the variation relative to current:
-     - If above `VariationResetThreshold__c` → it is **not** assimilated; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
+     - If the relative variation is above `VariationResetThreshold__c` **and** the absolute chunk-total deviation is above the dimension's noise floor (`ConsumptionModel.noiseFloor`: 5 ms CPU, 4,096 B heap, 5 ms callout time, 1 for counters) → it is **not** assimilated. For the per-item value the deviation is `|newPerItem − currentPerItem| × (chunkSize − 1)`; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
      - Otherwise (within threshold), **assimilate** depending on the post-failure cooldown window:
        - If `SuccessStreak__c < KillCooldownCount__c` → **cooldown active**: `Math.max(current, observed)` — keeps the just-inflated post-kill ceiling sticky so a single recovery chunk cannot blend it back down; this defeats the pre-remediation scenario where EWMA eroded kill penalties after 2–3 observations and re-invited the same kill.
        - Else → **EWMA blend**: `newValue = α·observed + (1−α)·current`, where α = `LearningRate__c` (default `0.30`). Smoothly absorbs small variations instead of permanently latching outliers like the old pure `max()` approach did.
@@ -684,7 +684,7 @@ Once any chunk of size N fails, `SmallestFailingChunk = N` and the calculator en
 
 ### Variation Reset Threshold with N-of-N Counter
 
-If an observation diverges from the learned model by more than `VariationResetThreshold__c` (default 30%) the sample is **not** blended in — instead `ConsecutiveVariationCount__c` increments. The model is reset only once the counter reaches `VariationResetCount__c` (default 3). A single outlier (cold cache, one-off cascade) is tolerated and can no longer wipe the model; sustained workload drift still triggers a reset and re-enables the bootstrap probe. Any within-threshold observation clears the counter.
+If an observation diverges from the learned model by more than `VariationResetThreshold__c` (default 30%) **and** the absolute deviation of the chunk total exceeds the dimension's noise floor, the sample is **not** blended in — instead `ConsecutiveVariationCount__c` increments. The model is reset only once the counter reaches `VariationResetCount__c` (default 3). A single outlier (cold cache, one-off cascade) is tolerated and can no longer wipe the model; sustained workload drift still triggers a reset and re-enables the bootstrap probe. Any within-threshold observation clears the counter. The noise-floor conjunction exists because readings at the measurement floor of cheap jobs (e.g. 1 ms of CPU over a 50-item chunk) can swing by 100 % relative while carrying no real information, so they no longer count as variation.
 
 ### Post-Kill `Math.max` Cooldown
 
