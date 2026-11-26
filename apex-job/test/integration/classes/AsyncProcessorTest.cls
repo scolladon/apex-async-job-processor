@@ -1,5 +1,17 @@
 @IsTest
 public class AsyncProcessorTest {
+  private static List<String> recordedMessages = new List<String>();
+
+  public class RecordingLogger implements ApexJobLogger {
+    public void debug(final String message) {
+      recordedMessages.add('DEBUG:' + message);
+    }
+
+    public void error(final String message) {
+      recordedMessages.add('ERROR:' + message);
+    }
+  }
+
   @TestSetup
   static void setup() {
     TestDataFactory.createUserWithTriggerBypass();
@@ -444,9 +456,50 @@ public class AsyncProcessorTest {
   }
 
   @IsTest
+  private static void givenLoggerClassNameConfigured_whenExecutorRunsInQueueableAndFinalizer_thenConfiguredLoggerReceivesBoth() {
+    // Arrange
+    System.runAs(getRunningUser()) {
+      insert as system new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);
+
+      insert as system new JobRequest__c(
+        Name = 'NormalPriorityJob1',
+        Argument__c = '{"test": "data2"}',
+        Enabled__c = true,
+        Status__c = ApexJobStatus.READY.name(),
+        NextExecutionDateTime__c = System.now().addMinutes(-10),
+        LastExecutionDateTime__c = null,
+        AttemptNumber__c = 0,
+        JobDescription__r = new JobDescription__c(ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor')
+      );
+
+      insert as system new ApexJobConfig__c(Enabled__c = true, LoggerClassName__c = 'AsyncProcessorTest.RecordingLogger');
+      final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(new ApexJobFactoryForTest());
+
+      // Act
+      Test.startTest();
+      System.enqueueJob(sut);
+      Test.stopTest();
+
+      // Assert
+      Assert.areEqual(1, countStartingWith(recordedMessages, 'DEBUG:Job executed: '), 'The Queueable should log through the configured logger');
+      Assert.areEqual(1, countStartingWith(recordedMessages, 'DEBUG:Enqueued AsyncApexJobExecutor.execute() again in '), 'The Finalizer should log through the configured logger');
+    }
+  }
+
+  private static Integer countStartingWith(final List<String> messages, final String prefix) {
+    Integer count = 0;
+    for (String message : messages) {
+      if (message.startsWith(prefix)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  @IsTest
   private static void givenSystemEnabled_whenSpawnerThrows_thenLogsError() {
     // Arrange
-    final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true);
+    final ApexJobConfig__c config = new ApexJobConfig__c(Enabled__c = true, LoggerClassName__c = 'AsyncProcessorTest.RecordingLogger');
     insert as system config;
     ApexJobFactoryForTest factory = new ApexJobFactoryForTest();
     MethodSpy enqueueSpy = factory.spawnerMock.spyOn('enqueue');
@@ -466,6 +519,8 @@ public class AsyncProcessorTest {
       WITH SYSTEM_MODE
     ];
     Assert.areEqual(initialJobId, jobs[0].Id, 'Expected exactly 1 AsyncApexJob record (initial).');
+    Assert.isTrue(recordedMessages.contains('DEBUG:AsyncJob: Error while enqueuing AsyncApexJobExecutor, engine killed'), 'Kill line should reach the configured logger: ' + recordedMessages);
+    Assert.isTrue(recordedMessages.contains('ERROR:Test error'), 'Error should reach the configured logger: ' + recordedMessages);
   }
 
   @IsTest
