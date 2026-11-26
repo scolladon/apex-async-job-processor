@@ -338,7 +338,7 @@ LIMIT 50
 
 `recordJobExecution()` runs in the Finalizer. Uses `Database.update(records, false)` and `Database.delete(successJobs, false)` — `allOrNone: false` is deliberate because partial success beats total failure in the Finalizer context.
 
-`JobIds__c` accumulation: appends the 15-char async job ID to a semicolon-delimited string, trimming oldest entries when exceeding 131,072 characters.
+`JobIds__c` accumulation: appends the 15-char async job ID to a semicolon-delimited string, and keeps only the last 20 ids.
 
 ### JobExecutorQueueableSpawner
 

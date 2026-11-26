@@ -330,6 +330,41 @@ private class JobRepositoryImplTest {
     Assert.areEqual(shortId + ';' + anotherShortId, updatedJob.JobIds__c, 'JobIds__c should be appended with 15-char IDs');
   }
 
+  @IsTest
+  static void givenJobIdsAtCapacity_whenRecordJobExecution_thenOldestDroppedAndNewestAppended() {
+    // Arrange
+    final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').enabled().withMaxChunkSize(-1).build();
+    insert jobDesc;
+    final List<String> existingIds = new List<String>();
+    for (Integer i = 0; i < 20; ++i) {
+      existingIds.add(String.valueOf(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)).left(15));
+    }
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob').withJobDescription(jobDesc.Id).failure().enabled().build();
+    jobRequest.JobDescription__r = jobDesc;
+    jobRequest.JobIds__c = String.join(existingIds, ';');
+    insert jobRequest;
+
+    final ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
+    mockResult.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
+    final List<JobExecuted> testJobsExecuted = new List<JobExecuted>{
+      new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequest }), mockResult)
+    };
+    final JobRepository sut = new JobRepositoryImpl();
+    final Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType);
+
+    // Act
+    Test.startTest();
+    sut.recordJobExecution(testJobsExecuted, new TestFinalizerContext(asyncJobId));
+    Test.stopTest();
+
+    // Assert
+    final List<String> result = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id].JobIds__c.split(';');
+    Assert.areEqual(20, result.size(), 'Should keep only the last 20 ids');
+    Assert.areNotEqual(existingIds[0], result[0], 'Oldest id should be dropped');
+    Assert.areEqual(existingIds[1], result[0], 'Second oldest id should now be first');
+    Assert.areEqual(String.valueOf(asyncJobId).left(15), result[19], 'Newest id should be appended last');
+  }
+
   private class TestFinalizerContext implements FinalizerContext {
     private Id asyncJobId;
     public TestFinalizerContext(Id asyncJobId) {
