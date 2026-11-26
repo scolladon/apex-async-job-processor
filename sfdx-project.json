@@ -12,5 +12,5 @@
 	"name": "async-processor",
 	"namespace": "",
 	"sfdcLoginUrl": "https://login.salesforce.com",
-	"sourceApiVersion": "65.0"
+	"sourceApiVersion": "68.0"
 }
