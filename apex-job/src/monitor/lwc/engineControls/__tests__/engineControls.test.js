@@ -29,8 +29,11 @@ const captureToasts = (element) => {
 };
 
 describe("c-engine-controls", () => {
+  let clientRects;
+
   beforeEach(() => {
     jest.useFakeTimers();
+    clientRects = jest.spyOn(Element.prototype, "getClientRects").mockReturnValue([{}]);
     getEngineStatus.mockResolvedValue(HEALTHY_STATUS);
   });
 
@@ -39,6 +42,7 @@ describe("c-engine-controls", () => {
       document.body.removeChild(document.body.firstChild);
     }
     jest.clearAllMocks();
+    clientRects.mockRestore();
     jest.useRealTimers();
   });
 
@@ -221,5 +225,33 @@ describe("c-engine-controls", () => {
 
     // Assert
     expect(toasts).toEqual([{ title: "Restart failed", message: "Unexpected error", variant: "error" }]);
+  });
+
+  it("givenHostHidden_whenIntervalElapses_thenNoApexCall", async () => {
+    // Arrange
+    mount();
+    await jest.advanceTimersByTimeAsync(0);
+    clientRects.mockReturnValue([]);
+
+    // Act
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+    // Assert
+    expect(getEngineStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it("givenHostVisibleAgain_whenIntervalElapses_thenPollingResumes", async () => {
+    // Arrange
+    mount();
+    await jest.advanceTimersByTimeAsync(0);
+    clientRects.mockReturnValue([]);
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    clientRects.mockReturnValue([{}]);
+
+    // Act
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+    // Assert
+    expect(getEngineStatus).toHaveBeenCalledTimes(2);
   });
 });

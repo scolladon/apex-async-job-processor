@@ -1,4 +1,5 @@
 import { LightningElement, wire } from "lwc";
+import { isHostVisible } from "c/hostVisibility";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import Manage_Async_Job_Engine from "@salesforce/customPermission/Manage_Async_Job_Engine";
 import getEngineStatus from "@salesforce/apex/JobMonitorController.getEngineStatus";
@@ -39,7 +40,9 @@ export default class EngineControls extends LightningElement {
 
   async poll() {
     try {
-      await this.refresh();
+      if (isHostVisible(this.template.host)) {
+        await this.refresh();
+      }
     } catch (error) {
       console.error("engineControls: refresh failed", error);
     } finally {

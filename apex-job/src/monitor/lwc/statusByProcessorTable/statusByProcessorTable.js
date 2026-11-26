@@ -1,4 +1,5 @@
 import { LightningElement } from "lwc";
+import { isHostVisible } from "c/hostVisibility";
 import getStatusByProcessor from "@salesforce/apex/JobMonitorController.getStatusByProcessor";
 import getJobDescriptionInfos from "@salesforce/apex/JobMonitorController.getJobDescriptionInfos";
 
@@ -45,7 +46,9 @@ export default class StatusByProcessorTable extends LightningElement {
 
   async poll() {
     try {
-      await this.refresh();
+      if (isHostVisible(this.template.host)) {
+        await this.refresh();
+      }
     } catch (error) {
       console.error("statusByProcessorTable: refresh failed", error);
     } finally {

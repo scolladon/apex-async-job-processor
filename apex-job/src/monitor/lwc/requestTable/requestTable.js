@@ -1,4 +1,5 @@
 import { LightningElement } from "lwc";
+import { isHostVisible } from "c/hostVisibility";
 import getJobRequestPage from "@salesforce/apex/JobMonitorController.getJobRequestPage";
 
 const POLL_INTERVAL_MS = 2000;
@@ -63,7 +64,9 @@ export default class RequestTable extends LightningElement {
 
   async poll() {
     try {
-      await this.refresh();
+      if (isHostVisible(this.template.host)) {
+        await this.refresh();
+      }
     } catch (error) {
       console.error("requestTable: refresh failed", error);
     } finally {

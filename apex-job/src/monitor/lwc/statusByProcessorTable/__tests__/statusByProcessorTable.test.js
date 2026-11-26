@@ -17,8 +17,11 @@ const mount = () => {
 const datatable = (sut) => sut.shadowRoot.querySelector("lightning-datatable");
 
 describe("c-status-by-processor-table", () => {
+  let clientRects;
+
   beforeEach(() => {
     jest.useFakeTimers();
+    clientRects = jest.spyOn(Element.prototype, "getClientRects").mockReturnValue([{}]);
     getStatusByProcessor.mockResolvedValue([]);
     getJobDescriptionInfos.mockResolvedValue([]);
   });
@@ -28,6 +31,7 @@ describe("c-status-by-processor-table", () => {
       document.body.removeChild(document.body.firstChild);
     }
     jest.clearAllMocks();
+    clientRects.mockRestore();
     jest.useRealTimers();
   });
 
@@ -153,5 +157,33 @@ describe("c-status-by-processor-table", () => {
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError).toHaveBeenCalledWith("statusByProcessorTable: refresh failed", failure);
     consoleError.mockRestore();
+  });
+
+  it("givenHostHidden_whenIntervalElapses_thenNoApexCall", async () => {
+    // Arrange
+    mount();
+    await jest.advanceTimersByTimeAsync(0);
+    clientRects.mockReturnValue([]);
+
+    // Act
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+    // Assert
+    expect(getStatusByProcessor).toHaveBeenCalledTimes(1);
+  });
+
+  it("givenHostVisibleAgain_whenIntervalElapses_thenPollingResumes", async () => {
+    // Arrange
+    mount();
+    await jest.advanceTimersByTimeAsync(0);
+    clientRects.mockReturnValue([]);
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+    clientRects.mockReturnValue([{}]);
+
+    // Act
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+    // Assert
+    expect(getStatusByProcessor).toHaveBeenCalledTimes(2);
   });
 });
