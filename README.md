@@ -165,9 +165,9 @@ Same backlog, drained by one disciplined executor instead of a swarm — plus a 
 
  File: [ApexJobManager](apex-job/src/engine/application/ApexJobManager.cls)
 
- - Job Description builder: `define()` → chain `processor(String)`, `priority(Integer)`, `minInterval(Integer)`, `maxAttempts(Integer)`, `recurrent()`, `allowedOn(List<String>)`, `allowedBetween(Time, Time)`, then `save()`. Without `scheduleAt`, the request is due as soon as it is inserted (`NextExecutionDateTime__c` defaults to `NOW()`).
+ - Job Description builder: `define()` → chain `processor(String)`, `priority(Integer)`, `minInterval(Integer)`, `maxAttempts(Integer)`, `recurrent()`, `allowedOn(List<String>)`, `allowedBetween(Time, Time)`, then `save()`.
  - Manage descriptions: `enableJobDescription(Id|String)`, `disableJobDescription(Id|String)`, `resetConsumptionModel(String processorName)`.
- - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`. A request runs when `NextExecutionDateTime__c <= now`; a `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
+ - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`. Without `scheduleAt`, the request is due as soon as it is inserted (`NextExecutionDateTime__c` defaults to `NOW()`). A request runs when `NextExecutionDateTime__c <= now`; a `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
  - Manage requests: `enableJobRequest(Id)`, `disableJobRequest(Id)`.
 
  Your Apex processor implements [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls) and returns [ApexJobResult](apex-job/src/engine/domain/classes/ApexJobResult.cls). Context arrives in `ApexJobContext.arguments`.

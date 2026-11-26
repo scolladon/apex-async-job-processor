@@ -296,7 +296,7 @@ Tracks 18 governor limit dimensions. `startSnapshot()` / `stopSnapshot()` measur
 
 ### ApexJobTransactionContext
 
-Static singleton holding a `hasExecutedJobs` boolean and a `hasAttemptedWakeUp` boolean set by `JobExecutorQueueableSpawner.wakeUp()` so the insert trigger attempts at most one wake-up per transaction. Set to `true` after the first chunk executes. Consumed by `JobSelectorImpl` to control whether unknown-model jobs (`MaxChunkSize = -1`) are included in the candidate query.
+Static singleton holding two per-transaction booleans. `hasExecutedJobs` is set to `true` after the first chunk executes and is consumed by `JobSelectorImpl` to control whether unknown-model jobs (`MaxChunkSize = -1`) are included in the candidate query. `hasAttemptedWakeUp` is set by `JobExecutorQueueableSpawner.wakeUp()` so the insert trigger attempts at most one wake-up per transaction.
 
 ### ApexJobConfigService
 
