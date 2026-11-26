@@ -42,6 +42,13 @@ public without sharing class TestDataFactory {
     insert as system new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = permissionSet.Id);
   }
 
+  // Runs as the test's own user so record DML after a setup-object insert avoids MIXED_DML_OPERATION
+  public static void insertAsAdmin(final List<SObject> records) {
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      insert as system records;
+    }
+  }
+
   private static User insertAdminUser() {
     final User runningUser = new User(
       FirstName = 'Test',

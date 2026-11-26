@@ -21,7 +21,7 @@ private class JobExecutorServiceImplTest {
       result = sut.isRunning(null);
     }
     // Assert
-    Assert.areEqual(false, result);
+    Assert.isFalse(result, 'Should report no running executor');
   }
 
   private class DummyQueueable implements Queueable {

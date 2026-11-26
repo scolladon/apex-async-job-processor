@@ -9,6 +9,8 @@ private class JobMonitorControllerTest {
   private static final Integer SUCCESS_STREAK = 7;
   private static final Integer CONSECUTIVE_FAILURES = 2;
   private static final Datetime LAST_EXECUTION = Datetime.newInstanceGmt(2026, 1, 15, 10, 30, 0);
+  private static final String MANAGE_ENGINE_PERMISSION = 'Manage_Async_Job_Engine';
+  private static final String ADMIN_PERMISSION_SET = 'AdminAsyncJob';
 
   @IsTest
   static void givenDeletedRunnableRequest_whenGetJobRequestPage_thenDeletedRequestIsNotReturned() {
@@ -118,8 +120,7 @@ private class JobMonitorControllerTest {
 
   private static User createEngineManager() {
     final User manager = TestDataFactory.createUserWithTriggerBypass();
-    final PermissionSet adminPermissionSet = [SELECT Id FROM PermissionSet WHERE Name = 'AdminAsyncJob' WITH SYSTEM_MODE];
-    insert as system new PermissionSetAssignment(AssigneeId = manager.Id, PermissionSetId = adminPermissionSet.Id);
+    TestDataFactory.assignPermissionSet(manager.Id, ADMIN_PERMISSION_SET);
     return manager;
   }
 
@@ -127,11 +128,11 @@ private class JobMonitorControllerTest {
   static void givenEnabledEngineAndManagePermission_whenPauseEngine_thenEngineDisabledAndTrueReturned() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
 
     // Act
     Boolean result;
     System.runAs(manager) {
-      insert as system new ApexJobConfig__c(Enabled__c = true);
       result = JobMonitorController.pauseEngine();
     }
 
@@ -144,11 +145,11 @@ private class JobMonitorControllerTest {
   static void givenDisabledEngineAndManagePermission_whenResumeEngine_thenEngineEnabledAndTrueReturned() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
 
     // Act
     Boolean result;
     System.runAs(manager) {
-      insert as system new ApexJobConfig__c(Enabled__c = false);
       result = JobMonitorController.resumeEngine();
     }
 
@@ -161,11 +162,11 @@ private class JobMonitorControllerTest {
   static void givenDisabledEngineAndManagePermission_whenRestartEngine_thenNothingEnqueued() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
 
     // Act
     Id result;
     System.runAs(manager) {
-      insert as system new ApexJobConfig__c(Enabled__c = false);
       result = JobMonitorController.restartEngine();
     }
 
@@ -177,12 +178,12 @@ private class JobMonitorControllerTest {
   static void givenEnabledEngineAndManagePermission_whenRestartEngine_thenExecutorEnqueued() {
     // Arrange
     final User manager = createEngineManager();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
 
     // Act
     Test.startTest();
     Id result;
     System.runAs(manager) {
-      insert as system new ApexJobConfig__c(Enabled__c = true);
       result = JobMonitorController.restartEngine();
     }
 
@@ -196,11 +197,11 @@ private class JobMonitorControllerTest {
   static void givenNoManagePermission_whenPauseResumeOrRestartEngine_thenAuthorizationExceptionThrown() {
     // Arrange
     final User nonManager = TestDataFactory.createUserWithTriggerBypass();
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
     final List<String> failures = new List<String>();
 
     // Act
     System.runAs(nonManager) {
-      insert as system new ApexJobConfig__c(Enabled__c = true);
       try {
         JobMonitorController.pauseEngine();
       } catch (JobMonitorController.AuthorizationException ex) {
@@ -225,16 +226,8 @@ private class JobMonitorControllerTest {
 
   private static JobDescription__c insertDescriptionAsAdmin(final String processorName) {
     final JobDescription__c description = ApexJobTestFixture.aJobDescription().withProcessorName(processorName).withMaxChunkSize(MAX_CHUNK_SIZE).build();
-    System.runAs(new User(Id = UserInfo.getUserId())) {
-      insert as system description;
-    }
+    TestDataFactory.insertAsAdmin(new List<SObject>{ description });
     return description;
-  }
-
-  private static void insertAsAdmin(final List<SObject> records) {
-    System.runAs(new User(Id = UserInfo.getUserId())) {
-      insert as system records;
-    }
   }
 
   @IsTest
@@ -243,7 +236,7 @@ private class JobMonitorControllerTest {
     final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
     final JobDescription__c description = insertDescriptionAsAdmin('MonitorPage');
     final JobRequest__c request = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
-    insertAsAdmin(new List<SObject>{ request });
+    TestDataFactory.insertAsAdmin(new List<SObject>{ request });
 
     // Act
     List<JobRequest__c> result;
@@ -266,7 +259,7 @@ private class JobMonitorControllerTest {
       requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build());
       requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).failure().build());
     }
-    insertAsAdmin(requests);
+    TestDataFactory.insertAsAdmin(requests);
 
     // Act
     List<Map<String, Object>> result;
@@ -299,10 +292,13 @@ private class JobMonitorControllerTest {
   }
 
   @IsTest
-  static void givenMinimumAccessUserAndEnabledEngine_whenGetEngineStatus_thenReportsEngineState() {
+  static void givenMinimumAccessUserAndJobsQueuedByAdmin_whenGetEngineStatus_thenCountsThem() {
     // Arrange
     final User minimumAccessUser = TestDataFactory.createMinimumAccessUser();
-    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
+    Test.startTest();
+    final Id executorId = System.enqueueJob(new AsyncApexJobExecutor());
+    ApexJobWatcher.schedule();
 
     // Act
     JobMonitorController.EngineStatus result;
@@ -311,16 +307,17 @@ private class JobMonitorControllerTest {
     }
 
     // Assert
-    Assert.isTrue(result.enabled, 'Should report the engine enabled');
-    Assert.areEqual(0, result.executorCount, 'Should report no executor');
-    Assert.isFalse(result.watcherScheduled, 'Should report no watcher');
+    Assert.isFalse(result.enabled, 'Should report the engine disabled');
+    Assert.areEqual(1, result.executorCount, 'Should count the executor queued by another user');
+    Assert.isTrue(result.watcherScheduled, 'Should report the watcher scheduled by another user');
+    System.abortJob(executorId);
   }
 
   @IsTest
   static void givenMinimumAccessUserWithManagePermission_whenPauseEngine_thenEngineDisabled() {
     // Arrange
-    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission('Manage_Async_Job_Engine');
-    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission(MANAGE_ENGINE_PERMISSION);
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
 
     // Act
     Boolean result;
@@ -336,8 +333,8 @@ private class JobMonitorControllerTest {
   @IsTest
   static void givenMinimumAccessUserWithManagePermission_whenResumeEngine_thenEngineEnabled() {
     // Arrange
-    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission('Manage_Async_Job_Engine');
-    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission(MANAGE_ENGINE_PERMISSION);
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = false) });
 
     // Act
     Boolean result;
@@ -353,8 +350,8 @@ private class JobMonitorControllerTest {
   @IsTest
   static void givenMinimumAccessUserWithManagePermissionAndEnabledEngine_whenRestartEngine_thenExecutorEnqueued() {
     // Arrange
-    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission('Manage_Async_Job_Engine');
-    insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
+    final User minimumAccessUser = TestDataFactory.createMinimumAccessUserWithCustomPermission(MANAGE_ENGINE_PERMISSION);
+    TestDataFactory.insertAsAdmin(new List<SObject>{ new ApexJobConfig__c(Enabled__c = true) });
 
     // Act
     Test.startTest();

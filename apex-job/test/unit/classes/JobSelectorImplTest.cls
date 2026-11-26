@@ -182,9 +182,9 @@ private class JobSelectorImplTest {
       result = sut.getEligibleJobs(new List<Id>());
     }
     // Assert
-    Assert.areEqual(2, result.size());
-    Assert.areEqual('HighPriorityJob1', result[0].Name);
-    Assert.areEqual('NormalPriorityJob1', result[1].Name);
+    Assert.areEqual(2, result.size(), 'Should return both eligible jobs');
+    Assert.areEqual('HighPriorityJob1', result[0].Name, 'Should return the high priority job first');
+    Assert.areEqual('NormalPriorityJob1', result[1].Name, 'Should return the normal priority job second');
   }
 
   @IsTest
