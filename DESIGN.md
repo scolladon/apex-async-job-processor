@@ -672,6 +672,20 @@ The Finalizer is the last opportunity to persist results. Using `allOrNone: fals
 
 The Queueable runs user code; the Finalizer persists results and re-enqueues. This separation is necessary because DML after a callout-containing transaction can fail, and governor limits reset between phases.
 
+### One Chunk per Description per Transaction
+
+A description gets at most one chunk of at most 50 requests per transaction. `JobRepositoryImpl.extractDescriptionIds` feeds the descriptions already executed into `JobSelectorImpl`, which excludes them (`JobDescription__c NOT IN :jobDescriptionIdsToExclude`) and caps rows at `ApexJobConstant.DEFAULT_MAX_CHUNK_SIZE`.
+
+**Cost** (Developer Edition scratch org, 2026-11-25): 1,000 no-op jobs take 25 transactions and 24-47 s, using about 21 ms of the 60,000 ms CPU budget per transaction. A one-transaction prototype did the same work in about 3.2 s.
+
+**Why it stays:**
+
+- The rate counter is written only in the finalizer (`JobExecuted.updateRateLimitCounter`) and read by `AdaptiveChunkCalculator.remainingRateBudget`, so several chunks in one transaction would read a stale counter.
+- The consumption learner runs in the finalizer, so later chunks would size against an un-updated model.
+- Every eligible description gets a turn.
+- A failing finalizer would lose up to about 5,000 recordings instead of 50.
+- Executed requests stay on the heap until the finalizer.
+
 ### Bootstrap Single-Item Probe
 
 When `MaxChunkSize__c == -1`, the system runs exactly 1 item. This establishes the `base` measurement. Only after `chunkSize > 1` runs does `perItem` get learned. This cold-start strategy ensures the system never over-commits on an unknown workload.
