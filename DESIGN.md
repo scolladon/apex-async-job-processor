@@ -151,7 +151,8 @@ A request runs when `NextExecutionDateTime__c <= now`; leave the field unset on 
 
 ```
 External trigger (ApexJobWatcher scheduled job or JobRequest insert trigger)
-     │
+     │   JobRequestAfterInsert → JobExecutorQueueableSpawner.wakeUp()
+     │   (once per transaction; skipped in Batch/@future) → enqueue(0)
      ▼
 JobExecutorQueueableSpawner.enqueue()
      │ (DuplicateSignature prevents double-enqueue)
@@ -746,6 +747,6 @@ apex-job/
 │       └── tabs/              (Job_Monitor_Console)
 └── test/
     ├── unit/                  (17 test classes + helpers)
-    ├── integration/           (4 test classes)
+    ├── integration/           (5 test classes)
     └── functional/            (6 test classes + test data)
 ```

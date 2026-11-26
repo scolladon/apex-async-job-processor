@@ -279,7 +279,7 @@ File: [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls)
 - `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
 - Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
 - Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`. A `null` `NextExecutionDateTime__c` on a `READY`/`FAILURE`/`KILLED` row means not scheduled.
-- Bypass `JobRequest__c` after insert trigger via the `Bypass_JobRequest_Trigger` custom permission.
+- Bypass `JobRequest__c` after insert trigger via the `Bypass_JobRequest_Trigger` custom permission. The trigger attempts at most one wake-up per transaction and none from Batch or `@future`.
 
 ## Monitoring console
 
@@ -340,7 +340,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
 ```text
  new JobRequest__c ─(trigger)─┐        ┌─ ApexJobWatcher ─ every 5 min,
                               ▼        │   re-arms the chain only if it died
-                          Spawner ◀────┘
+                          Spawner ◀────┘   (trigger: wake-up once per transaction)
                               │  enqueueJob ×1   (DuplicateSignature = no doubles)
                               ▼
  ╔════════════ QUEUEABLE transaction ═════════════╗
