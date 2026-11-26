@@ -1,5 +1,17 @@
 @IsTest
 private class ApexJobFactoryImplTest {
+  private static List<String> recordedMessages = new List<String>();
+
+  public class RecordingLogger implements ApexJobLogger {
+    public void debug(final String message) {
+      recordedMessages.add(message);
+    }
+
+    public void error(final String message) {
+      recordedMessages.add(message);
+    }
+  }
+
   @IsTest
   static void givenFactoryImpl_whenGetLogger_thenReturnsApexJobLoggerImpl() {
     // Arrange
@@ -11,6 +23,19 @@ private class ApexJobFactoryImplTest {
     // Assert
     Assert.isNotNull(result, 'Logger should not be null');
     Assert.isInstanceOfType(result, ApexJobLoggerImpl.class, 'Logger should be of type ApexJobLoggerImpl');
+  }
+
+  @IsTest
+  static void givenLoggerClassNameConfigured_whenGetLogger_thenDelegatesToConfiguredLogger() {
+    // Arrange
+    insert as system new ApexJobConfig__c(LoggerClassName__c = 'ApexJobFactoryImplTest.RecordingLogger');
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+
+    // Act
+    sut.getLogger().debug('probe');
+
+    // Assert
+    Assert.areEqual(new List<String>{ 'probe' }, recordedMessages, 'The configured logger should receive the line');
   }
 
   @IsTest

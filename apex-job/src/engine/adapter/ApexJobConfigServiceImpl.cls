@@ -19,6 +19,10 @@ public without sharing class ApexJobConfigServiceImpl implements ApexJobConfigSe
     return enqueueDelayInMinutes;
   }
 
+  public String getLoggerClassName() {
+    return this.getConfig()?.LoggerClassName__c;
+  }
+
   private ApexJobConfig__c getConfig() {
     return ApexJobConfig__c.getOrgDefaults();
   }

@@ -269,7 +269,7 @@ All services live under `apex-job/src/engine/service/`.
 `ApexJobFactory` interface with `ApexJobFactoryImpl` implementation. All instances are **static lazy singletons** — one per transaction, shared across the entire execution loop.
 
 ```
-getLogger()                → ApexJobLoggerImpl
+getLogger()                → class named by ApexJobConfig__c.LoggerClassName__c (fail-safe wrapped), else ApexJobLoggerImpl
 getSelector()              → JobSelectorImpl
 getRepository()            → JobRepositoryImpl
 getSpawner()               → JobExecutorQueueableSpawner
@@ -300,7 +300,7 @@ Static singleton holding two per-transaction booleans. `hasExecutedJobs` is set 
 
 ### ApexJobConfigService
 
-Reads `ApexJobConfig__c.getOrgDefaults()` on every call, so a change made earlier in the same transaction is seen (a custom setting read costs no SOQL). Provides `isSystemEnabled()` (global kill switch) and `getEnqueueDelayInMinutes()` (idle re-enqueue delay, considering business hours, clamped to [0, 10] minutes).
+Reads `ApexJobConfig__c.getOrgDefaults()` on every call, so a change made earlier in the same transaction is seen (a custom setting read costs no SOQL). Provides `isSystemEnabled()` (global kill switch), `getEnqueueDelayInMinutes()` (idle re-enqueue delay, considering business hours, clamped to [0, 10] minutes) and `getLoggerClassName()` (the configured logger class name, null when unset).
 
 ### JobExecutorService
 
@@ -356,6 +356,8 @@ Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to p
 | `JobExecutorFinalizerAttacherImpl` | Thin wrapper around `System.attachFinalizer()` for testability. |
 | `ApexJobConfigServiceImpl` | Reads `ApexJobConfig__c` custom setting + `BusinessHours` for off-hours delay. |
 | `ApexJobLoggerImpl` | Delegates to `System.debug()`. |
+| `ApexJobLoggerResolver` | Turns `LoggerClassName__c` into a logger; never throws, falls back to `ApexJobLoggerImpl` with one error line. |
+| `ApexJobFailSafeLogger` | Wraps the subscriber logger; a throw re-routes the line and the failure to `ApexJobLoggerImpl`. |
 | `JobDescriptionActionsController` | `with sharing`, `@AuraEnabled` bridge for the reset consumption model LWC action; reads `WITH USER_MODE`, so object and field access gate the action. |
 
 ---

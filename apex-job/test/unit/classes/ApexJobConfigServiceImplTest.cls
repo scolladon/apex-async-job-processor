@@ -151,4 +151,29 @@ private class ApexJobConfigServiceImplTest {
     // Assert
     Assert.isTrue(result <= maxDelay, 'Should allow maximum delay (10), got: ' + result);
   }
+
+  @IsTest
+  static void givenLoggerClassNameSet_whenGetLoggerClassName_thenReturnsIt() {
+    // Arrange
+    insert as system new ApexJobConfig__c(LoggerClassName__c = 'SomeLogger');
+    final ApexJobConfigServiceImpl sut = new ApexJobConfigServiceImpl();
+
+    // Act
+    final String result = sut.getLoggerClassName();
+
+    // Assert
+    Assert.areEqual('SomeLogger', result, 'The configured logger class name should be returned');
+  }
+
+  @IsTest
+  static void givenNoConfig_whenGetLoggerClassName_thenReturnsNull() {
+    // Arrange
+    final ApexJobConfigServiceImpl sut = new ApexJobConfigServiceImpl();
+
+    // Act
+    final String result = sut.getLoggerClassName();
+
+    // Assert
+    Assert.isNull(result, 'No configured logger class name should yield null');
+  }
 }
