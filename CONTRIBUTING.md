@@ -18,7 +18,11 @@ Thank you for considering a contribution! This project follows clean code, SOLID
    - Scratch org (example):
      - `sf org create scratch -f config/project-scratch-def.json -a dev -d 1`
      - `sf org open -o dev`
-4. Deploy
+4. Deploy Apex Mockery v2.3.0 from source before deploying `apex-job/test`
+   - `git clone --depth 1 --branch v2.3.0 https://github.com/salesforce/apex-mockery.git <apex-mockery-dir>`
+   - `sf project deploy start -d <apex-mockery-dir>/force-app/src -o <org-alias>`
+   - `force-app/src` is the package directory in that tag's `sfdx-project.json`. The scratch definition sets `"language": "en_US"` because some tests assert English platform messages.
+5. Deploy
    - `npm run build` (deploys `apex-job/` to the default org)
 
 ## Useful Scripts
@@ -26,6 +30,10 @@ Thank you for considering a contribution! This project follows clean code, SOLID
 - Build/Deploy: `npm run build`.
 - Unit tests: `npm run test:unit`.
 - Integration tests: `npm run test:integration`.
+- LWC tests (no org needed): `npm run test:lwc`.
+  - Coverage: `npm run test:lwc -- --coverage`.
+  - Filter by component or path pattern: `npm run test:lwc -- -- <component>` (the second `--` is required: wireit forwards the first, and sfdx-lwc-jest only hands positionals to Jest after its own `--`).
+  - Raw Jest flags go after the second `--`, e.g. `npm run test:lwc -- -- --passWithNoTests`.
 - Full test workflow: `npm test`.
 - Functional tests (optional):
   - `npm run test:functional:prepare-metadata`
