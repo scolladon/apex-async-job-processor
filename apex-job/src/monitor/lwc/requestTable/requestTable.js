@@ -1,5 +1,5 @@
-import { LightningElement } from 'lwc';
-import getJobRequestPage from '@salesforce/apex/JobMonitorController.getJobRequestPage';
+import { LightningElement } from "lwc";
+import getJobRequestPage from "@salesforce/apex/JobMonitorController.getJobRequestPage";
 
 export default class RequestTable extends LightningElement {
   rowValues = [];
@@ -10,22 +10,38 @@ export default class RequestTable extends LightningElement {
 
   get columns() {
     return [
-      { label: '#', fieldName: 'RowNumber', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Name', fieldName: 'recordUrl', type: 'url', typeAttributes: { label: { fieldName: 'Name' }, target: '_blank' }, cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true, wrapText: true },
-      { label: 'Processor', fieldName: 'processorUrl', type: 'url', typeAttributes: { label: { fieldName: 'ProcessorName' }, target: '_blank' },cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true, wrapText: true },
-      { label: 'Status', fieldName: 'Status__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Enabled', fieldName: 'Enabled__c', type: 'boolean', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Is Candidate?', fieldName: 'IsCandidate__c', type: 'boolean', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: '#Attempt', fieldName: 'AttemptNumber__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Wait Time (ms)', fieldName: 'WaitTime__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Chunk Run Time (ms)', fieldName: 'ChunkRunTime__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Unit Run Time (ms)', fieldName: 'UnitRunTime__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Processing Time (ms)', fieldName: 'ProcessingTime__c', type: 'number', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Last Selection', fieldName: 'LastSelectionDateTime__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Last Exec', fieldName: 'LastExecutionDateTime__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true, wrapText: true },
-      { label: 'Next Exec', fieldName: 'NextExecutionDateTime__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true, wrapText: true },
-      { label: 'Last Message', fieldName: 'LastExecutionMessage__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
-      { label: 'Argument', fieldName: 'Argument__c', cellAttributes: { class: { fieldName: 'rowStyle' } }, hideDefaultActions: true },
+      { label: "#", fieldName: "RowNumber", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      {
+        label: "Name",
+        fieldName: "recordUrl",
+        type: "url",
+        typeAttributes: { label: { fieldName: "Name" }, target: "_blank" },
+        cellAttributes: { class: { fieldName: "rowStyle" } },
+        hideDefaultActions: true,
+        wrapText: true
+      },
+      {
+        label: "Processor",
+        fieldName: "processorUrl",
+        type: "url",
+        typeAttributes: { label: { fieldName: "ProcessorName" }, target: "_blank" },
+        cellAttributes: { class: { fieldName: "rowStyle" } },
+        hideDefaultActions: true,
+        wrapText: true
+      },
+      { label: "Status", fieldName: "Status__c", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Enabled", fieldName: "Enabled__c", type: "boolean", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Is Candidate?", fieldName: "IsCandidate__c", type: "boolean", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "#Attempt", fieldName: "AttemptNumber__c", type: "number", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Wait Time (ms)", fieldName: "WaitTime__c", type: "number", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Chunk Run Time (ms)", fieldName: "ChunkRunTime__c", type: "number", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Unit Run Time (ms)", fieldName: "UnitRunTime__c", type: "number", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Processing Time (ms)", fieldName: "ProcessingTime__c", type: "number", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Last Selection", fieldName: "LastSelectionDateTime__c", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Last Exec", fieldName: "LastExecutionDateTime__c", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true, wrapText: true },
+      { label: "Next Exec", fieldName: "NextExecutionDateTime__c", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true, wrapText: true },
+      { label: "Last Message", fieldName: "LastExecutionMessage__c", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true },
+      { label: "Argument", fieldName: "Argument__c", cellAttributes: { class: { fieldName: "rowStyle" } }, hideDefaultActions: true }
     ];
   }
 
@@ -71,29 +87,29 @@ export default class RequestTable extends LightningElement {
       const classes = [];
       const absoluteIndex = i + offset;
       if (absoluteIndex > this.pageSize - 1) {
-        classes.push('slds-theme_shade');
+        classes.push("slds-theme_shade");
       }
       if (!row.IsCandidate__c) {
-        classes.push('slds-theme_alert-texture');
+        classes.push("slds-theme_alert-texture");
       }
       switch (row.Status__c) {
-        case 'FAILURE':
-          classes.push('slds-text-color_error');
+        case "FAILURE":
+          classes.push("slds-text-color_error");
           break;
-        case 'KILLED':
-          classes.push('slds-text-color_destructive');
+        case "KILLED":
+          classes.push("slds-text-color_destructive");
           break;
-        case 'SUCCESS':
-          classes.push('slds-text-color_success');
+        case "SUCCESS":
+          classes.push("slds-text-color_success");
           break;
       }
       return {
         ...row,
         RowNumber: absoluteIndex + 1,
-        recordUrl: '/' + row.Id,
+        recordUrl: "/" + row.Id,
         ProcessorName: row.JobDescription__r.ProcessorName__c,
-        processorUrl: '/' + row.JobDescription__c,
-        rowStyle: classes.join(' ')
+        processorUrl: "/" + row.JobDescription__c,
+        rowStyle: classes.join(" ")
       };
     });
   }
@@ -101,5 +117,4 @@ export default class RequestTable extends LightningElement {
   arePagesDifferent(newPage, currentPage) {
     return JSON.stringify(newPage) !== JSON.stringify(currentPage);
   }
-
 }
