@@ -57,8 +57,7 @@ private class ApexJobFailSafeLoggerTest {
     Expect.that(fallbackErrorSpy).hasBeenCalledTimes(2);
     Assert.areEqual('message', (String) fallbackErrorSpy.getArguments(0)[0]);
     final String failure = (String) fallbackErrorSpy.getArguments(1)[0];
-    Assert.isTrue(failure.startsWith(FAILURE_PREFIX), failure);
-    Assert.isTrue(failure.endsWith(': boom'), failure);
+    Assert.areEqual(FAILURE_PREFIX + 'ApexJobFailSafeLoggerTest.TestException: boom', failure);
   }
 
   @IsTest
@@ -74,7 +73,6 @@ private class ApexJobFailSafeLoggerTest {
     Expect.that(fallbackDebugSpy).hasBeenCalledWith('message');
     Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
     final String failure = (String) fallbackErrorSpy.getArguments(0)[0];
-    Assert.isTrue(failure.startsWith(FAILURE_PREFIX), failure);
-    Assert.isTrue(failure.endsWith(': boom'), failure);
+    Assert.areEqual(FAILURE_PREFIX + 'ApexJobFailSafeLoggerTest.TestException: boom', failure);
   }
 }

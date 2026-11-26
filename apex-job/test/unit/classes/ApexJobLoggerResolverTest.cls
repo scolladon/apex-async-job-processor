@@ -57,6 +57,16 @@ private class ApexJobLoggerResolverTest {
     }
   }
 
+  public class ThrowingLogger implements ApexJobLogger {
+    public void debug(final String message) {
+      throw new TestException(message);
+    }
+
+    public void error(final String message) {
+      throw new TestException(message);
+    }
+  }
+
   private class PrivateLogger implements ApexJobLogger {
     public void debug(final String message) {
       recordedMessages.add(message);
@@ -174,13 +184,16 @@ private class ApexJobLoggerResolverTest {
     // Arrange
     final ApexJobLoggerResolver sut = new ApexJobLoggerResolver(fallbackStub());
 
+    final String className = FIXTURE_PREFIX + 'NotALogger';
+
     // Act
-    final ApexJobLogger result = sut.resolve(FIXTURE_PREFIX + 'NotALogger');
+    final ApexJobLogger result = sut.resolve(className);
 
     // Assert
     Assert.isTrue(result === fallbackStub(), 'Expected the fallback logger');
     Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
     final String loggedMessage = (String) fallbackErrorSpy.getArguments(0)[0];
+    Assert.isTrue(loggedMessage.contains(className), loggedMessage);
     Assert.isTrue(loggedMessage.contains('does not implement ApexJobLogger'), loggedMessage);
   }
 
@@ -198,6 +211,7 @@ private class ApexJobLoggerResolverTest {
     Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
     final String loggedMessage = (String) fallbackErrorSpy.getArguments(0)[0];
     Assert.isTrue(loggedMessage.contains(className), loggedMessage);
+    Assert.isTrue(loggedMessage.contains('no-arg constructor'), loggedMessage);
   }
 
   @IsTest
@@ -205,13 +219,30 @@ private class ApexJobLoggerResolverTest {
     // Arrange
     final ApexJobLoggerResolver sut = new ApexJobLoggerResolver(fallbackStub());
 
+    final String className = FIXTURE_PREFIX + 'ThrowingCtorLogger';
+
     // Act
-    final ApexJobLogger result = sut.resolve(FIXTURE_PREFIX + 'ThrowingCtorLogger');
+    final ApexJobLogger result = sut.resolve(className);
 
     // Assert
     Assert.isTrue(result === fallbackStub(), 'Expected the fallback logger');
     Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
     final String loggedMessage = (String) fallbackErrorSpy.getArguments(0)[0];
+    Assert.isTrue(loggedMessage.contains(className), loggedMessage);
     Assert.isTrue(loggedMessage.contains(CTOR_FAILURE), loggedMessage);
+  }
+
+  @IsTest
+  static void givenLoggerThatThrowsWhileLogging_whenResolvedLoggerDebugs_thenFallbackReceivesLineAndFailure() {
+    // Arrange
+    final ApexJobLoggerResolver sut = new ApexJobLoggerResolver(fallbackStub());
+    final ApexJobLogger resolved = sut.resolve(FIXTURE_PREFIX + 'ThrowingLogger');
+
+    // Act
+    resolved.debug('x');
+
+    // Assert
+    Expect.that(fallbackDebugSpy).hasBeenCalledWith('x');
+    Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
   }
 }
