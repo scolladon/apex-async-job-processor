@@ -297,7 +297,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
 
 - **Access**
   - App Launcher → Async Job Monitor → Job Monitor Console.
-  - Deploys with metadata: `applications/Async_Job_Monitor.app-meta.xml` and `flexipages/Job_Monitor_Console.flexipage-meta.xml`.
+  - Deploys with metadata: `applications/Async_Job_Monitor.app-meta.xml`, `tabs/Job_Monitor_Console.tab-meta.xml` and `flexipages/Job_Monitor_Console.flexipage-meta.xml`.
 
 - **Permission required for controls**
   - Custom Permission: `Manage_Async_Job_Engine` (Included in the `AdminAsyncJob` permission set).

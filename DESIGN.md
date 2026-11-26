@@ -610,7 +610,7 @@ Anonymous-Apex scripts under `scripts/apex/` (outside every `sfdx-project.json` 
 
 ### Permission Set: AdminAsyncJob
 
-Full CRUD + ModifyAll + ViewAll on `JobDescription__c` and `JobRequest__c`. Read/write on all custom fields. Includes `Manage_Async_Job_Engine`.
+Full CRUD + ModifyAll + ViewAll on `JobDescription__c` and `JobRequest__c`. Read/write on all custom fields. Includes `Manage_Async_Job_Engine`. Grants the `Job_Monitor_Console` tab (Visible).
 
 ### Sharing Model
 
@@ -735,7 +735,8 @@ apex-job/
 │       ├── applications/      (Async_Job_Monitor)
 │       ├── classes/adapter/   (JobMonitorController)
 │       ├── flexipages/        (Job_Monitor_Console)
-│       └── lwc/               (jobMonitorConsole, engineControls, statusByProcessorTable, requestTable)
+│       ├── lwc/               (jobMonitorConsole, engineControls, statusByProcessorTable, requestTable)
+│       └── tabs/              (Job_Monitor_Console)
 └── test/
     ├── unit/                  (16 test classes + helpers)
     ├── integration/           (3 test classes)

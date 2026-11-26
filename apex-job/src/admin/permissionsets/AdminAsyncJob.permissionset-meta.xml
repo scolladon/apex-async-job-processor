@@ -457,4 +457,8 @@
         <viewAllFields>true</viewAllFields>
         <viewAllRecords>true</viewAllRecords>
     </objectPermissions>
+    <tabSettings>
+        <tab>Job_Monitor_Console</tab>
+        <visibility>Visible</visibility>
+    </tabSettings>
 </PermissionSet>
