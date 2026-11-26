@@ -37,6 +37,11 @@ public without sharing class TestDataFactory {
     return minimumAccessUser;
   }
 
+  public static void assignPermissionSet(final Id userId, final String permissionSetName) {
+    final PermissionSet permissionSet = [SELECT Id FROM PermissionSet WHERE Name = :permissionSetName WITH SYSTEM_MODE LIMIT 1];
+    insert as system new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = permissionSet.Id);
+  }
+
   private static User insertAdminUser() {
     final User runningUser = new User(
       FirstName = 'Test',

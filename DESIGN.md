@@ -356,7 +356,7 @@ Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to p
 | `JobExecutorFinalizerAttacherImpl` | Thin wrapper around `System.attachFinalizer()` for testability. |
 | `ApexJobConfigServiceImpl` | Reads `ApexJobConfig__c` custom setting + `BusinessHours` for off-hours delay. |
 | `ApexJobLoggerImpl` | Delegates to `System.debug()`. |
-| `JobDescriptionActionsController` | `with sharing`, `@AuraEnabled` bridge for the reset consumption model LWC action. |
+| `JobDescriptionActionsController` | `with sharing`, `@AuraEnabled` bridge for the reset consumption model LWC action; reads `WITH USER_MODE`, so object and field access gate the action. |
 
 ---
 
@@ -624,7 +624,7 @@ Full CRUD + ModifyAll + ViewAll on `JobDescription__c` and `JobRequest__c`. Read
 
 - All adapters: `without sharing` — engine runs in system context, not user context.
 - `JobMonitorController`: `with sharing` — monitoring respects user access.
-- `JobDescriptionActionsController`: `with sharing` + `WITH SECURITY_ENFORCED`.
+- `JobDescriptionActionsController`: `with sharing` + `WITH USER_MODE` (the user's object and field access are the action's gate).
 
 ---
 
