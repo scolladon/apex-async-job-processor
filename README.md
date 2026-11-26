@@ -324,6 +324,38 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  Global switches (Hierarchy Custom Setting `ApexJobConfig__c`):
  - `Enabled__c` (Checkbox). Turns the engine on/off.
  - `EnqueueDelayOutsideBusinessHours__c` (0..10). Minutes to wait when outside Business Hours. Default idle delay is 1 minute. Values are clamped to [0,10].
+ - `LoggerClassName__c` (Text). Apex class the engine logs through; blank means System.debug.
+
+ ### Plug your logger
+
+ The engine logs through the `ApexJobLogger` port. To route its log lines to your own tooling, write a class and name it in the org default of `ApexJobConfig__c.LoggerClassName__c`.
+
+ Contract:
+ - The class is `public`, has a `public` no-argument constructor, and implements `ApexJobLogger` (`void error(String message); void debug(String message);`, a `public` interface, no namespace).
+ - The name is `MyLogger` or `Outer.Inner`; it is trimmed and case-insensitive.
+ - Blank means System.debug, with no extra line.
+ - Unusable class (not found, not public, not an `ApexJobLogger`, no usable no-arg constructor, constructor throws): the engine falls back to System.debug and writes one error line naming the class and the reason.
+ - A logger that throws while logging: the line and the failure go to System.debug, engine flow is unchanged.
+ - The setting is read in every transaction (enqueuing, Queueable, Finalizer, trigger wake-up, watcher); a change applies from the next transaction.
+ - The executor carries its logger inside the next Queueable: hold only serializable state (stateless adapters).
+ - Keep it cheap: a `System.LimitException` cannot be caught.
+
+ Example adapter for [Nebula Logger](https://github.com/jongpie/NebulaLogger), written and owned by the subscriber (not shipped in this package):
+
+ ```apex
+ public class NebulaApexJobLogger implements ApexJobLogger {
+   public void error(final String message) {
+     Logger.error(message);
+     Logger.saveLog();
+   }
+   public void debug(final String message) {
+     Logger.debug(message);
+     Logger.saveLog();
+   }
+ }
+ ```
+
+ `saveLog()` is called per entry because Nebula buffers entries in memory until `saveLog()`, and the port has no flush hook; each save spends Nebula's save-path limits inside engine transactions.
 
  Candidate rules (`JobRequest__c.IsCandidate__c`):
  - `JobRequest__c.Enabled__c` and `JobDescription__c.Enabled__c` must be true.
@@ -426,7 +458,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
 
  - Domain: [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls), [ApexJobContext](apex-job/src/engine/domain/classes/ApexJobContext.cls), [ApexJobResult](apex-job/src/engine/domain/classes/ApexJobResult.cls), [JobCandidate](apex-job/src/engine/domain/classes/JobCandidate.cls), [AdaptiveConsumptionLearner](apex-job/src/engine/domain/classes/consumption-learning/AdaptiveConsumptionLearner.cls), [AdaptiveChunkCalculator](apex-job/src/engine/domain/classes/chunk-calculation/AdaptiveChunkCalculator.cls).
  - Application: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls), [ApexJobManager](apex-job/src/engine/application/ApexJobManager.cls).
- - Adapters: [JobSelectorImpl](apex-job/src/engine/adapter/JobSelectorImpl.cls), [JobRepositoryImpl](apex-job/src/engine/adapter/JobRepositoryImpl.cls), [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls), [ApexJobConfigServiceImpl](apex-job/src/engine/adapter/ApexJobConfigServiceImpl.cls), [ApexJobLoggerImpl](apex-job/src/engine/adapter/ApexJobLoggerImpl.cls), [JobExecutorQueueableSpawner](apex-job/src/engine/adapter/JobExecutorQueueableSpawner.cls), [JobExecutorFinalizerAttacherImpl](apex-job/src/engine/adapter/JobExecutorFinalizerAttacherImpl.cls), [LimitServiceImpl](apex-job/src/engine/service/LimitServiceImpl.cls).
+ - Adapters: [JobSelectorImpl](apex-job/src/engine/adapter/JobSelectorImpl.cls), [JobRepositoryImpl](apex-job/src/engine/adapter/JobRepositoryImpl.cls), [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls), [ApexJobConfigServiceImpl](apex-job/src/engine/adapter/ApexJobConfigServiceImpl.cls), [ApexJobLoggerImpl](apex-job/src/engine/adapter/ApexJobLoggerImpl.cls), [ApexJobLoggerResolver](apex-job/src/engine/adapter/ApexJobLoggerResolver.cls), [ApexJobFailSafeLogger](apex-job/src/engine/adapter/ApexJobFailSafeLogger.cls), [JobExecutorQueueableSpawner](apex-job/src/engine/adapter/JobExecutorQueueableSpawner.cls), [JobExecutorFinalizerAttacherImpl](apex-job/src/engine/adapter/JobExecutorFinalizerAttacherImpl.cls), [LimitServiceImpl](apex-job/src/engine/service/LimitServiceImpl.cls).
 
  ```plantuml
  @startuml
@@ -450,6 +482,8 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
    class ApexJobWatcher
    class ApexJobConfigServiceImpl
    class ApexJobLoggerImpl
+   class ApexJobLoggerResolver
+   class ApexJobFailSafeLogger
    class JobExecutorQueueableSpawner
    class JobExecutorFinalizerAttacherImpl
    class LimitServiceImpl
