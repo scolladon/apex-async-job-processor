@@ -133,7 +133,7 @@ private class JobRequestTriggerTest {
     return [SELECT COUNT() FROM AsyncApexJob WHERE ApexClass.Name = :EXECUTOR_CLASS_NAME];
   }
 
-  @future
+  @Future
   private static void insertTwoRequests(final Id descriptionId) {
     insertSingleRows(descriptionId, BATCH_INSERT_COUNT);
   }
