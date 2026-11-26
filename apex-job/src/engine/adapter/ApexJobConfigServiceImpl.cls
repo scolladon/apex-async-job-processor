@@ -1,4 +1,3 @@
-@SuppressWarnings('PMD.ApexCRUDViolation')
 public without sharing class ApexJobConfigServiceImpl implements ApexJobConfigService {
   private static final Integer MAX_ENQUEUE_DELAY_IN_MINUTES = 10;
   private static final Integer MIN_ENQUEUE_DELAY_IN_MINUTES = 0;
@@ -25,7 +24,7 @@ public without sharing class ApexJobConfigServiceImpl implements ApexJobConfigSe
   }
 
   private Boolean nowOutsideBusinessHours() {
-    final BusinessHours defaultBusinessHours = [SELECT Id FROM BusinessHours WHERE IsDefault = TRUE AND IsActive = TRUE];
-    return defaultBusinessHours == null || !BusinessHours.isWithin(defaultBusinessHours.Id, Datetime.now());
+    final BusinessHours defaultBusinessHours = [SELECT Id FROM BusinessHours WHERE IsDefault = TRUE AND IsActive = TRUE WITH SYSTEM_MODE];
+    return !BusinessHours.isWithin(defaultBusinessHours.Id, Datetime.now());
   }
 }
