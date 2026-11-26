@@ -13,5 +13,6 @@ public without sharing class ApexJobConstant {
 
   public static final Decimal DEFAULT_LEARNING_RATE = 0.30;
   public static final Integer DEFAULT_VARIATION_RESET_COUNT = 3;
+  public static final Decimal DEFAULT_VARIATION_RESET_THRESHOLD = 0.3;
   public static final Integer DEFAULT_KILL_COOLDOWN_COUNT = 3;
 }

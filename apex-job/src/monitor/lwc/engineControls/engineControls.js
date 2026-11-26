@@ -1,12 +1,13 @@
-import { LightningElement, wire } from 'lwc';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { LightningElement, wire } from "lwc";
+import { isHostVisible } from "c/hostVisibility";
+import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import Manage_Async_Job_Engine from "@salesforce/customPermission/Manage_Async_Job_Engine";
-import isEnabled from '@salesforce/apex/JobMonitorController.isEnabled';
-import getExecutorCount from '@salesforce/apex/JobMonitorController.getExecutorCount';
-import isRecoveryBatchAlive from '@salesforce/apex/JobMonitorController.isRecoveryBatchAlive';
-import pauseEngine from '@salesforce/apex/JobMonitorController.pauseEngine';
-import restartEngine from '@salesforce/apex/JobMonitorController.restartEngine';
-import resumeEngine from '@salesforce/apex/JobMonitorController.resumeEngine';
+import getEngineStatus from "@salesforce/apex/JobMonitorController.getEngineStatus";
+import pauseEngine from "@salesforce/apex/JobMonitorController.pauseEngine";
+import restartEngine from "@salesforce/apex/JobMonitorController.restartEngine";
+import resumeEngine from "@salesforce/apex/JobMonitorController.resumeEngine";
+
+const POLL_INTERVAL_MS = 5000;
 
 export default class EngineControls extends LightningElement {
   enabled = false;
@@ -20,7 +21,7 @@ export default class EngineControls extends LightningElement {
   }
 
   get recoveryBatchStatus() {
-    return this.recoveryBatchStatusValue ? 'Scheduled' : 'Not Scheduled';
+    return this.recoveryBatchStatusValue ? "Scheduled" : "Not Scheduled";
   }
 
   get engineEnabled() {
@@ -28,27 +29,38 @@ export default class EngineControls extends LightningElement {
   }
 
   connectedCallback() {
-    setInterval(() => {
-      this.pollExecutorCount();
-      this.pollRecoveryBatchStatus();
-      this.pollEnabled();
-    }, 500);
+    this.stopped = false;
+    this.poll();
   }
 
-  async pollEnabled() {
-    this.enabled = await isEnabled();
+  disconnectedCallback() {
+    this.stopped = true;
+    clearTimeout(this.pollTimer);
   }
 
-  async pollExecutorCount() {
-    this.executorCountValue = await getExecutorCount();
+  async poll() {
+    try {
+      if (isHostVisible(this.template.host)) {
+        await this.refresh();
+      }
+    } catch (error) {
+      console.error("engineControls: refresh failed", error);
+    } finally {
+      if (!this.stopped) {
+        this.pollTimer = setTimeout(() => this.poll(), POLL_INTERVAL_MS);
+      }
+    }
   }
 
-  async pollRecoveryBatchStatus() {
-    this.recoveryBatchStatusValue = await isRecoveryBatchAlive();
+  async refresh() {
+    const status = await getEngineStatus();
+    this.enabled = status.enabled;
+    this.executorCountValue = status.executorCount;
+    this.recoveryBatchStatusValue = status.watcherScheduled;
   }
 
   async handleToggle() {
-    if(this.enabled) {
+    if (this.enabled) {
       await this.handlePause();
     } else {
       await this.handleResume();
@@ -61,9 +73,9 @@ export default class EngineControls extends LightningElement {
     try {
       const ok = await pauseEngine();
       this.enabled = !ok ? this.enabled : false;
-      this.toast('Engine paused', 'Engine is now disabled.', 'success');
+      this.toast("Engine paused", "Engine is now disabled.", "success");
     } catch (e) {
-      this.toast('Pause failed', this.err(e), 'error');
+      this.toast("Pause failed", this.err(e), "error");
     } finally {
       this.loading = false;
     }
@@ -75,9 +87,9 @@ export default class EngineControls extends LightningElement {
     try {
       const ok = await resumeEngine();
       this.enabled = ok ? true : this.enabled;
-      this.toast('Engine resumed', 'Engine is now enabled.', 'success');
+      this.toast("Engine resumed", "Engine is now enabled.", "success");
     } catch (e) {
-      this.toast('Resume failed', this.err(e), 'error');
+      this.toast("Resume failed", this.err(e), "error");
     } finally {
       this.loading = false;
     }
@@ -88,9 +100,9 @@ export default class EngineControls extends LightningElement {
     this.loading = true;
     try {
       await restartEngine();
-      this.toast('Restart requested', 'Executor enqueued if not already running.', 'success');
+      this.toast("Restart requested", "Executor enqueued if not already running.", "success");
     } catch (e) {
-      this.toast('Restart failed', this.err(e), 'error');
+      this.toast("Restart failed", this.err(e), "error");
     } finally {
       this.loading = false;
     }
@@ -100,6 +112,6 @@ export default class EngineControls extends LightningElement {
     this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
   }
   err(e) {
-    return e?.body?.message || e?.message || 'Unexpected error';
+    return e?.body?.message || e?.message || "Unexpected error";
   }
 }

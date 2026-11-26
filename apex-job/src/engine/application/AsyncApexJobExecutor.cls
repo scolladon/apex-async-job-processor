@@ -64,6 +64,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       this.logger.debug('AsyncJob: Error while recording job execution');
       this.logger.error(e.getMessage());
       this.logger.error(e.getStackTraceString());
+      this.discardUnrecordedResults();
     }
 
     try {
@@ -92,6 +93,10 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     }
     final JobExecuted lastRecorded = this.jobExecutionResults[this.jobExecutionResults.size() - 1];
     return lastRecorded.executable != this.lastExecutableJob;
+  }
+
+  private void discardUnrecordedResults() {
+    this.jobExecutionResults.clear();
   }
 
   private Integer getDelayInMinutes() {

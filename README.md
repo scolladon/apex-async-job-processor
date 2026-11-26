@@ -167,7 +167,7 @@ Same backlog, drained by one disciplined executor instead of a swarm — plus a 
 
  - Job Description builder: `define()` → chain `processor(String)`, `priority(Integer)`, `minInterval(Integer)`, `maxAttempts(Integer)`, `recurrent()`, `allowedOn(List<String>)`, `allowedBetween(Time, Time)`, then `save()`.
  - Manage descriptions: `enableJobDescription(Id|String)`, `disableJobDescription(Id|String)`, `resetConsumptionModel(String processorName)`.
- - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`.
+ - Job Request builder: `request()` → chain `forDescription(Id)` or `forProcessor(String)`, `payload(Object)` or `payloadJson(String)`, `scheduleAt(Datetime)`, then `save()`. Without `scheduleAt`, the request is due as soon as it is inserted (`NextExecutionDateTime__c` defaults to `NOW()`). A request runs when `NextExecutionDateTime__c <= now`; a `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
  - Manage requests: `enableJobRequest(Id)`, `disableJobRequest(Id)`.
 
  Your Apex processor implements [ApexJob](apex-job/src/engine/domain/classes/ApexJob.cls) and returns [ApexJobResult](apex-job/src/engine/domain/classes/ApexJobResult.cls). Context arrives in `ApexJobContext.arguments`.
@@ -278,8 +278,8 @@ File: [ApexJobWatcher](apex-job/src/engine/adapter/ApexJobWatcher.cls)
 
 - `ApexJobWatcher.schedule()` registers 12 Scheduled Apex jobs (every 5 minutes). Idempotent.
 - Each tick checks config. If enabled, it enqueues `AsyncApexJobExecutor` with a computed delay.
-- Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`.
-- Bypass `JobRequest__c` after insert trigger via the `Bypass_JobRequest_Trigger` custom permission.
+- Monitor via `AsyncApexJob`, `JobRequest__c` fields (`Status__c`, `LastExecutionDateTime__c`, `LastExecutionMessage__c`, `AttemptNumber__c`, `NextExecutionDateTime__c`), and `JobDescription__c.LastExecutionDateTime__c`. A `null` `NextExecutionDateTime__c` on a `READY`/`FAILURE`/`KILLED` row means not scheduled.
+- Bypass `JobRequest__c` after insert trigger via the `Bypass_JobRequest_Trigger` custom permission. The trigger attempts at most one wake-up per transaction and none from Batch or `@future`.
 
 ## Monitoring console
 
@@ -297,7 +297,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
 
 - **Access**
   - App Launcher → Async Job Monitor → Job Monitor Console.
-  - Deploys with metadata: `applications/Async_Job_Monitor.app-meta.xml` and `flexipages/Job_Monitor_Console.flexipage-meta.xml`.
+  - Deploys with metadata: `applications/Async_Job_Monitor.app-meta.xml`, `tabs/Job_Monitor_Console.tab-meta.xml` and `flexipages/Job_Monitor_Console.flexipage-meta.xml`.
 
 - **Permission required for controls**
   - Custom Permission: `Manage_Async_Job_Engine` (Included in the `AdminAsyncJob` permission set).
@@ -308,6 +308,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
   - Resume engine → sets `ApexJobConfig__c.Enabled__c = true`.
   - Restart executor → enqueues a new `AsyncApexJobExecutor` now.
   - Guard rails: live counts from `AsyncApexJob` for executors and the scheduled watcher.
+  - Engine status: one `getEngineStatus()` call (enabled flag, executor count, watcher scheduled).
 
 - **Tables and status**
   - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution.
@@ -329,6 +330,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Status in READY, FAILURE, KILLED. (Terminal statuses — `SUCCESS`, `ABORTED`, `MALFORMED_ARGUMENT` — are never re-selected.)
  - Time window and days respected (`AllowedDays__c`, `AllowedStartTime__c`, `AllowedEndTime__c`).
  - Attempts below `MaxExecutionAttempt__c` (or -1 for unlimited).
+ - `NextExecutionDateTime__c <= now` (a null date is not scheduled).
 
  Tip: The learner updates consumption fields on `JobDescription__c`. You rarely set them by hand.
 
@@ -339,7 +341,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
 ```text
  new JobRequest__c ─(trigger)─┐        ┌─ ApexJobWatcher ─ every 5 min,
                               ▼        │   re-arms the chain only if it died
-                          Spawner ◀────┘
+                          Spawner ◀────┘   (trigger: wake-up once per transaction)
                               │  enqueueJob ×1   (DuplicateSignature = no doubles)
                               ▼
  ╔════════════ QUEUEABLE transaction ═════════════╗
@@ -364,6 +366,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Finalizer: records results, then re-enqueues.
    - If this run did work: re-enqueue with 0 minutes.
    - If idle: use configured delay.
+   - If recording failed: results are discarded and the idle delay is used.
 
  ## Algorithms
 
@@ -389,7 +392,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Failure: safety -0.05, track `ConsecutiveFailures__c` and `SmallestFailingChunk__c`.
  - Kill: penalize `Base` and `PerItem` by 1.1, lower safety. Reset if failures reach configured max.
  - Per-dimension base/per-item updates use an **EWMA blend** (`α·observed + (1−α)·current`, α = `LearningRate__c`, default 0.30) — smooth adaptation instead of a hard `max()` ratchet that outliers could stick permanently.
- - Observations whose variation exceeds `VariationResetThreshold__c` are not assimilated; instead `ConsecutiveVariationCount__c` increments. A full model reset fires only once the counter reaches `VariationResetCount__c` (default 3), so a single noisy sample can no longer wipe months of learning.
+ - Observations whose variation exceeds `VariationResetThreshold__c`, and only when the absolute deviation of the chunk total also exceeds the dimension's noise floor, are not assimilated; instead `ConsecutiveVariationCount__c` increments. A full model reset fires only once the counter reaches `VariationResetCount__c` (default 3), so a single noisy sample can no longer wipe months of learning.
  - After a `KILL` or `FAILURE` (which zeroes `SuccessStreak__c`), the next `KillCooldownCount__c` successful chunks (default 3) still fall back to `Math.max` semantics so the post-kill `base × 1.1` / `perItem × 1.1` inflation stays sticky until the smaller chunk size is proven safe. Once the streak catches up, EWMA resumes.
  - Safety floor still triggers a reset (safety would drop below `MIN_SAFETY = 0.5`).
  - Per-item update applies when chunk size > 1; when chunk size == 1, update base only.

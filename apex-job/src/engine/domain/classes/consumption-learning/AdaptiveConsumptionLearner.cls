@@ -5,9 +5,11 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
   private static final Decimal KILL_PENALTY = 1.1;
 
   private final JobDescription__c job;
+  private final Decimal variationThreshold;
 
   public AdaptiveConsumptionLearner(final JobDescription__c jobDescription) {
     this.job = jobDescription;
+    this.variationThreshold = this.job.VariationResetThreshold__c ?? ApexJobConstant.DEFAULT_VARIATION_RESET_THRESHOLD;
   }
 
   public void adjustFromSuccess(final LimitsUsage consumed, final Integer chunkSize) {
@@ -59,8 +61,7 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
       this.job.put(model.base, usage);
       return false;
     }
-    final Decimal variation = Math.abs((usage - currentBase) / currentBase);
-    if (variation > this.job.VariationResetThreshold__c) {
+    if (model.isSignificantVariation(usage, currentBase, this.variationThreshold)) {
       return this.recordVariationHit();
     }
     this.job.put(model.base, inCooldown ? Math.max(currentBase, usage) : this.blend(currentBase, usage));
@@ -77,8 +78,8 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
       this.job.put(model.perItem, newPerItem);
       return false;
     }
-    final Decimal variation = Math.abs((newPerItem - currentPerItem) / currentPerItem);
-    if (variation > this.job.VariationResetThreshold__c) {
+    final Integer itemsBeyondFirst = chunkSize - 1;
+    if (model.isSignificantVariation(newPerItem * itemsBeyondFirst, currentPerItem * itemsBeyondFirst, this.variationThreshold)) {
       return this.recordVariationHit();
     }
     this.job.put(model.perItem, inCooldown ? Math.max(currentPerItem, newPerItem) : this.blend(currentPerItem, newPerItem));

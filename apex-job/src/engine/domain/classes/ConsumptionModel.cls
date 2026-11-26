@@ -5,6 +5,7 @@ public without sharing class ConsumptionModel {
   public String base { get; private set; }
   public String perItem { get; private set; }
   public String safety { get; private set; }
+  public Decimal noiseFloor { get; private set; }
 
   @SuppressWarnings('PMD.ExcessiveParameterList')
   public ConsumptionModel(final String dimension, final String base, final String perItem, final String safety) {
@@ -12,6 +13,11 @@ public without sharing class ConsumptionModel {
     this.base = base;
     this.perItem = perItem;
     this.safety = safety;
+    this.noiseFloor = LimitsUsage.noiseFloor(dimension);
+  }
+
+  public Boolean isSignificantVariation(final Decimal observed, final Decimal expected, final Decimal relativeThreshold) {
+    return Math.abs(observed - expected) > Math.max(this.noiseFloor, relativeThreshold * expected);
   }
 
   public static List<ConsumptionModel> asList() {

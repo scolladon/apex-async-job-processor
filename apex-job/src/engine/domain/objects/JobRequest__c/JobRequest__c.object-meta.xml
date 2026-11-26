@@ -154,7 +154,6 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
-    <gender>Feminine</gender>
     <label>Job Request</label>
     <nameField>
         <label>Job Request Name</label>

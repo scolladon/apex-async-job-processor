@@ -1,6 +1,7 @@
 {
   "orgName": "scolladon company",
   "edition": "Developer",
+  "language": "en_US",
   "features": ["EnableSetPasswordInApi"],
   "settings": {
     "lightningExperienceSettings": {

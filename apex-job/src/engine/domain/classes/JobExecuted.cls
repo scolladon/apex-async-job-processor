@@ -56,7 +56,7 @@ public with sharing class JobExecuted {
   }
 
   private void calculateTimingMetrics(final JobRequest__c job) {
-    final Datetime baseRef = job.NextExecutionDateTime__c ?? job.CreatedDate;
+    final Datetime baseRef = job.NextExecutionDateTime__c;
     final Long baseMs = baseRef.getTime();
     final Long selectionMs = this.stagingInfo.selectionTime.getTime();
     final Long endMs = this.stagingInfo.endTime.getTime();

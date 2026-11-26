@@ -1,4 +1,8 @@
 public without sharing class JobRepositoryImpl implements JobRepository {
+  private static final String JOBIDS_SEP = ';';
+  private static final Integer MAX_TRACKED_JOB_IDS = 20;
+  private static final Integer ID_15_LENGTH = 15;
+
   private ApexJobFactory factory;
 
   public JobRepositoryImpl() {
@@ -93,21 +97,17 @@ public without sharing class JobRepositoryImpl implements JobRepository {
     return jobRequest.Status__c == ApexJobStatus.SUCCESS.name();
   }
 
-  private static final String JOBIDS_SEP = ';';
-  private static final Integer MAX_LONG_TEXT_LENGTH = 131072;
-  private static final Integer ID_15_LENGTH = 15;
-
   private static String buildJobIds(final String jobIdValues, final String asyncJobId) {
-    final String asyncJobId15 = asyncJobId.left(ID_15_LENGTH);
     final List<String> jobIds = String.isNotBlank(jobIdValues) ? jobIdValues.split(JOBIDS_SEP) : new List<String>();
-    jobIds.add(asyncJobId15);
+    jobIds.add(asyncJobId.left(ID_15_LENGTH));
+    return String.join(keepLast(jobIds, MAX_TRACKED_JOB_IDS), JOBIDS_SEP);
+  }
 
-    String result = String.join(jobIds, JOBIDS_SEP);
-    while (result.length() > MAX_LONG_TEXT_LENGTH) {
-      jobIds.remove(0);
-      result = String.join(jobIds, JOBIDS_SEP);
+  private static List<String> keepLast(final List<String> values, final Integer count) {
+    final List<String> kept = new List<String>();
+    for (Integer i = Math.max(0, values.size() - count); i < values.size(); ++i) {
+      kept.add(values[i]);
     }
-
-    return result;
+    return kept;
   }
 }

@@ -373,4 +373,68 @@ private class AdaptiveConsumptionLearnerTest {
     }
     Assert.areEqual(0, jobDescription.ConsecutiveVariationCount__c, 'Counter must be cleared by reset');
   }
+
+  @IsTest
+  private static void givenPerItemAtResolutionFloor_whenAdjustFromSuccess_thenCounterUnchangedAndBlended() {
+    // Arrange — new per-item is 2 / 49, about +100 % relative, but the chunk-total deviation is about 1 ms.
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withCpuTimeConsumption(10).withCpuTimePerItemConsumption(0.0204).withSuccessStreak(3).withConsecutiveVariationCount(0).build();
+    final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(12).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    sut.adjustFromSuccess(consumed, 50);
+
+    // Assert
+    Assert.areEqual(0, job.ConsecutiveVariationCount__c, 'A sub-floor deviation must not count as a variation');
+    Assert.isTrue(job.CpuTimePerItemConsumption__c > 0.0204, 'The observation must be blended into the per-item value');
+  }
+
+  @IsTest
+  private static void givenBaseAtResolutionFloor_whenAdjustFromSuccess_thenCounterUnchanged() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withCpuTimeConsumption(1).withSuccessStreak(3).withConsecutiveVariationCount(0).build();
+    final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(2).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    sut.adjustFromSuccess(consumed, 1);
+
+    // Assert
+    Assert.areEqual(0, job.ConsecutiveVariationCount__c, 'A sub-floor deviation must not count as a variation');
+    Assert.isTrue(job.CpuTimeBaseConsumption__c > 1, 'The observation must be blended into the base value');
+  }
+
+  @IsTest
+  private static void givenNullVariationThreshold_whenAdjustFromSuccess_thenDefaultThresholdApplies() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withCpuTimeConsumption(100).withVariationResetThreshold(null).withSuccessStreak(3).withConsecutiveVariationCount(0).build();
+    final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(200).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    sut.adjustFromSuccess(consumed, 1);
+
+    // Assert
+    Assert.areEqual(1, job.ConsecutiveVariationCount__c, 'A doubled base must count as a variation under the default threshold');
+  }
+
+  @IsTest
+  private static void givenPerItemDriftSmallPerItemButLargeOverChunk_whenAdjustFromSuccess_thenCountsVariation() {
+    // Arrange — per-item deviation is about 0.2 ms (below the floor), about 10 ms across the 49 extra items (above it).
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription()
+      .withCpuTimeConsumption(100)
+      .withCpuTimePerItemConsumption(0.1)
+      .withVariationResetThreshold(0.3)
+      .withSuccessStreak(3)
+      .withConsecutiveVariationCount(0)
+      .build();
+    final LimitsUsage consumed = ApexJobTestFixture.aLimitsUsage().withCpuTime(115).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    sut.adjustFromSuccess(consumed, 50);
+
+    // Assert
+    Assert.areEqual(1, job.ConsecutiveVariationCount__c, 'The floor applies to the chunk-total deviation, not the per-item one');
+  }
 }

@@ -1,6 +1,41 @@
 @IsTest
 public without sharing class TestDataFactory {
+  public static final String TRIGGER_BYPASS_USERNAME = 'test.user@ajp.io';
   static Integer identifier = 1;
+
+  public static User createUserWithTriggerBypass() {
+    final User runningUser = insertAdminUser();
+    grantTriggerBypass(runningUser.Id);
+    return runningUser;
+  }
+
+  private static User insertAdminUser() {
+    final User runningUser = new User(
+      FirstName = 'Test',
+      LastName = 'User',
+      Email = TRIGGER_BYPASS_USERNAME,
+      Username = TRIGGER_BYPASS_USERNAME,
+      Alias = 'testuser',
+      TimeZoneSidKey = 'Europe/Paris',
+      LocaleSidKey = 'en_US',
+      EmailEncodingKey = 'UTF-8',
+      LanguageLocaleKey = 'en_US',
+      ProfileId = [SELECT Id FROM Profile WHERE Name = 'System Administrator']
+      .Id
+    );
+    insert runningUser;
+    return runningUser;
+  }
+
+  private static void grantTriggerBypass(final Id userId) {
+    final PermissionSet byPassTriggersPermissionSet = new PermissionSet(Name = 'ByPassTriggers', Label = 'ByPass Triggers');
+    insert byPassTriggersPermissionSet;
+
+    final CustomPermission byPassTriggerCustomPermission = [SELECT Id FROM CustomPermission WHERE DeveloperName = 'Bypass_JobRequest_Trigger' LIMIT 1];
+    insert new SetupEntityAccess(SetupEntityId = byPassTriggerCustomPermission.Id, ParentId = byPassTriggersPermissionSet.Id);
+
+    insert new PermissionSetAssignment(AssigneeId = userId, PermissionSetId = byPassTriggersPermissionSet.Id);
+  }
   public static String generateUniqueFakeId(Schema.SObjectType sot) {
     String result = String.valueOf(identifier++);
     return sot.getDescribe().getKeyPrefix() + '0'.repeat(12 - result.length()) + result;

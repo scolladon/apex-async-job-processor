@@ -4,30 +4,24 @@ public without sharing class ApexJobConfigServiceImpl implements ApexJobConfigSe
   private static final Integer MIN_ENQUEUE_DELAY_IN_MINUTES = 0;
   private static final Integer DEFAULT_IDLE_ENQUEUE_DELAY_IN_MINUTES = 1;
 
-  private static ApexJobConfig__c configInstance {
-    get {
-      if (configInstance == null) {
-        configInstance = ApexJobConfig__c.getOrgDefaults();
-      }
-      return configInstance;
-    }
-    private set;
-  }
-
   public Boolean isSystemEnabled() {
-    return configInstance?.Enabled__c == true;
+    return this.getConfig()?.Enabled__c == true;
   }
 
   public Integer getEnqueueDelayInMinutes() {
     Integer enqueueDelayInMinutes = DEFAULT_IDLE_ENQUEUE_DELAY_IN_MINUTES;
 
     if (this.nowOutsideBusinessHours()) {
-      enqueueDelayInMinutes = Integer.valueOf(configInstance?.EnqueueDelayOutsideBusinessHours__c ?? DEFAULT_IDLE_ENQUEUE_DELAY_IN_MINUTES);
+      enqueueDelayInMinutes = Integer.valueOf(this.getConfig()?.EnqueueDelayOutsideBusinessHours__c ?? DEFAULT_IDLE_ENQUEUE_DELAY_IN_MINUTES);
     }
 
     enqueueDelayInMinutes = Math.max(Math.min(enqueueDelayInMinutes, MAX_ENQUEUE_DELAY_IN_MINUTES), MIN_ENQUEUE_DELAY_IN_MINUTES);
 
     return enqueueDelayInMinutes;
+  }
+
+  private ApexJobConfig__c getConfig() {
+    return ApexJobConfig__c.getOrgDefaults();
   }
 
   private Boolean nowOutsideBusinessHours() {

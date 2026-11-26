@@ -76,7 +76,7 @@ JobDescription__c [1]                          JobRequest__c [N]
   ├── isRecurrent__c (Checkbox)                  ├── Enabled__c (Checkbox)
   ├── AllowedDays__c (MultiselectPicklist)        ├── IsCandidate__c (Formula, Checkbox)
   ├── AllowedStartTime__c (Time)                 ├── AttemptNumber__c (Number)
-  ├── AllowedEndTime__c (Time)                   ├── NextExecutionDateTime__c (DateTime)
+  ├── AllowedEndTime__c (Time)                   ├── NextExecutionDateTime__c (DateTime, default NOW())
   ├── MinJobInterval__c (Number)                 ├── LastSelectionDateTime__c (DateTime)
   ├── MaxExecutionAttempt__c (Number, -1=∞)      ├── LastExecutionDateTime__c (DateTime)
   ├── MaxChunkSize__c (Number, -1=unknown)       ├── LastExecutionMessage__c (LongTextArea)
@@ -135,13 +135,15 @@ All scheduling eligibility is encapsulated in a single formula on `JobRequest__c
 Enabled__c = TRUE
 AND JobDescription__r.Enabled__c = TRUE
 AND Status__c IN (READY, FAILURE, KILLED)
-AND (NextExecutionDateTime__c <= NOW() OR NextExecutionDateTime__c IS NULL)
+AND NextExecutionDateTime__c <= NOW()
 AND (AttemptNumber__c < MaxExecutionAttempt__c OR MaxExecutionAttempt__c = -1)
 AND (AllowedDays__c includes current day OR AllowedDays__c IS NULL)
 AND (TIMENOW() between AllowedStartTime__c and AllowedEndTime__c, or both NULL)
 ```
 
-The selector query only needs `WHERE IsCandidate__c = TRUE`.
+The selector query filters on `IsCandidate__c = TRUE AND NextExecutionDateTime__c <= :now`; the date filter is indexed.
+
+A request runs when `NextExecutionDateTime__c <= now`; leave the field unset on insert to run as soon as possible. A `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
 
 ---
 
@@ -149,7 +151,8 @@ The selector query only needs `WHERE IsCandidate__c = TRUE`.
 
 ```
 External trigger (ApexJobWatcher scheduled job or JobRequest insert trigger)
-     │
+     │   JobRequestAfterInsert → JobExecutorQueueableSpawner.wakeUp()
+     │   (once per transaction; skipped in Batch/@future) → enqueue(0)
      ▼
 JobExecutorQueueableSpawner.enqueue()
      │ (DuplicateSignature prevents double-enqueue)
@@ -166,7 +169,7 @@ System.enqueueJob(new AsyncApexJobExecutor(), options)
      │
      └── LOOP:
           ├── JobRepository.getJobCandidates(alreadyExecuted)
-          │     └── JobSelectorImpl: 18-dimension WHERE + IsCandidate__c = TRUE
+          │     └── JobSelectorImpl: 18-dimension WHERE + IsCandidate__c = TRUE + NextExecutionDateTime__c <= now (indexed)
           │          ORDER BY Priority DESC, MaxChunkSize ASC, ...
           │
           ├── JobCandidate.getExecutableChunk()
@@ -205,7 +208,7 @@ System.enqueueJob(new AsyncApexJobExecutor(), options)
      │           └── Database.delete(successfulJobs, allOrNone=false)
      │
      └── [Block 2: Re-enqueue]
-           ├── delay = 0 if work done, configured delay if idle
+           ├── delay = 0 if work done and recorded; configured idle delay if idle or if recording threw (results discarded)
            └── JobExecutorSpawner.enqueue(delay) → chain continues
 ```
 
@@ -293,11 +296,11 @@ Tracks 18 governor limit dimensions. `startSnapshot()` / `stopSnapshot()` measur
 
 ### ApexJobTransactionContext
 
-Static singleton holding a `hasExecutedJobs` boolean. Set to `true` after the first chunk executes. Consumed by `JobSelectorImpl` to control whether unknown-model jobs (`MaxChunkSize = -1`) are included in the candidate query.
+Static singleton holding two per-transaction booleans. `hasExecutedJobs` is set to `true` after the first chunk executes and is consumed by `JobSelectorImpl` to control whether unknown-model jobs (`MaxChunkSize = -1`) are included in the candidate query. `hasAttemptedWakeUp` is set by `JobExecutorQueueableSpawner.wakeUp()` so the insert trigger attempts at most one wake-up per transaction.
 
 ### ApexJobConfigService
 
-Reads `ApexJobConfig__c.getOrgDefaults()`. Provides `isSystemEnabled()` (global kill switch) and `getEnqueueDelayInMinutes()` (idle re-enqueue delay, considering business hours, clamped to [0, 10] minutes).
+Reads `ApexJobConfig__c.getOrgDefaults()` on every call, so a change made earlier in the same transaction is seen (a custom setting read costs no SOQL). Provides `isSystemEnabled()` (global kill switch) and `getEnqueueDelayInMinutes()` (idle re-enqueue delay, considering business hours, clamped to [0, 10] minutes).
 
 ### JobExecutorService
 
@@ -316,6 +319,7 @@ The WHERE clause includes all 18 base-consumption checks plus structural filters
 ```sql
 WHERE JobDescription__c NOT IN :excludedIds
   AND IsCandidate__c = TRUE
+  AND NextExecutionDateTime__c <= :now
   AND JobDescription__r.MaxChunkSize__c >= :minMaxChunkSize
   AND JobDescription__r.CpuTimeBaseConsumption__c <= :availableLimits.cpuTime
   AND JobDescription__r.HeapSizeBaseConsumption__c <= :availableLimits.heapSize
@@ -326,17 +330,19 @@ ORDER BY Priority__c DESC, MaxChunkSize__c ASC,
 LIMIT 50
 ```
 
+`NextExecutionDateTime__c` carries a custom index (`allowNullValues` true); the explicit filter lets the optimizer lead with it, and the formula stays as the residual check.
+
 **Callout guard**: If DML has occurred in the transaction, `maxCallout` is set to 0, excluding callout-making jobs (prevents Salesforce's "Uncommitted Work Pending" error).
 
 ### JobRepositoryImpl — Result Persistence
 
 `recordJobExecution()` runs in the Finalizer. Uses `Database.update(records, false)` and `Database.delete(successJobs, false)` — `allOrNone: false` is deliberate because partial success beats total failure in the Finalizer context.
 
-`JobIds__c` accumulation: appends the 15-char async job ID to a semicolon-delimited string, trimming oldest entries when exceeding 131,072 characters.
+`JobIds__c` accumulation: appends the 15-char async job ID to a semicolon-delimited string, and keeps only the last 20 ids.
 
 ### JobExecutorQueueableSpawner
 
-Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped.
+Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped. Every enqueue first checks for a free queueable slot (`Limits.getQueueableJobs() < Limits.getLimitQueueableJobs()`) and returns `null` otherwise, ahead of the `isRunning` query. `wakeUp()` is the trigger's entry point: once per transaction, skipped in Batch and `@future` contexts.
 
 ### ApexJobWatcher — Schedulable Watchdog
 
@@ -392,7 +398,7 @@ Implements `Queueable`, `Finalizer`, and `Database.AllowsCallouts`. The same ins
 
 **Finalizer phase**: Two independent try/catch blocks:
 1. **Persist**: If `UNHANDLED_EXCEPTION` and a job was in-flight, synthesize a `KILLED` result. Persist all results via `recordJobExecution`.
-2. **Re-enqueue**: If system enabled, enqueue the next executor (delay 0 if work done, configured delay if idle).
+2. **Re-enqueue**: If system enabled, enqueue the next executor (delay 0 if work done and recorded; configured idle delay if idle or if recording threw, results discarded).
 
 The two-block design ensures a persistence failure does not prevent re-enqueueing.
 
@@ -453,7 +459,7 @@ DEFAULT_KILL_COOLDOWN_COUNT   = 3     (consecutive successes before EWMA resumes
 4. Per dimension:
    - If the current learned value is unknown (sentinel `0`) → **cold start**: set it directly to the observed value.
    - Else, compute the variation relative to current:
-     - If above `VariationResetThreshold__c` → it is **not** assimilated; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
+     - If the relative variation is above `VariationResetThreshold__c` **and** the absolute chunk-total deviation is above the dimension's noise floor (`LimitsUsage.noiseFloor(dimension)`, carried as `ConsumptionModel.noiseFloor` and evaluated by `ConsumptionModel.isSignificantVariation`: 5 ms CPU, 4,096 B heap, 5 ms callout time, 1 for counters) → it is **not** assimilated. For the per-item value the deviation is `|newPerItem − currentPerItem| × (chunkSize − 1)`; `ConsecutiveVariationCount__c` increments. A full model reset fires only when the counter reaches `VariationResetCount__c` (default `3`). Any normal (within-threshold) observation resets the counter to `0`, so transient noise no longer wipes the model.
      - Otherwise (within threshold), **assimilate** depending on the post-failure cooldown window:
        - If `SuccessStreak__c < KillCooldownCount__c` → **cooldown active**: `Math.max(current, observed)` — keeps the just-inflated post-kill ceiling sticky so a single recovery chunk cannot blend it back down; this defeats the pre-remediation scenario where EWMA eroded kill penalties after 2–3 observations and re-invited the same kill.
        - Else → **EWMA blend**: `newValue = α·observed + (1−α)·current`, where α = `LearningRate__c` (default `0.30`). Smoothly absorbs small variations instead of permanently latching outliers like the old pure `max()` approach did.
@@ -563,7 +569,7 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 │  │  │  │  Watcher status   │  │  Status, count, metrics    │ │ │ │
 │  │  │  │  Executor count   │  │  5s polling                │ │ │ │
 │  │  │  │  Restart button   │  └────────────────────────────┘ │ │ │
-│  │  │  │  500ms polling    │                                  │ │ │
+│  │  │  │  5s polling       │                                  │ │ │
 │  │  │  └──────────────────-┘                                  │ │ │
 │  │  │  ┌─ requestTable (full width) ────────────────────────┐ │ │ │
 │  │  │  │  Paginated job request list, infinite scroll       │ │ │ │
@@ -575,17 +581,19 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**`engineControls`** — Polls at 500ms for engine status, executor count, and watcher status. Provides pause/resume/restart actions gated by `Manage_Async_Job_Engine` custom permission (client-side check + server-side `assertPerm()`).
+**`engineControls`** — Polls every 5 s with one `getEngineStatus()` call (enabled flag, executor count, watcher status); each tick skips its Apex call while the host is hidden (Lightning's page cache keeps the console connected but not rendered after in-app navigation) and polling resumes on the first tick after it is visible again; `disconnectedCallback` clears the timer when the component is removed, and the timer is re-armed after each tick, so a failed call is logged and does not stop polling. Provides pause/resume/restart actions gated by `Manage_Async_Job_Engine` custom permission (client-side check + server-side `assertPerm()`).
 
-**`statusByProcessorTable`** — Polls at 5s. Aggregate `GROUP BY Status__c, JobDescription__c` with a second cacheable call for processor name resolution.
+**`statusByProcessorTable`** — Polls every 5 s: `getStatusByProcessor()` returns count-only groups (`GROUP BY Status__c, JobDescription__c`), then `getJobDescriptionInfos(ids)` supplies the processor name, the statistics (`MaxChunkSize__c`, `SmallestFailingChunk__c`, `SuccessStreak__c`, `ConsecutiveFailures__c`, `LastExecutionDateTime__c`) and the rate-limit fields, merged per processor. Each tick skips its Apex calls while the host is hidden (Lightning's page cache keeps the console connected but not rendered after in-app navigation); `disconnectedCallback` clears the timer when the component is removed, and the timer is re-armed after each tick, so a failed call does not stop polling.
 
-**`requestTable`** — Polls at 2s. Paginated with infinite scroll (page size 50). Diff-and-replace strategy: only refreshes the first page and compares IDs before triggering a full update. Row styling encodes status (red=FAILURE, darker red=KILLED, green=SUCCESS, striped=not candidate).
+**`requestTable`** — Polls at 2s: each tick skips its Apex call while the host is hidden (Lightning's page cache keeps the console connected but not rendered after in-app navigation); `disconnectedCallback` clears the timer when the component is removed, and the timer is re-armed after each tick, so a failed call does not stop polling. Paginated with infinite scroll (page size 50). Diff-and-replace strategy: only refreshes the first page and compares IDs before triggering a full update. Row styling encodes status (red=FAILURE, darker red=KILLED, green=SUCCESS, striped=not candidate).
 
 **`jobDescriptionResetConsumption`** — Headless LWC quick action on `JobDescription__c` record pages. Delegates to `JobDescriptionActionsController.resetConsumptionModel()`.
 
 ### Apex Controller
 
 `JobMonitorController` (`with sharing`) provides all backend methods. Read methods respect sharing; mutation methods (`pauseEngine`, `resumeEngine`, `restartEngine`) additionally require the `Manage_Async_Job_Engine` custom permission, enforced via `FeatureManagement.checkPermission`.
+
+`getEngineStatus()` returns `EngineStatus { enabled, executorCount, watcherScheduled }` in one round trip. `getStatusByProcessor()` counts rows per group only (one query row per group); per-processor statistics come from `getJobDescriptionInfos()`.
 
 ---
 
@@ -610,7 +618,7 @@ Anonymous-Apex scripts under `scripts/apex/` (outside every `sfdx-project.json` 
 
 ### Permission Set: AdminAsyncJob
 
-Full CRUD + ModifyAll + ViewAll on `JobDescription__c` and `JobRequest__c`. Read/write on all custom fields. Includes `Manage_Async_Job_Engine`.
+Full CRUD + ModifyAll + ViewAll on `JobDescription__c` and `JobRequest__c`. Read/write on all custom fields. Includes `Manage_Async_Job_Engine`. Grants the `Job_Monitor_Console` tab (Visible).
 
 ### Sharing Model
 
@@ -643,6 +651,7 @@ Create a `JobDescription__c` record with `ProcessorName__c = 'MyProcessor'`. Cre
 2. Add three fields to `JobDescription__c` following the naming convention: `{Dimension}BaseConsumption__c`, `{Dimension}PerItemConsumption__c`, `{Dimension}Safety__c`.
 3. Add the `Limits.get*()` calls to `LimitServiceImpl`.
 4. Add the WHERE clause to `JobSelectorImpl`.
+5. If the dimension is measured in time or bytes rather than counted, add its noise floor to `LimitsUsage.NOISE_FLOOR_BY_DIMENSION`, next to the dimension; counters default to 1.
 
 Zero changes needed in `AdaptiveChunkCalculator`, `AdaptiveConsumptionLearner`, or `ConsumptionModel` — they iterate `LimitsUsage.dimensions()` dynamically.
 
@@ -662,6 +671,20 @@ The Finalizer is the last opportunity to persist results. Using `allOrNone: fals
 
 The Queueable runs user code; the Finalizer persists results and re-enqueues. This separation is necessary because DML after a callout-containing transaction can fail, and governor limits reset between phases.
 
+### One Chunk per Description per Transaction
+
+A description gets at most one chunk of at most 50 requests per transaction. `JobRepositoryImpl.extractDescriptionIds` feeds the descriptions already executed into `JobSelectorImpl`, which excludes them (`JobDescription__c NOT IN :jobDescriptionIdsToExclude`) and caps rows at `ApexJobConstant.DEFAULT_MAX_CHUNK_SIZE`.
+
+**Cost** (Developer Edition scratch org, 2026-11-25): 1,000 no-op jobs take 25 transactions and 24-47 s, using about 21 ms of the 60,000 ms CPU budget per transaction. A one-transaction prototype did the same work in about 3.2 s.
+
+**Why it stays:**
+
+- The rate counter is written only in the finalizer (`JobExecuted.updateRateLimitCounter`) and read by `AdaptiveChunkCalculator.remainingRateBudget`, so several chunks in one transaction would read a stale counter.
+- The consumption learner runs in the finalizer, so later chunks would size against an un-updated model.
+- Every eligible description gets a turn.
+- A failing finalizer would lose up to about 5,000 recordings instead of 50.
+- Executed requests stay on the heap until the finalizer.
+
 ### Bootstrap Single-Item Probe
 
 When `MaxChunkSize__c == -1`, the system runs exactly 1 item. This establishes the `base` measurement. Only after `chunkSize > 1` runs does `perItem` get learned. This cold-start strategy ensures the system never over-commits on an unknown workload.
@@ -676,7 +699,7 @@ Once any chunk of size N fails, `SmallestFailingChunk = N` and the calculator en
 
 ### Variation Reset Threshold with N-of-N Counter
 
-If an observation diverges from the learned model by more than `VariationResetThreshold__c` (default 30%) the sample is **not** blended in — instead `ConsecutiveVariationCount__c` increments. The model is reset only once the counter reaches `VariationResetCount__c` (default 3). A single outlier (cold cache, one-off cascade) is tolerated and can no longer wipe the model; sustained workload drift still triggers a reset and re-enables the bootstrap probe. Any within-threshold observation clears the counter.
+If an observation diverges from the learned model by more than `VariationResetThreshold__c` (default 30%) **and** the absolute deviation of the chunk total exceeds the dimension's noise floor, the sample is **not** blended in — instead `ConsecutiveVariationCount__c` increments. The model is reset only once the counter reaches `VariationResetCount__c` (default 3). A single outlier (cold cache, one-off cascade) is tolerated and can no longer wipe the model; sustained workload drift still triggers a reset and re-enables the bootstrap probe. Any within-threshold observation clears the counter. The noise-floor conjunction exists because readings at the measurement floor of cheap jobs (e.g. 1 ms of CPU over a 50-item chunk) can swing by 100 % relative while carrying no real information, so they no longer count as variation.
 
 ### Post-Kill `Math.max` Cooldown
 
@@ -724,6 +747,7 @@ apex-job/
 │   │   │   ├── classes/       (ApexJob, JobCandidate, JobExecutable, JobExecuted, ...)
 │   │   │   │   ├── chunk-calculation/     (AdaptiveChunkCalculator)
 │   │   │   │   └── consumption-learning/  (AdaptiveConsumptionLearner)
+│   │   │   ├── customindex/   (JobRequest__c.NextExecutionDateTime__c)
 │   │   │   ├── lwc/           (jobDescriptionResetConsumption)
 │   │   │   ├── objects/       (JobDescription__c, JobRequest__c, ApexJobConfig__c)
 │   │   │   ├── triggers/      (JobRequestAfterInsert)
@@ -735,9 +759,10 @@ apex-job/
 │       ├── applications/      (Async_Job_Monitor)
 │       ├── classes/adapter/   (JobMonitorController)
 │       ├── flexipages/        (Job_Monitor_Console)
-│       └── lwc/               (jobMonitorConsole, engineControls, statusByProcessorTable, requestTable)
+│       ├── lwc/               (jobMonitorConsole, engineControls, statusByProcessorTable, requestTable)
+│       └── tabs/              (Job_Monitor_Console)
 └── test/
-    ├── unit/                  (16 test classes + helpers)
-    ├── integration/           (3 test classes)
+    ├── unit/                  (18 test classes + helpers)
+    ├── integration/           (5 test classes)
     └── functional/            (6 test classes + test data)
 ```

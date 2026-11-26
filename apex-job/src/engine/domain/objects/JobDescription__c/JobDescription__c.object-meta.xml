@@ -153,7 +153,6 @@
     <enableSharing>true</enableSharing>
     <enableStreamingApi>true</enableStreamingApi>
     <externalSharingModel>Private</externalSharingModel>
-    <gender>Feminine</gender>
     <label>Job Description</label>
     <nameField>
         <label>Job Description Name</label>

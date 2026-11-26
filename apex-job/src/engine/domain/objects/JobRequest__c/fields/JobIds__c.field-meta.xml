@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>JobIds__c</fullName>
-    <description>List of AsyncApexJobIds separated by semi-colon</description>
+    <description>Last 20 AsyncApexJob ids (15 characters) separated by semi-colon</description>
     <externalId>false</externalId>
     <label>Job Ids</label>
     <length>131072</length>
