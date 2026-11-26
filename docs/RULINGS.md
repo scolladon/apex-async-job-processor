@@ -19,3 +19,4 @@ infer it from `DOCTRINE.md` and the code.
 - R-013 [apex-job/src/monitor/lwc/**, package.json] LWC changes are verified by sfdx-lwc-jest fake-timer tests plus one manual scratch-org network check. Refused: manual check only · jest only.
 - R-014 [CONTRIBUTING.md] CONTRIBUTING documents deploying Apex Mockery from source at tag v2.3.0 before deploying apex-job/test. Refused: install its package by version id · leave it undocumented.
 - R-015 [config/project-scratch-def.json] The scratch definition sets language en_US so the test suite runs under an English admin user. Refused: a CONTRIBUTING note to switch the user after creation · leave it undocumented.
+- R-016 [apex-job/src/monitor/lwc/**] Monitor components skip their Apex poll while their host element is not rendered (Lightning page cache keeps them connected but hidden) and resume on the next tick once visible. Refused: document background polling only · defer to the backlog.
