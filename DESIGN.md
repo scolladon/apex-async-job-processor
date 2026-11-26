@@ -205,7 +205,7 @@ System.enqueueJob(new AsyncApexJobExecutor(), options)
      │           └── Database.delete(successfulJobs, allOrNone=false)
      │
      └── [Block 2: Re-enqueue]
-           ├── delay = 0 if work done, configured delay if idle
+           ├── delay = 0 if work done and recorded; configured idle delay if idle or if recording threw (results discarded)
            └── JobExecutorSpawner.enqueue(delay) → chain continues
 ```
 
@@ -392,7 +392,7 @@ Implements `Queueable`, `Finalizer`, and `Database.AllowsCallouts`. The same ins
 
 **Finalizer phase**: Two independent try/catch blocks:
 1. **Persist**: If `UNHANDLED_EXCEPTION` and a job was in-flight, synthesize a `KILLED` result. Persist all results via `recordJobExecution`.
-2. **Re-enqueue**: If system enabled, enqueue the next executor (delay 0 if work done, configured delay if idle).
+2. **Re-enqueue**: If system enabled, enqueue the next executor (delay 0 if work done and recorded; configured idle delay if idle or if recording threw, results discarded).
 
 The two-block design ensures a persistence failure does not prevent re-enqueueing.
 

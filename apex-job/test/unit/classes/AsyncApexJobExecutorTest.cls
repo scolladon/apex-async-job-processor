@@ -94,6 +94,26 @@ private class AsyncApexJobExecutorTest {
   }
 
   @IsTest
+  static void givenExecutedResultsAndRecordingThrows_whenFinalizerRuns_thenReenqueueWithIdleDelay() {
+    // Arrange
+    final Integer idleDelayInMinutes = 3;
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.getEnqueueDelayInMinutesSpy.returns(idleDelayInMinutes);
+    mocks.recordJobExecutionSpy.throwsException(new TestException('Test exception'));
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    sut.jobExecutionResults.add((JobExecuted) jobExecutedMock.stub);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Expect.that(mocks.enqueueSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(idleDelayInMinutes);
+  }
+
+  @IsTest
   static void givenFinalizerContext_whenSystemIsDisabledThrows_thenItCallsLoggerError() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();

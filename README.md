@@ -364,6 +364,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Finalizer: records results, then re-enqueues.
    - If this run did work: re-enqueue with 0 minutes.
    - If idle: use configured delay.
+   - If recording failed: results are discarded and the idle delay is used.
 
  ## Algorithms
 
