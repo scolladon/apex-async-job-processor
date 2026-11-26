@@ -585,7 +585,7 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 
 **`statusByProcessorTable`** — Polls at 5s. Aggregate `GROUP BY Status__c, JobDescription__c` with a second cacheable call for processor name resolution.
 
-**`requestTable`** — Polls at 2s. Paginated with infinite scroll (page size 50). Diff-and-replace strategy: only refreshes the first page and compares IDs before triggering a full update. Row styling encodes status (red=FAILURE, darker red=KILLED, green=SUCCESS, striped=not candidate).
+**`requestTable`** — Polls at 2s: the timer is cleared on disconnect and re-armed after each call, so a failed call does not stop polling. Paginated with infinite scroll (page size 50). Diff-and-replace strategy: only refreshes the first page and compares IDs before triggering a full update. Row styling encodes status (red=FAILURE, darker red=KILLED, green=SUCCESS, striped=not candidate).
 
 **`jobDescriptionResetConsumption`** — Headless LWC quick action on `JobDescription__c` record pages. Delegates to `JobDescriptionActionsController.resetConsumptionModel()`.
 

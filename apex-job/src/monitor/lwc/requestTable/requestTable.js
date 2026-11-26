@@ -1,6 +1,8 @@
 import { LightningElement } from "lwc";
 import getJobRequestPage from "@salesforce/apex/JobMonitorController.getJobRequestPage";
 
+const POLL_INTERVAL_MS = 2000;
+
 export default class RequestTable extends LightningElement {
   rowValues = [];
   isLoading = false;
@@ -50,10 +52,28 @@ export default class RequestTable extends LightningElement {
   }
 
   connectedCallback() {
-    this.refreshData();
+    this.stopped = false;
+    this.poll();
   }
 
-  async refreshData() {
+  disconnectedCallback() {
+    this.stopped = true;
+    clearTimeout(this.pollTimer);
+  }
+
+  async poll() {
+    try {
+      await this.refresh();
+    } catch (error) {
+      console.error("requestTable: refresh failed", error);
+    } finally {
+      if (!this.stopped) {
+        this.pollTimer = setTimeout(() => this.poll(), POLL_INTERVAL_MS);
+      }
+    }
+  }
+
+  async refresh() {
     const data = await getJobRequestPage({ limitSize: this.pageSize, offsetVal: 0 });
     const currentFirstPage = this.rowValues.slice(0, this.pageSize);
     if (this.arePagesDifferent(data, currentFirstPage)) {
@@ -63,9 +83,6 @@ export default class RequestTable extends LightningElement {
       this.hasMore = this.rowValues.length === this.pageSize;
       this.isLoading = false;
     }
-    setTimeout(() => {
-      this.refreshData();
-    }, 2000);
   }
 
   async handleLoadMore() {
