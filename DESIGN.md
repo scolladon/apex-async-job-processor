@@ -650,8 +650,9 @@ Create a `JobDescription__c` record with `ProcessorName__c = 'MyProcessor'`. Cre
 2. Add three fields to `JobDescription__c` following the naming convention: `{Dimension}BaseConsumption__c`, `{Dimension}PerItemConsumption__c`, `{Dimension}Safety__c`.
 3. Add the `Limits.get*()` calls to `LimitServiceImpl`.
 4. Add the WHERE clause to `JobSelectorImpl`.
+5. If the dimension is measured in time or bytes rather than counted, add its noise floor to `ConsumptionModel.NOISE_FLOOR_BY_DIMENSION`; counters default to 1.
 
-Zero changes needed in `AdaptiveChunkCalculator`, `AdaptiveConsumptionLearner`, or `ConsumptionModel` — they iterate `LimitsUsage.dimensions()` dynamically.
+Zero changes needed in `AdaptiveChunkCalculator`, `AdaptiveConsumptionLearner`, or `ConsumptionModel` (except a noise floor for non-counter dimensions) — they iterate `LimitsUsage.dimensions()` dynamically.
 
 ---
 
@@ -746,7 +747,7 @@ apex-job/
 │       ├── lwc/               (jobMonitorConsole, engineControls, statusByProcessorTable, requestTable)
 │       └── tabs/              (Job_Monitor_Console)
 └── test/
-    ├── unit/                  (17 test classes + helpers)
+    ├── unit/                  (18 test classes + helpers)
     ├── integration/           (5 test classes)
     └── functional/            (6 test classes + test data)
 ```

@@ -1,9 +1,9 @@
 @SuppressWarnings('PMD.ExcessivePublicCount')
 public class LimitsUsage {
-  private static final String CPU_TIME_DIMENSION = 'cpuTime';
-  private static final String HEAP_SIZE_DIMENSION = 'heapSize';
+  public static final String CPU_TIME_DIMENSION = 'cpuTime';
+  public static final String HEAP_SIZE_DIMENSION = 'heapSize';
   private static final String CALLOUT_DIMENSION = 'callout';
-  private static final String CALLOUT_TIME_DIMENSION = 'calloutTime';
+  public static final String CALLOUT_TIME_DIMENSION = 'calloutTime';
   private static final String PUBLISH_IMMEDIATE_DML_DIMENSION = 'publishImmediateDml';
   private static final String DML_ROWS_DIMENSION = 'dmlRows';
   private static final String DML_STATEMENTS_DIMENSION = 'dmlStatements';
