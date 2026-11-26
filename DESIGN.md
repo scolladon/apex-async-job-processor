@@ -76,7 +76,7 @@ JobDescription__c [1]                          JobRequest__c [N]
   ├── isRecurrent__c (Checkbox)                  ├── Enabled__c (Checkbox)
   ├── AllowedDays__c (MultiselectPicklist)        ├── IsCandidate__c (Formula, Checkbox)
   ├── AllowedStartTime__c (Time)                 ├── AttemptNumber__c (Number)
-  ├── AllowedEndTime__c (Time)                   ├── NextExecutionDateTime__c (DateTime)
+  ├── AllowedEndTime__c (Time)                   ├── NextExecutionDateTime__c (DateTime, default NOW())
   ├── MinJobInterval__c (Number)                 ├── LastSelectionDateTime__c (DateTime)
   ├── MaxExecutionAttempt__c (Number, -1=∞)      ├── LastExecutionDateTime__c (DateTime)
   ├── MaxChunkSize__c (Number, -1=unknown)       ├── LastExecutionMessage__c (LongTextArea)
@@ -739,6 +739,6 @@ apex-job/
 │       └── tabs/              (Job_Monitor_Console)
 └── test/
     ├── unit/                  (16 test classes + helpers)
-    ├── integration/           (3 test classes)
+    ├── integration/           (4 test classes)
     └── functional/            (6 test classes + test data)
 ```

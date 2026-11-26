@@ -2,33 +2,11 @@
 public class AsyncProcessorTest {
   @TestSetup
   static void setup() {
-    final User runningUser = new User(
-      FirstName = 'Test',
-      LastName = 'User',
-      Email = 'test.user@ajp.io',
-      Username = 'test.user@ajp.io',
-      Alias = 'testuser',
-      TimeZoneSidKey = 'Europe/Paris',
-      LocaleSidKey = 'en_US',
-      EmailEncodingKey = 'UTF-8',
-      LanguageLocaleKey = 'en_US',
-      ProfileId = [SELECT Id FROM Profile WHERE Name = 'System Administrator']
-      .Id
-    );
-
-    insert runningUser;
-
-    final PermissionSet byPassTriggersPermissionSet = new PermissionSet(Name = 'ByPassTriggers', Label = 'ByPass Triggers');
-    insert byPassTriggersPermissionSet;
-
-    final CustomPermission byPassTriggerCustomPermission = [SELECT Id FROM CustomPermission WHERE DeveloperName = 'Bypass_JobRequest_Trigger' LIMIT 1];
-    insert new SetupEntityAccess(SetupEntityId = byPassTriggerCustomPermission.Id, ParentId = byPassTriggersPermissionSet.Id);
-
-    insert new PermissionSetAssignment(AssigneeId = runningUser.Id, PermissionSetId = byPassTriggersPermissionSet.Id);
+    TestDataFactory.createUserWithTriggerBypass();
   }
 
   static User getRunningUser() {
-    return [SELECT Id FROM User WHERE Username = 'test.user@ajp.io' LIMIT 1];
+    return [SELECT Id FROM User WHERE Username = :TestDataFactory.TRIGGER_BYPASS_USERNAME LIMIT 1];
   }
 
   @IsTest
@@ -741,6 +719,26 @@ public class AsyncProcessorTest {
       // When chunk size increases, consumption values should be interpolated
       Assert.isTrue(updatedJobDesc.MaxChunkSize__c > 1, 'Chunk size should be at least the executed size');
       Assert.isTrue(updatedJobDesc.CpuTimeBaseConsumption__c >= 0, 'CPU consumption should be interpolated based on chunk size');
+    }
+  }
+
+  @IsTest
+  private static void givenBuilderRequestWithoutScheduleAt_whenExecutorRuns_thenRequestIsRecorded() {
+    // Arrange
+    System.runAs(getRunningUser()) {
+      final JobDescription__c description = new JobDescription__c(Name = 'NormalPriorityProcessor', ProcessorName__c = 'AsyncProcessorTest.NormalPriorityProcessor', Enabled__c = true);
+      insert description;
+      final JobRequest__c saved = ApexJobManager.request().forDescription(description.Id).save();
+      insert new ApexJobConfig__c(Enabled__c = true);
+      final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(new ApexJobFactoryForTest());
+
+      // Act
+      Test.startTest();
+      System.enqueueJob(sut);
+      Test.stopTest();
+
+      // Assert
+      Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WHERE Id = :saved.Id], 'Request without scheduleAt should have been executed and deleted');
     }
   }
 
