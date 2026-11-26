@@ -5,6 +5,7 @@ import getJobRequestPage from "@salesforce/apex/JobMonitorController.getJobReque
 jest.mock("@salesforce/apex/JobMonitorController.getJobRequestPage", () => ({ default: jest.fn() }), { virtual: true });
 
 const POLL_INTERVAL_MS = 2000;
+const PAGE_SIZE = 50;
 
 const mount = () => {
   const element = createElement("c-request-table", { is: RequestTable });
@@ -90,5 +91,88 @@ describe("c-request-table", () => {
     expect(consoleError).toHaveBeenCalledTimes(1);
     expect(consoleError).toHaveBeenCalledWith("requestTable: refresh failed", failure);
     consoleError.mockRestore();
+  });
+
+  const aRow = (index, overrides = {}) => ({
+    Id: "a00" + index,
+    JobDescription__c: "a01" + index,
+    JobDescription__r: { ProcessorName__c: "Processor" + index },
+    IsCandidate__c: true,
+    Status__c: "PENDING",
+    ...overrides
+  });
+
+  const rowsOf = (element) => element.shadowRoot.querySelector("lightning-datatable").data;
+
+  it("givenFetchedRows_whenRendered_thenRowsAreDecoratedByStatusAndCandidacy", async () => {
+    // Arrange
+    getJobRequestPage.mockResolvedValue([aRow(1, { Status__c: "FAILURE" }), aRow(2, { Status__c: "KILLED", IsCandidate__c: false }), aRow(3, { Status__c: "SUCCESS" }), aRow(4)]);
+
+    // Act
+    const sut = mount();
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    const rows = rowsOf(sut);
+    expect(rows.map((row) => row.rowStyle)).toEqual(["slds-text-color_error", "slds-theme_alert-texture slds-text-color_destructive", "slds-text-color_success", ""]);
+    expect(rows[0]).toMatchObject({ RowNumber: 1, recordUrl: "/a001", ProcessorName: "Processor1", processorUrl: "/a011" });
+  });
+
+  it("givenChangedFirstPage_whenPolled_thenRowsAreReplaced", async () => {
+    // Arrange
+    getJobRequestPage.mockResolvedValueOnce([aRow(1)]).mockResolvedValue([aRow(2)]);
+    const sut = mount();
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+
+    // Assert
+    expect(rowsOf(sut).map((row) => row.Id)).toEqual(["a002"]);
+  });
+
+  it("givenFullFirstPage_whenLoadMore_thenNextPageAppendedWithShadeAndOffset", async () => {
+    // Arrange
+    const fullPage = Array.from({ length: PAGE_SIZE }, (_, i) => aRow(i));
+    getJobRequestPage.mockResolvedValueOnce(fullPage).mockResolvedValueOnce([aRow(50)]);
+    const sut = mount();
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-datatable").dispatchEvent(new CustomEvent("loadmore"));
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(getJobRequestPage).toHaveBeenLastCalledWith({ limitSize: PAGE_SIZE, offsetVal: PAGE_SIZE });
+    const rows = rowsOf(sut);
+    expect(rows).toHaveLength(PAGE_SIZE + 1);
+    expect(rows[PAGE_SIZE]).toMatchObject({ RowNumber: PAGE_SIZE + 1, rowStyle: "slds-theme_shade" });
+  });
+
+  it("givenPartialFirstPage_whenLoadMore_thenNoFurtherFetch", async () => {
+    // Arrange
+    getJobRequestPage.mockResolvedValue([aRow(1)]);
+    const sut = mount();
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-datatable").dispatchEvent(new CustomEvent("loadmore"));
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(getJobRequestPage).toHaveBeenCalledTimes(1);
+  });
+
+  it("givenColumns_whenRendered_thenUrlColumnsOpenInNewTab", async () => {
+    // Arrange
+    const sut = mount();
+
+    // Act
+    const columns = sut.shadowRoot.querySelector("lightning-datatable").columns;
+
+    // Assert
+    const urlColumns = columns.filter((column) => column.type === "url");
+    expect(urlColumns.map((column) => column.fieldName)).toEqual(["recordUrl", "processorUrl"]);
+    expect(urlColumns.every((column) => column.typeAttributes.target === "_blank")).toBe(true);
   });
 });

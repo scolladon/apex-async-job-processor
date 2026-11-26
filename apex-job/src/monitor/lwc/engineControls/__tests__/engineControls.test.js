@@ -1,6 +1,10 @@
 import { createElement } from "lwc";
 import EngineControls from "c/engineControls";
+import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import getEngineStatus from "@salesforce/apex/JobMonitorController.getEngineStatus";
+import pauseEngine from "@salesforce/apex/JobMonitorController.pauseEngine";
+import resumeEngine from "@salesforce/apex/JobMonitorController.resumeEngine";
+import restartEngine from "@salesforce/apex/JobMonitorController.restartEngine";
 
 jest.mock("@salesforce/apex/JobMonitorController.getEngineStatus", () => ({ default: jest.fn() }), { virtual: true });
 jest.mock("@salesforce/apex/JobMonitorController.pauseEngine", () => ({ default: jest.fn() }), { virtual: true });
@@ -9,12 +13,19 @@ jest.mock("@salesforce/apex/JobMonitorController.restartEngine", () => ({ defaul
 jest.mock("@salesforce/customPermission/Manage_Async_Job_Engine", () => ({ default: true }), { virtual: true });
 
 const POLL_INTERVAL_MS = 5000;
+const ShowToastEventName = "lightning__showtoast";
 const HEALTHY_STATUS = { enabled: true, executorCount: 1, watcherScheduled: true };
 
 const mount = () => {
   const element = createElement("c-engine-controls", { is: EngineControls });
   document.body.appendChild(element);
   return element;
+};
+
+const captureToasts = (element) => {
+  const toasts = [];
+  element.addEventListener(ShowToastEventName, (event) => toasts.push(event.detail));
+  return toasts;
 };
 
 describe("c-engine-controls", () => {
@@ -110,5 +121,105 @@ describe("c-engine-controls", () => {
     const values = [...element.shadowRoot.querySelectorAll("b")].map((node) => node.textContent);
     expect(toggle.checked).toBe(true);
     expect(values).toEqual(["Not Scheduled", "3"]);
+  });
+
+  it("givenEnabledEngine_whenToggled_thenPauseCalledAndSuccessToastDispatched", async () => {
+    // Arrange
+    pauseEngine.mockResolvedValue(true);
+    const sut = mount();
+    const toasts = captureToasts(sut);
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-input").dispatchEvent(new CustomEvent("change"));
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(pauseEngine).toHaveBeenCalledTimes(1);
+    expect(resumeEngine).not.toHaveBeenCalled();
+    expect(sut.shadowRoot.querySelector("lightning-input").checked).toBe(false);
+    expect(toasts).toEqual([{ title: "Engine paused", message: "Engine is now disabled.", variant: "success" }]);
+  });
+
+  it("givenDisabledEngine_whenToggled_thenResumeCalledAndEngineShownEnabled", async () => {
+    // Arrange
+    getEngineStatus.mockResolvedValue({ enabled: false, executorCount: 0, watcherScheduled: true });
+    resumeEngine.mockResolvedValue(true);
+    const sut = mount();
+    const toasts = captureToasts(sut);
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-input").dispatchEvent(new CustomEvent("change"));
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(resumeEngine).toHaveBeenCalledTimes(1);
+    expect(pauseEngine).not.toHaveBeenCalled();
+    expect(sut.shadowRoot.querySelector("lightning-input").checked).toBe(true);
+    expect(toasts).toEqual([{ title: "Engine resumed", message: "Engine is now enabled.", variant: "success" }]);
+  });
+
+  it("givenPauseRejected_whenToggled_thenErrorToastCarriesApexMessage", async () => {
+    // Arrange
+    pauseEngine.mockRejectedValue({ body: { message: "Missing permission" } });
+    const sut = mount();
+    const toasts = captureToasts(sut);
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-input").dispatchEvent(new CustomEvent("change"));
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(toasts).toEqual([{ title: "Pause failed", message: "Missing permission", variant: "error" }]);
+    expect(sut.shadowRoot.querySelector("lightning-input").checked).toBe(true);
+  });
+
+  it("givenResumeRejectedWithPlainError_whenToggled_thenErrorToastCarriesErrorMessage", async () => {
+    // Arrange
+    getEngineStatus.mockResolvedValue({ enabled: false, executorCount: 0, watcherScheduled: true });
+    resumeEngine.mockRejectedValue(new Error("boom"));
+    const sut = mount();
+    const toasts = captureToasts(sut);
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-input").dispatchEvent(new CustomEvent("change"));
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(toasts).toEqual([{ title: "Resume failed", message: "boom", variant: "error" }]);
+  });
+
+  it("givenRestartClicked_whenApexResolves_thenRestartToastDispatched", async () => {
+    // Arrange
+    restartEngine.mockResolvedValue("707000000000001");
+    const sut = mount();
+    const toasts = captureToasts(sut);
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-button").click();
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(restartEngine).toHaveBeenCalledTimes(1);
+    expect(toasts).toEqual([{ title: "Restart requested", message: "Executor enqueued if not already running.", variant: "success" }]);
+  });
+
+  it("givenRestartRejectedWithoutMessage_whenClicked_thenErrorToastUsesFallbackMessage", async () => {
+    // Arrange
+    restartEngine.mockRejectedValue({});
+    const sut = mount();
+    const toasts = captureToasts(sut);
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Act
+    sut.shadowRoot.querySelector("lightning-button").click();
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    expect(toasts).toEqual([{ title: "Restart failed", message: "Unexpected error", variant: "error" }]);
   });
 });

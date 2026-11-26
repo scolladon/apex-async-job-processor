@@ -115,4 +115,111 @@ private class JobMonitorControllerTest {
     Assert.isTrue(result.watcherScheduled, 'Should report the scheduled watcher');
     System.abortJob(executorId);
   }
+
+  private static User createEngineManager() {
+    final User manager = TestDataFactory.createUserWithTriggerBypass();
+    final PermissionSet adminPermissionSet = [SELECT Id FROM PermissionSet WHERE Name = 'AdminAsyncJob'];
+    insert new PermissionSetAssignment(AssigneeId = manager.Id, PermissionSetId = adminPermissionSet.Id);
+    return manager;
+  }
+
+  @IsTest
+  static void givenEnabledEngineAndManagePermission_whenPauseEngine_thenEngineDisabledAndTrueReturned() {
+    // Arrange
+    final User manager = createEngineManager();
+
+    // Act
+    Boolean result;
+    System.runAs(manager) {
+      insert new ApexJobConfig__c(Enabled__c = true);
+      result = JobMonitorController.pauseEngine();
+    }
+
+    // Assert
+    Assert.isTrue(result, 'Should report the engine paused');
+    Assert.isFalse(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should persist the engine disabled');
+  }
+
+  @IsTest
+  static void givenDisabledEngineAndManagePermission_whenResumeEngine_thenEngineEnabledAndTrueReturned() {
+    // Arrange
+    final User manager = createEngineManager();
+
+    // Act
+    Boolean result;
+    System.runAs(manager) {
+      insert new ApexJobConfig__c(Enabled__c = false);
+      result = JobMonitorController.resumeEngine();
+    }
+
+    // Assert
+    Assert.isTrue(result, 'Should report the engine resumed');
+    Assert.isTrue(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should persist the engine enabled');
+  }
+
+  @IsTest
+  static void givenDisabledEngineAndManagePermission_whenRestartEngine_thenNothingEnqueued() {
+    // Arrange
+    final User manager = createEngineManager();
+
+    // Act
+    Id result;
+    System.runAs(manager) {
+      insert new ApexJobConfig__c(Enabled__c = false);
+      result = JobMonitorController.restartEngine();
+    }
+
+    // Assert
+    Assert.isNull(result, 'Should not enqueue an executor while the engine is disabled');
+  }
+
+  @IsTest
+  static void givenEnabledEngineAndManagePermission_whenRestartEngine_thenExecutorEnqueued() {
+    // Arrange
+    final User manager = createEngineManager();
+
+    // Act
+    Test.startTest();
+    Id result;
+    System.runAs(manager) {
+      insert new ApexJobConfig__c(Enabled__c = true);
+      result = JobMonitorController.restartEngine();
+    }
+
+    // Assert
+    Assert.isNotNull(result, 'Should enqueue an executor');
+    System.abortJob(result);
+    Test.stopTest();
+  }
+
+  @IsTest
+  static void givenNoManagePermission_whenPauseResumeOrRestartEngine_thenAuthorizationExceptionThrown() {
+    // Arrange
+    final User nonManager = TestDataFactory.createUserWithTriggerBypass();
+    final List<String> failures = new List<String>();
+
+    // Act
+    System.runAs(nonManager) {
+      insert new ApexJobConfig__c(Enabled__c = true);
+      try {
+        JobMonitorController.pauseEngine();
+      } catch (JobMonitorController.AuthorizationException ex) {
+        failures.add('pause');
+      }
+      try {
+        JobMonitorController.resumeEngine();
+      } catch (JobMonitorController.AuthorizationException ex) {
+        failures.add('resume');
+      }
+      try {
+        JobMonitorController.restartEngine();
+      } catch (JobMonitorController.AuthorizationException ex) {
+        failures.add('restart');
+      }
+    }
+
+    // Assert
+    Assert.areEqual(new List<String>{ 'pause', 'resume', 'restart' }, failures, 'Should refuse every engine control');
+    Assert.isTrue(ApexJobConfig__c.getOrgDefaults().Enabled__c, 'Should leave the engine untouched');
+  }
 }
