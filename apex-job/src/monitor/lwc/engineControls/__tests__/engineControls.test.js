@@ -96,4 +96,19 @@ describe("c-engine-controls", () => {
     expect(consoleError).toHaveBeenCalledWith("engineControls: refresh failed", failure);
     consoleError.mockRestore();
   });
+
+  it("givenEngineStatus_whenRefreshed_thenRendersEachValue", async () => {
+    // Arrange
+    getEngineStatus.mockResolvedValue({ enabled: true, executorCount: 3, watcherScheduled: false });
+    const element = mount();
+
+    // Act
+    await jest.advanceTimersByTimeAsync(0);
+
+    // Assert
+    const toggle = element.shadowRoot.querySelector("lightning-input");
+    const values = [...element.shadowRoot.querySelectorAll("b")].map((node) => node.textContent);
+    expect(toggle.checked).toBe(true);
+    expect(values).toEqual(["Not Scheduled", "3"]);
+  });
 });
