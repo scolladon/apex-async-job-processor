@@ -48,7 +48,7 @@ private class JobSelectorImplTest {
         .build()
     );
 
-    insert jobDescriptions;
+    insert as system jobDescriptions;
 
     // Create JobRequest records using ApexJobTestFixture
     final List<JobRequest__c> jobRequests = new List<JobRequest__c>();
@@ -118,7 +118,7 @@ private class JobSelectorImplTest {
         .build()
     );
 
-    insert jobRequests;
+    insert as system jobRequests;
   }
 
   private static LimitsUsage buildMaxAvailableGovernorLimits() {
@@ -147,14 +147,14 @@ private class JobSelectorImplTest {
 
     final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
     // Populate numeric metrics so they appear in getPopulatedFieldsAsMap
-    List<JobRequest__c> jobsToPopulate = [SELECT Id FROM JobRequest__c WHERE Name IN ('HighPriorityJob1', 'NormalPriorityJob1')];
+    List<JobRequest__c> jobsToPopulate = [SELECT Id FROM JobRequest__c WHERE Name IN ('HighPriorityJob1', 'NormalPriorityJob1') WITH SYSTEM_MODE];
     for (JobRequest__c j : jobsToPopulate) {
       j.WaitTime__c = 100;
       j.ChunkRunTime__c = 200;
       j.UnitRunTime__c = 200 / jobsToPopulate.size();
       j.ProcessingTime__c = 300;
     }
-    update jobsToPopulate;
+    update as system jobsToPopulate;
 
     // Act
     Test.startTest();
@@ -239,7 +239,7 @@ private class JobSelectorImplTest {
     final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
 
     // Delete all test data to simulate no eligible jobs
-    delete [SELECT Id FROM JobRequest__c WHERE NextExecutionDateTime__c <= :System.now()];
+    delete as system [SELECT Id FROM JobRequest__c WHERE NextExecutionDateTime__c <= :System.now() WITH SYSTEM_MODE];
 
     // Act
     Test.startTest();
@@ -417,7 +417,7 @@ private class JobSelectorImplTest {
       .withName('BulkJob{0}')
       .withArgument('"{test: \"data\"}"')
       .buildMany(60);
-    insert bulkJobs;
+    insert as system bulkJobs;
 
     JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
 
@@ -450,7 +450,7 @@ private class JobSelectorImplTest {
       .withArgument('{"order": "test1"}')
       .buildMany(2);
 
-    insert additionalJobs;
+    insert as system additionalJobs;
 
     JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
 
@@ -492,7 +492,7 @@ private class JobSelectorImplTest {
       .withName('LimitedJob')
       .withArgument('{"limited": "test"}')
       .build();
-    insert limitedJob;
+    insert as system limitedJob;
 
     // Set available limits that allow the job
     LimitsUsage availableLimits = buildMaxAvailableGovernorLimits();
@@ -541,7 +541,7 @@ private class JobSelectorImplTest {
       .withName('HighConsumptionJob')
       .withArgument('{"high": "consumption"}')
       .build();
-    insert highConsumptionJob;
+    insert as system highConsumptionJob;
 
     // Set available limits that are insufficient
     LimitsUsage insufficientLimits = ApexJobTestFixture.aLimitsUsage()
@@ -587,7 +587,7 @@ private class JobSelectorImplTest {
     mocks.getAvailableLimitsSpy.returns(mockAvailableLimits);
 
     final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
-    JobDescription__c jobDescriptionToExclude = [SELECT Id FROM JobDescription__c WHERE ProcessorName__c = 'NormalPriorityProcessor' LIMIT 1];
+    JobDescription__c jobDescriptionToExclude = [SELECT Id FROM JobDescription__c WHERE ProcessorName__c = 'NormalPriorityProcessor' WITH SYSTEM_MODE LIMIT 1];
 
     // Act
     Test.startTest();
@@ -627,7 +627,7 @@ private class JobSelectorImplTest {
       .withName('RestrictedJob')
       .withArgument('{"restricted": "job"}')
       .build();
-    insert restrictedJobRequest;
+    insert as system restrictedJobRequest;
 
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final LimitsUsage mockAvailableLimits = buildMaxAvailableGovernorLimits();
@@ -725,7 +725,7 @@ private class JobSelectorImplTest {
 
     // Act
     Test.startTest();
-    update jobWithoutCallout; // Simulate DML;
+    update as system jobWithoutCallout; // Simulate DML;
     final List<JobRequest__c> result = sut.getEligibleJobs(null);
     Test.stopTest();
 

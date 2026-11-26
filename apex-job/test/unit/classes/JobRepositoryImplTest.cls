@@ -9,7 +9,7 @@ private class JobRepositoryImplTest {
     JobRepository sut = new JobRepositoryImpl(mocks.factoryStub);
     // Burn SOQL queries
     for (Integer i = 0; i < Limits.getLimitQueries() - 1; i++) {
-      final List<Account> accs = [SELECT Id FROM Account LIMIT 1]; //NOPMD
+      final List<Account> accs = [SELECT Id FROM Account WITH SYSTEM_MODE LIMIT 1]; //NOPMD
     }
 
     // Act
@@ -88,14 +88,14 @@ private class JobRepositoryImplTest {
       final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor' + i).withProcessorName('TestProcessor' + i).enabled().withMaxChunkSize(-1).build();
       testJobDescs.add(jobDesc);
     }
-    insert testJobDescs;
+    insert as system testJobDescs;
 
     for (Integer i = 0; i < 11; i++) {
       final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob' + i).withJobDescription(testJobDescs[i].Id).success().enabled().build();
       jobRequest.JobDescription__r = testJobDescs[i];
       testJobRequests.add(jobRequest);
     }
-    insert testJobRequests;
+    insert as system testJobRequests;
 
     // Mock JobCandidates interface for each group
     ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.SUCCESS);
@@ -128,8 +128,8 @@ private class JobRepositoryImplTest {
     Test.stopTest();
 
     // Assert
-    Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c], 'All JobRequest should have been deleted');
-    Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c], 'Should have 11 JobDescription updated');
+    Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WITH SYSTEM_MODE], 'All JobRequest should have been deleted');
+    Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c WITH SYSTEM_MODE], 'Should have 11 JobDescription updated');
     // 11 updates (JobRequests for metrics) + 11 deletes (JobRequests) + 11 updates (JobDescriptions)
     Assert.areEqual(33, dmlAfter - dmlBefore, 'Should update all requests for metrics, delete them, and update descriptions');
   }
@@ -146,14 +146,14 @@ private class JobRepositoryImplTest {
       final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor' + i).withProcessorName('TestProcessor' + i).enabled().withMaxChunkSize(-1).build();
       testJobDescs.add(jobDesc);
     }
-    insert testJobDescs;
+    insert as system testJobDescs;
 
     for (Integer i = 0; i < 11; i++) {
       final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob' + i).withJobDescription(testJobDescs[i].Id).failure().enabled().build();
       jobRequest.JobDescription__r = testJobDescs[i];
       testJobRequests.add(jobRequest);
     }
-    insert testJobRequests;
+    insert as system testJobRequests;
 
     // Mock JobCandidates interface for each group
     ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
@@ -186,8 +186,8 @@ private class JobRepositoryImplTest {
     Test.stopTest();
 
     // Assert
-    Assert.areEqual(11, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.FAILURE.name()], 'All JobRequest should have been updated');
-    Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c], 'All JobDescription should have been updated');
+    Assert.areEqual(11, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.FAILURE.name() WITH SYSTEM_MODE], 'All JobRequest should have been updated');
+    Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c WITH SYSTEM_MODE], 'All JobDescription should have been updated');
     // 11 updates (JobRequests) + 11 updates (JobDescriptions)
     Assert.areEqual(22, dmlAfter - dmlBefore, 'Should update all requests and descriptions');
   }
@@ -219,7 +219,7 @@ private class JobRepositoryImplTest {
         .build();
       testJobDescs.add(jobDesc);
     }
-    insert testJobDescs;
+    insert as system testJobDescs;
 
     for (Integer i = 0; i < 11; i++) {
       ApexJobStatus status = Math.mod(i, 2) == 0 ? ApexJobStatus.SUCCESS : ApexJobStatus.FAILURE;
@@ -232,7 +232,7 @@ private class JobRepositoryImplTest {
       jobRequest.JobDescription__r = testJobDescs[i];
       testJobRequests.add(jobRequest);
     }
-    insert testJobRequests;
+    insert as system testJobRequests;
 
     List<JobExecuted> testJobsExecuted = new List<JobExecuted>();
     for (Integer i = 0; i < 11; i++) {
@@ -272,9 +272,9 @@ private class JobRepositoryImplTest {
     Test.stopTest();
 
     // Assert
-    Assert.areEqual(5, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.FAILURE.name()], '5 JobRequest should have been updated');
-    Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.SUCCESS.name()], '6 JobRequest should have been deleted');
-    Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c], 'All JobDescription should have been updated');
+    Assert.areEqual(5, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.FAILURE.name() WITH SYSTEM_MODE], '5 JobRequest should have been updated');
+    Assert.areEqual(0, [SELECT COUNT() FROM JobRequest__c WHERE Status__c = :ApexJobStatus.SUCCESS.name() WITH SYSTEM_MODE], '6 JobRequest should have been deleted');
+    Assert.areEqual(11, [SELECT COUNT() FROM JobDescription__c WITH SYSTEM_MODE], 'All JobDescription should have been updated');
     // 11 updates (JobRequests) + 6 deletes (successful JobRequests) + 11 updates (JobDescriptions) = 28
     Assert.areEqual(28, dmlAfter - dmlBefore, 'Should update all requests for metrics, delete successes, and update descriptions');
   }
@@ -298,10 +298,10 @@ private class JobRepositoryImplTest {
   static void givenRecordJobExecution_whenCalledWithAsyncJobId_thenPopulateJobIds() {
     // Arrange
     final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').enabled().withMaxChunkSize(-1).build();
-    insert jobDesc;
+    insert as system jobDesc;
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob').withJobDescription(jobDesc.Id).failure().enabled().build();
     jobRequest.JobDescription__r = jobDesc;
-    insert jobRequest;
+    insert as system jobRequest;
 
     ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
     mockResult.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
@@ -318,7 +318,7 @@ private class JobRepositoryImplTest {
     sut.recordJobExecution(testJobsExecuted, ctx);
 
     // Assert
-    JobRequest__c updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id];
+    JobRequest__c updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id WITH SYSTEM_MODE];
     final String shortId = String.valueOf(asyncJobId).left(15);
     Assert.areEqual(shortId, updatedJob.JobIds__c, 'JobIds__c should be populated with 15-char ID');
 
@@ -328,7 +328,7 @@ private class JobRepositoryImplTest {
     Test.stopTest();
 
     final String anotherShortId = String.valueOf(anotherAsyncJobId).left(15);
-    updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id];
+    updatedJob = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id WITH SYSTEM_MODE];
     Assert.areEqual(shortId + ';' + anotherShortId, updatedJob.JobIds__c, 'JobIds__c should be appended with 15-char IDs');
   }
 
@@ -336,7 +336,7 @@ private class JobRepositoryImplTest {
   static void givenJobIdsAtCapacity_whenRecordJobExecution_thenOldestDroppedAndNewestAppended() {
     // Arrange
     final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').enabled().withMaxChunkSize(-1).build();
-    insert jobDesc;
+    insert as system jobDesc;
     final List<String> existingIds = new List<String>();
     for (Integer i = 0; i < TRACKED_JOB_ID_CAPACITY; ++i) {
       existingIds.add(String.valueOf(TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType)).left(ID_15_LENGTH));
@@ -344,7 +344,7 @@ private class JobRepositoryImplTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob').withJobDescription(jobDesc.Id).failure().enabled().build();
     jobRequest.JobDescription__r = jobDesc;
     jobRequest.JobIds__c = String.join(existingIds, ';');
-    insert jobRequest;
+    insert as system jobRequest;
 
     final ApexJobResult mockResult = new ApexJobResult(ApexJobStatus.FAILURE);
     mockResult.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
@@ -360,7 +360,7 @@ private class JobRepositoryImplTest {
     Test.stopTest();
 
     // Assert
-    final List<String> result = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id].JobIds__c.split(';');
+    final List<String> result = [SELECT JobIds__c FROM JobRequest__c WHERE Id = :jobRequest.Id WITH SYSTEM_MODE].JobIds__c.split(';');
     Assert.areEqual(TRACKED_JOB_ID_CAPACITY, result.size(), 'Should keep only the most recent ids');
     Assert.areNotEqual(existingIds[0], result[0], 'Oldest id should be dropped');
     Assert.areEqual(existingIds[1], result[0], 'Second oldest id should now be first');

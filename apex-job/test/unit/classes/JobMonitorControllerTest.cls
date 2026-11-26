@@ -14,11 +14,11 @@ private class JobMonitorControllerTest {
   static void givenDeletedRunnableRequest_whenGetJobRequestPage_thenDeletedRequestIsNotReturned() {
     // Arrange
     final JobDescription__c description = ApexJobTestFixture.aJobDescription().build();
-    insert description;
+    insert as system description;
     final JobRequest__c kept = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
     final JobRequest__c deleted = ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).build();
-    insert new List<JobRequest__c>{ kept, deleted };
-    delete deleted;
+    insert as system new List<JobRequest__c>{ kept, deleted };
+    delete as system deleted;
 
     // Act
     final List<JobRequest__c> result = JobMonitorController.getJobRequestPage(PAGE_SIZE, FIRST_OFFSET);
@@ -36,7 +36,7 @@ private class JobMonitorControllerTest {
       ApexJobTestFixture.aJobDescription().withProcessorName('ProcessorA').build(),
       ApexJobTestFixture.aJobDescription().withProcessorName('ProcessorB').build()
     };
-    insert descriptions;
+    insert as system descriptions;
     final List<JobRequest__c> requests = new List<JobRequest__c>();
     for (JobDescription__c description : descriptions) {
       for (Integer j = 0; j < REQUESTS_PER_GROUP; j++) {
@@ -44,7 +44,7 @@ private class JobMonitorControllerTest {
         requests.add(ApexJobTestFixture.aJobRequest().withJobDescription(description.Id).failure().build());
       }
     }
-    insert requests;
+    insert as system requests;
 
     // Act
     Test.startTest();
@@ -70,7 +70,7 @@ private class JobMonitorControllerTest {
       .withConsecutiveFailures(CONSECUTIVE_FAILURES)
       .build();
     description.LastExecutionDateTime__c = LAST_EXECUTION;
-    insert description;
+    insert as system description;
 
     // Act
     final List<JobDescription__c> result = JobMonitorController.getJobDescriptionInfos(new List<Id>{ description.Id });
@@ -87,7 +87,7 @@ private class JobMonitorControllerTest {
   @IsTest
   static void givenEnabledEngineAndNoAsyncJob_whenGetEngineStatus_thenReportsEnabledAndIdle() {
     // Arrange
-    insert new ApexJobConfig__c(Enabled__c = true);
+    insert as system new ApexJobConfig__c(Enabled__c = true);
 
     // Act
     final JobMonitorController.EngineStatus result = JobMonitorController.getEngineStatus();
@@ -101,7 +101,7 @@ private class JobMonitorControllerTest {
   @IsTest
   static void givenDisabledEngineWithQueuedExecutorAndScheduledWatcher_whenGetEngineStatus_thenReportsThem() {
     // Arrange
-    insert new ApexJobConfig__c(Enabled__c = false);
+    insert as system new ApexJobConfig__c(Enabled__c = false);
     Test.startTest();
     final Id executorId = System.enqueueJob(new AsyncApexJobExecutor());
     ApexJobWatcher.schedule();
@@ -118,8 +118,8 @@ private class JobMonitorControllerTest {
 
   private static User createEngineManager() {
     final User manager = TestDataFactory.createUserWithTriggerBypass();
-    final PermissionSet adminPermissionSet = [SELECT Id FROM PermissionSet WHERE Name = 'AdminAsyncJob'];
-    insert new PermissionSetAssignment(AssigneeId = manager.Id, PermissionSetId = adminPermissionSet.Id);
+    final PermissionSet adminPermissionSet = [SELECT Id FROM PermissionSet WHERE Name = 'AdminAsyncJob' WITH SYSTEM_MODE];
+    insert as system new PermissionSetAssignment(AssigneeId = manager.Id, PermissionSetId = adminPermissionSet.Id);
     return manager;
   }
 
@@ -131,7 +131,7 @@ private class JobMonitorControllerTest {
     // Act
     Boolean result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = true);
+      insert as system new ApexJobConfig__c(Enabled__c = true);
       result = JobMonitorController.pauseEngine();
     }
 
@@ -148,7 +148,7 @@ private class JobMonitorControllerTest {
     // Act
     Boolean result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = false);
+      insert as system new ApexJobConfig__c(Enabled__c = false);
       result = JobMonitorController.resumeEngine();
     }
 
@@ -165,7 +165,7 @@ private class JobMonitorControllerTest {
     // Act
     Id result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = false);
+      insert as system new ApexJobConfig__c(Enabled__c = false);
       result = JobMonitorController.restartEngine();
     }
 
@@ -182,7 +182,7 @@ private class JobMonitorControllerTest {
     Test.startTest();
     Id result;
     System.runAs(manager) {
-      insert new ApexJobConfig__c(Enabled__c = true);
+      insert as system new ApexJobConfig__c(Enabled__c = true);
       result = JobMonitorController.restartEngine();
     }
 
@@ -200,7 +200,7 @@ private class JobMonitorControllerTest {
 
     // Act
     System.runAs(nonManager) {
-      insert new ApexJobConfig__c(Enabled__c = true);
+      insert as system new ApexJobConfig__c(Enabled__c = true);
       try {
         JobMonitorController.pauseEngine();
       } catch (JobMonitorController.AuthorizationException ex) {

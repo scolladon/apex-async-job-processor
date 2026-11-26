@@ -399,7 +399,7 @@ public class ApexJobTestFixture {
     }
 
     public JobDescription__c buildAndInsert() {
-      insert this.record;
+      insert as system this.record;
       return this.record;
     }
   }
@@ -529,7 +529,7 @@ public class ApexJobTestFixture {
     }
 
     public JobRequest__c buildAndInsert() {
-      insert this.record;
+      insert as system this.record;
       return this.record;
     }
 
@@ -730,7 +730,7 @@ public class ApexJobTestFixture {
     for (Integer i = 0; i < count; i++) {
       requests.add(aJobRequest().withName('TestJob_' + i).ready().readyNow().withJobDescription(jobDescription).build());
     }
-    insert requests;
+    insert as system requests;
     return requests;
   }
 }
