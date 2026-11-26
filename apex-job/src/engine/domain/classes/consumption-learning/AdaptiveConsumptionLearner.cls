@@ -87,7 +87,7 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
 
   @TestVisible
   private Boolean isSignificantVariation(final Decimal observed, final Decimal expected, final Decimal noiseFloor) {
-    final Decimal relativeLimit = this.job.VariationResetThreshold__c * expected;
+    final Decimal relativeLimit = (this.job.VariationResetThreshold__c ?? ApexJobConstant.DEFAULT_VARIATION_RESET_THRESHOLD) * expected;
     return Math.abs(observed - expected) > Math.max(noiseFloor, relativeLimit);
   }
 
