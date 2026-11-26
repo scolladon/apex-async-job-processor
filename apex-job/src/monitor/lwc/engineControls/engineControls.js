@@ -1,12 +1,12 @@
 import { LightningElement, wire } from "lwc";
 import { ShowToastEvent } from "lightning/platformShowToastEvent";
 import Manage_Async_Job_Engine from "@salesforce/customPermission/Manage_Async_Job_Engine";
-import isEnabled from "@salesforce/apex/JobMonitorController.isEnabled";
-import getExecutorCount from "@salesforce/apex/JobMonitorController.getExecutorCount";
-import isRecoveryBatchAlive from "@salesforce/apex/JobMonitorController.isRecoveryBatchAlive";
+import getEngineStatus from "@salesforce/apex/JobMonitorController.getEngineStatus";
 import pauseEngine from "@salesforce/apex/JobMonitorController.pauseEngine";
 import restartEngine from "@salesforce/apex/JobMonitorController.restartEngine";
 import resumeEngine from "@salesforce/apex/JobMonitorController.resumeEngine";
+
+const POLL_INTERVAL_MS = 5000;
 
 export default class EngineControls extends LightningElement {
   enabled = false;
@@ -28,23 +28,32 @@ export default class EngineControls extends LightningElement {
   }
 
   connectedCallback() {
-    setInterval(() => {
-      this.pollExecutorCount();
-      this.pollRecoveryBatchStatus();
-      this.pollEnabled();
-    }, 500);
+    this.stopped = false;
+    this.poll();
   }
 
-  async pollEnabled() {
-    this.enabled = await isEnabled();
+  disconnectedCallback() {
+    this.stopped = true;
+    clearTimeout(this.pollTimer);
   }
 
-  async pollExecutorCount() {
-    this.executorCountValue = await getExecutorCount();
+  async poll() {
+    try {
+      await this.refresh();
+    } catch (error) {
+      console.error("engineControls: refresh failed", error);
+    } finally {
+      if (!this.stopped) {
+        this.pollTimer = setTimeout(() => this.poll(), POLL_INTERVAL_MS);
+      }
+    }
   }
 
-  async pollRecoveryBatchStatus() {
-    this.recoveryBatchStatusValue = await isRecoveryBatchAlive();
+  async refresh() {
+    const status = await getEngineStatus();
+    this.enabled = status.enabled;
+    this.executorCountValue = status.executorCount;
+    this.recoveryBatchStatusValue = status.watcherScheduled;
   }
 
   async handleToggle() {

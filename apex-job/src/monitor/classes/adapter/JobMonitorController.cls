@@ -88,14 +88,12 @@ public with sharing class JobMonitorController {
     return status;
   }
 
-  @AuraEnabled
-  public static Boolean isEnabled() {
+  private static Boolean isEnabled() {
     ApexJobConfig__c cfg = ApexJobConfig__c.getOrgDefaults();
     return cfg?.Enabled__c == true;
   }
 
-  @AuraEnabled
-  public static Integer getExecutorCount() {
+  private static Integer getExecutorCount() {
     final Integer asyncApexJobExecutorCount = [
       SELECT COUNT()
       FROM AsyncApexJob
@@ -104,8 +102,7 @@ public with sharing class JobMonitorController {
     return asyncApexJobExecutorCount;
   }
 
-  @AuraEnabled
-  public static Boolean isRecoveryBatchAlive() {
+  private static Boolean isRecoveryBatchAlive() {
     final Integer recoveryCount = [
       SELECT COUNT()
       FROM AsyncApexJob

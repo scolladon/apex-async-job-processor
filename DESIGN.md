@@ -569,7 +569,7 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 │  │  │  │  Watcher status   │  │  Status, count, metrics    │ │ │ │
 │  │  │  │  Executor count   │  │  5s polling                │ │ │ │
 │  │  │  │  Restart button   │  └────────────────────────────┘ │ │ │
-│  │  │  │  500ms polling    │                                  │ │ │
+│  │  │  │  5s polling       │                                  │ │ │
 │  │  │  └──────────────────-┘                                  │ │ │
 │  │  │  ┌─ requestTable (full width) ────────────────────────┐ │ │ │
 │  │  │  │  Paginated job request list, infinite scroll       │ │ │ │
@@ -581,7 +581,7 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-**`engineControls`** — Polls at 500ms for engine status, executor count, and watcher status. Provides pause/resume/restart actions gated by `Manage_Async_Job_Engine` custom permission (client-side check + server-side `assertPerm()`).
+**`engineControls`** — Polls every 5 s with one `getEngineStatus()` call (enabled flag, executor count, watcher status); the timer is cleared on disconnect and re-armed after each call, and a failed call is logged and does not stop polling. Provides pause/resume/restart actions gated by `Manage_Async_Job_Engine` custom permission (client-side check + server-side `assertPerm()`).
 
 **`statusByProcessorTable`** — Polls at 5s. Aggregate `GROUP BY Status__c, JobDescription__c` with a second cacheable call for processor name resolution.
 
