@@ -3,8 +3,6 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
   private static final Decimal MIN_SAFETY = 0.5;
   private static final Decimal MAX_SAFETY = 0.98;
   private static final Decimal KILL_PENALTY = 1.1;
-  private static final Integer SINGLE_ITEM_CHUNK = 1;
-  private static final Integer CAPPED_AT_ONE_ITEM_FAILING_CHUNK = 2;
 
   private final JobDescription__c job;
   private final Decimal variationThreshold;
@@ -27,11 +25,13 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
   }
 
   public void adjustFromKill(final Integer chunkSize, final Datetime killedAt) {
-    final Boolean floorKill = this.isFloorKill(chunkSize);
+    final KillRule rule = new KillRule(this.job);
+    final Boolean floorKill = rule.isFloorKill(chunkSize);
     this.updateFieldsOnFailure(chunkSize);
     if (floorKill) {
-      this.backOffAfterFloorKill(killedAt);
-    } else if (this.requiresResetOnKill()) {
+      this.resetConsumptionModel();
+      this.job.KillBackoffUntil__c = killedAt.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES);
+    } else if (rule.exhaustsAttempts()) {
       this.resetConsumptionModel();
     } else {
       this.inflateConsumptionModel();
@@ -170,30 +170,6 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
     this.job.SuccessStreak__c = 0;
     this.job.SmallestFailingChunk__c = 0;
     this.job.ConsecutiveVariationCount__c = 0;
-  }
-
-  private Boolean isFloorKill(final Integer chunkSize) {
-    if (chunkSize != SINGLE_ITEM_CHUNK) {
-      return false;
-    }
-    return this.isModelUnknown() || this.isCappedAtOneItem();
-  }
-
-  private Boolean isModelUnknown() {
-    return this.job.MaxChunkSize__c < SINGLE_ITEM_CHUNK;
-  }
-
-  private Boolean isCappedAtOneItem() {
-    return this.job.SmallestFailingChunk__c >= SINGLE_ITEM_CHUNK && this.job.SmallestFailingChunk__c <= CAPPED_AT_ONE_ITEM_FAILING_CHUNK;
-  }
-
-  private void backOffAfterFloorKill(final Datetime killedAt) {
-    this.resetConsumptionModel();
-    this.job.KillBackoffUntil__c = killedAt.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES);
-  }
-
-  private Boolean requiresResetOnKill() {
-    return this.job.MaxExecutionAttempt__c != -1 && this.job.ConsecutiveFailures__c >= this.job.MaxExecutionAttempt__c;
   }
 
   private void updateFieldsOnFailure(final Integer chunkSize) {
