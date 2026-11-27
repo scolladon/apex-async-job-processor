@@ -273,6 +273,7 @@ Malformed arguments
  - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls)).
  - On a kill the platform rolls back every chunk of that Queueable. The charged chunk (the one in flight, else the last completed one) is recorded `KILLED`; every other completed chunk runs again with its status and attempt number unchanged, while its description still learns from the measured run and counts it against `MaxExecutionsPerMinute__c`. The engine re-enqueues promptly.
  - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptiveConsumptionLearner`).
+ - Known limit: a job that exceeds a governor limit even with a one-item chunk is killed on every try. With the default `MaxExecutionAttempt__c = -1` it is retried at once, forever: the jobs selected after it in a Queueable never run, and the jobs run before it are rolled back and retried each cycle. Give such jobs a finite `MaxExecutionAttempt__c` so their requests end `ABORTED`.
 
  ## Exploitation
 
