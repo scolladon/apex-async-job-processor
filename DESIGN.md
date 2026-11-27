@@ -346,7 +346,7 @@ LIMIT 50
 
 Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped. Every enqueue first checks for a free queueable slot (`Limits.getQueueableJobs() < Limits.getLimitQueueableJobs()`) and returns `null` otherwise, ahead of the `isRunning` query. `wakeUp()` is the trigger's entry point: once per transaction, skipped in Batch and `@future` contexts.
 
-`ApexJobLogger` exposes `error()`, `debug()` and `flush()`. The engine calls `flush()` at three points: in a `finally` around the Queueable body (after the Finalizer is attached, so it is skipped when a `LimitException` kills the Queueable), in a `finally` around the whole Finalizer body, and after the spawner logs a `DuplicateMessageException` enqueue failure. Adapters buffer lines and persist them in `flush()`.
+`ApexJobLogger` exposes `error()`, `debug()` and `flush()`. The engine calls `flush()` in one place: a `finally` around the whole Finalizer body, after recording and re-enqueueing; the Queueable never flushes. The Finalizer first calls `ApexJobFactory.adoptLogger()` with the logger instance the executor carried from the Queueable, so the spawner and every other service it resolves log into that one instance, and the single flush covers the Queueable's lines and its own. Lines logged outside a Queueable and its Finalizer (trigger wake-up, watcher) are never flushed by the engine. The per-chunk Queueable debug line is a bounded summary from `JobExecuted.describeExecution()`: description name, request ids, status. Adapters buffer lines and persist them in `flush()`.
 
 ### ApexJobWatcher — Schedulable Watchdog
 
