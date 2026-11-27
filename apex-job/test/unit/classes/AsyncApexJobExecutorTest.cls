@@ -513,7 +513,7 @@ private class AsyncApexJobExecutorTest {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
-    mocks.getLoggerSpy.returns(logger);
+    mocks.newLoggerSpy.returns(logger);
     final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
     final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
     jobExecutableMock.spyOn('executeChunk').returns(jobExecutedMock.stub);
@@ -530,6 +530,22 @@ private class AsyncApexJobExecutorTest {
     // Assert
     Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.DEBUG_CALL), 'The executed chunk must be logged');
     Assert.areEqual(0, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'The Queueable must leave the flush to its Finalizer');
+    Expect.that(mocks.adoptLoggerSpy).hasBeenCalledWith(logger);
+  }
+
+  @IsTest
+  static void givenFinalizerReenqueues_whenSpawnerAndNextExecutorResolveLoggers_thenSpawnerSharesCarriedLoggerAndNextExecutorGetsFreshOne() {
+    // Arrange
+    insert as system new ApexJobConfig__c(Enabled__c = true);
+    final LoggerProbeFactory factory = new LoggerProbeFactory();
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Assert.isTrue(factory.loggerSeenBySpawner === sut.logger, 'The spawner must log into the logger the Finalizer carried');
+    Assert.isTrue(factory.nextExecutor.logger !== sut.logger, 'The next executor must not inherit the carried logger');
   }
 
   @IsTest
@@ -581,7 +597,7 @@ private class AsyncApexJobExecutorTest {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
-    mocks.getLoggerSpy.returns(logger);
+    mocks.newLoggerSpy.returns(logger);
     mocks.isSystemEnabledSpy.returns(true);
     mocks.recordJobExecutionSpy.throwsException(new TestException('Test exception'));
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
@@ -639,6 +655,17 @@ private class AsyncApexJobExecutorTest {
   public class NoOpProcessor implements ApexJob {
     public ApexJobResult execute(final ApexJobContext ctx) {
       return new ApexJobResult(ApexJobStatus.SUCCESS);
+    }
+  }
+
+  private class LoggerProbeFactory extends ApexJobFactoryImpl {
+    public ApexJobLogger loggerSeenBySpawner;
+    public AsyncApexJobExecutor nextExecutor;
+
+    public override JobExecutorSpawner getSpawner() {
+      this.loggerSeenBySpawner = new ApexJobFactoryImpl().getLogger();
+      this.nextExecutor = new AsyncApexJobExecutor(this);
+      return (JobExecutorSpawner) Mock.forType(JobExecutorSpawner.class).stub;
     }
   }
 

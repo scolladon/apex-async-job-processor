@@ -58,6 +58,21 @@ private class ApexJobFactoryImplTest {
   }
 
   @IsTest
+  static void givenAdoptedLogger_whenNewLogger_thenReturnsFreshInstance() {
+    // Arrange
+    final ApexJobLogger adopted = new RecordingLogger();
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+    sut.adoptLogger(adopted);
+
+    // Act
+    final ApexJobLogger result = sut.newLogger();
+
+    // Assert
+    Assert.isTrue(result !== adopted, 'A new logger must never be the adopted instance');
+    Assert.isInstanceOfType(result, ApexJobLoggerImpl.class, 'A blank configuration resolves the default logger');
+  }
+
+  @IsTest
   static void givenLoggerClassNameConfigured_whenFlush_thenFlushesConfiguredLogger() {
     // Arrange
     insert as system new ApexJobConfig__c(LoggerClassName__c = 'ApexJobFactoryImplTest.RecordingLogger');

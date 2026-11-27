@@ -20,6 +20,7 @@ public class ApexJobTestMock {
   public MethodSpy debugSpy { get; private set; }
   public MethodSpy flushSpy { get; private set; }
   public MethodSpy getLoggerSpy { get; private set; }
+  public MethodSpy newLoggerSpy { get; private set; }
   public MethodSpy adoptLoggerSpy { get; private set; }
   public MethodSpy selectorSpy { get; private set; }
   public MethodSpy getEligibleJobsSpy { get; private set; }
@@ -77,6 +78,8 @@ public class ApexJobTestMock {
     // Factory Spies
     this.getLoggerSpy = factoryMock.spyOn('getLogger');
     this.getLoggerSpy.returns(this.loggerStub);
+    this.newLoggerSpy = factoryMock.spyOn('newLogger');
+    this.newLoggerSpy.returns(this.loggerStub);
     this.adoptLoggerSpy = factoryMock.spyOn('adoptLogger');
     factoryMock.spyOn('getSelector').returns(this.selectorStub);
     factoryMock.spyOn('getRepository').returns(this.repositoryStub);

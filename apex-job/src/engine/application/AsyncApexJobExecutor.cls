@@ -2,6 +2,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
   private static final String ROLLED_BACK_CHUNK_LOG_PREFIX = 'AsyncJob: chunk rolled back ';
 
   private ApexJobConfigService configService;
+  @TestVisible
   private ApexJobLogger logger;
   private ApexJobFactory factory;
 
@@ -16,11 +17,12 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
   @TestVisible
   private AsyncApexJobExecutor(final ApexJobFactory factory) {
     this.factory = factory;
-    this.logger = this.factory.getLogger();
+    this.logger = this.factory.newLogger();
     this.configService = this.factory.getConfigService();
   }
 
   public void execute(QueueableContext queueableContext) {
+    this.factory.adoptLogger(this.logger);
     final JobExecutorFinalizerAttacher finalizerAttacher = this.factory.getFinalizerAttacher();
     finalizerAttacher.attach(this);
     this.runChunks(queueableContext);

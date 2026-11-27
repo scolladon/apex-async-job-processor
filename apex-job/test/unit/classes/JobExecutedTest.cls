@@ -590,6 +590,22 @@ private class JobExecutedTest {
   }
 
   @IsTest
+  static void givenNullStatusFromProcessor_whenDescribeExecution_thenDescribesWithoutThrowing() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('NullStatusJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c request = ApexJobTestFixture.aJobRequest().withName('only').withAttemptNumber(0).build();
+    request.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ request }), new ApexJobResult((ApexJobStatus) null));
+
+    // Act
+    final String result = sut.describeExecution();
+
+    // Assert
+    Assert.isTrue(result.startsWith('NullStatusJob (' + String.valueOf(request.Id) + '): '), result);
+  }
+
+  @IsTest
   static void givenSuccessfulRunRolledBack_whenStageExecution_thenLearnerAdjustsFromSuccessWithMeasuredLimits() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
