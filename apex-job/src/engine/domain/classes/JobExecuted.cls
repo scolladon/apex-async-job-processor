@@ -149,7 +149,7 @@ public with sharing class JobExecuted {
     } else if (this.jobExecutionResult.status == ApexJobStatus.SUCCESS) {
       consumptionLearner.adjustFromSuccess(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
     } else if (this.jobExecutionResult.status == ApexJobStatus.KILLED) {
-      consumptionLearner.adjustFromKill(this.jobRequests.size());
+      consumptionLearner.adjustFromKill(this.jobRequests.size(), this.stagingInfo.endTime);
     }
   }
 

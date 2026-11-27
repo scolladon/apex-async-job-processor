@@ -10,6 +10,7 @@ public without sharing class ApexJobConstant {
 
   public static final Integer MINUTES_PER_HOUR = 60;
   public static final Integer WATCHER_INTERVAL_MINUTES = 5;
+  public static final Integer KILL_BACKOFF_MINUTES = 5;
 
   public static final Decimal DEFAULT_LEARNING_RATE = 0.30;
   public static final Integer DEFAULT_VARIATION_RESET_COUNT = 3;

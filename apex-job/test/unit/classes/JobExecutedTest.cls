@@ -134,7 +134,7 @@ private class JobExecutedTest {
     Assert.isTrue(jobRequest.ProcessingTime__c >= jobRequest.ChunkRunTime__c, 'Processing time should be >= run time');
     Assert.isTrue(jobRequest.ChunkRunTime__c >= jobRequest.UnitRunTime__c, 'Chunk run time should be >= unit run time');
     Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Job description last execution datetime should be set');
-    Expect.that(mocks.adjustFromKillSpy).hasBeenCalled();
+    Expect.that(mocks.adjustFromKillSpy).hasBeenCalledWith(1, jobRequest.LastExecutionDateTime__c);
   }
 
   @IsTest

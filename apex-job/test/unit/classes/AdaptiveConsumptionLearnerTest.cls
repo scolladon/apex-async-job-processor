@@ -1,5 +1,7 @@
 @IsTest
 private class AdaptiveConsumptionLearnerTest {
+  private static final Datetime KILLED_AT = Datetime.newInstanceGmt(2026, 1, 1, 12, 0, 0);
+
   @IsTest
   private static void givenSingleChunkSuccess_whenAdjustFromSuccess_thenTrackBaseConsumption() {
     // Arrange
@@ -112,6 +114,130 @@ private class AdaptiveConsumptionLearnerTest {
   }
 
   @IsTest
+  private static void givenPreviousFailureAtOneItem_whenSingleItemKill_thenResetsModelAndBacksOff() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(1).withSmallestFailingChunk(1).withCpuTimeConsumption(100).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(1, KILLED_AT);
+    Test.stopTest();
+
+    // Assert
+    assertModelResetAndBackedOff(job);
+  }
+
+  @IsTest
+  private static void givenPreviousFailureAtTwoItems_whenSingleItemKill_thenResetsModelAndBacksOff() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(1).withSmallestFailingChunk(2).withCpuTimeConsumption(100).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(1, KILLED_AT);
+    Test.stopTest();
+
+    // Assert
+    assertModelResetAndBackedOff(job);
+  }
+
+  @IsTest
+  private static void givenUnknownModel_whenSingleItemKill_thenResetsModelAndBacksOff() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(-1).withSmallestFailingChunk(0).withCpuTimeConsumption(100).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(1, KILLED_AT);
+    Test.stopTest();
+
+    // Assert
+    assertModelResetAndBackedOff(job);
+  }
+
+  @IsTest
+  private static void givenFirstSingleItemKillOfLearnedModel_whenAdjustFromKill_thenInflatesWithoutBackoff() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(1).withSmallestFailingChunk(0).withCpuTimeConsumption(100).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(1, KILLED_AT);
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(110, job.CpuTimeBaseConsumption__c, 'Should inflate consumption model');
+    Assert.areEqual(1, job.SmallestFailingChunk__c, 'Should record the failing chunk');
+    Assert.isNull(job.KillBackoffUntil__c, 'Should not back off');
+  }
+
+  @IsTest
+  private static void givenPreviousFailureAtThreeItems_whenSingleItemKill_thenInflatesWithoutBackoff() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(5).withSmallestFailingChunk(3).withCpuTimeConsumption(100).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(1, KILLED_AT);
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(110, job.CpuTimeBaseConsumption__c, 'Should inflate consumption model');
+    Assert.isNull(job.KillBackoffUntil__c, 'Should not back off');
+  }
+
+  @IsTest
+  private static void givenPreviousFailureAtOneItem_whenMultiItemKill_thenNoBackoff() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(5).withSmallestFailingChunk(1).withCpuTimeConsumption(100).build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(2, KILLED_AT);
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(110, job.CpuTimeBaseConsumption__c, 'Should inflate consumption model');
+    Assert.isNull(job.KillBackoffUntil__c, 'Should not back off');
+  }
+
+  @IsTest
+  private static void givenRunningBackoff_whenModelResetByExhaustedAttempts_thenBackoffKept() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription()
+      .withMaxExecutionAttempt(3)
+      .withConsecutiveFailures(3)
+      .withMaxChunkSize(5)
+      .withCpuTimeConsumption(100)
+      .withKillBackoffUntil(KILLED_AT)
+      .build();
+    final AdaptiveConsumptionLearner sut = new AdaptiveConsumptionLearner(job);
+
+    // Act
+    Test.startTest();
+    sut.adjustFromKill(5, KILLED_AT.addMinutes(30));
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, job.CpuTimeBaseConsumption__c, 'Should reset the model');
+    Assert.areEqual(KILLED_AT, job.KillBackoffUntil__c, 'Should keep the running backoff');
+  }
+
+  private static void assertModelResetAndBackedOff(final JobDescription__c job) {
+    Assert.areEqual(ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE, job.MaxChunkSize__c, 'Should reset max chunk size');
+    Assert.areEqual(0, job.SmallestFailingChunk__c, 'Should reset smallest failing chunk');
+    Assert.areEqual(0, job.ConsecutiveFailures__c, 'Should reset consecutive failures');
+    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, job.CpuTimeBaseConsumption__c, 'Should reset base consumption');
+    Assert.areEqual(KILLED_AT.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES), job.KillBackoffUntil__c, 'Should back off');
+  }
+
+  @IsTest
   private static void givenMaxAttemptsKill_whenAdjustFromKill_thenResetModel() {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxExecutionAttempt(3).withConsecutiveFailures(3).withCpuTimeConsumption(100).withCpuTimePerItemConsumption(10).build();
@@ -120,7 +246,7 @@ private class AdaptiveConsumptionLearnerTest {
 
     // Act
     Test.startTest();
-    sut.adjustFromKill(5);
+    sut.adjustFromKill(5, KILLED_AT);
     Test.stopTest();
 
     // Assert
@@ -138,7 +264,7 @@ private class AdaptiveConsumptionLearnerTest {
 
     // Act
     Test.startTest();
-    sut.adjustFromKill(5);
+    sut.adjustFromKill(5, KILLED_AT);
     Test.stopTest();
 
     // Assert
@@ -156,7 +282,7 @@ private class AdaptiveConsumptionLearnerTest {
 
     // Act
     Test.startTest();
-    sut.adjustFromKill(5);
+    sut.adjustFromKill(5, KILLED_AT);
     Test.stopTest();
 
     // Assert
