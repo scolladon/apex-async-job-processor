@@ -260,7 +260,7 @@ All domain classes live under `apex-job/src/engine/domain/classes/`. No database
 ### Subdirectories
 
 - `chunk-calculation/` — `ChunkSizeCalculator` interface + `AdaptiveChunkCalculator` implementation.
-- `consumption-learning/` — `ConsumptionLearner` interface + `AdaptiveConsumptionLearner` implementation.
+- `consumption-learning/` — `ConsumptionLearner` interface + `AdaptiveConsumptionLearner` implementation; `KillRule` holds the kill predicates the learner branches on (floor kill, exhausted attempts).
 
 ---
 
@@ -759,7 +759,7 @@ apex-job/
 │   │   ├── domain/
 │   │   │   ├── classes/       (ApexJob, JobCandidate, JobExecutable, JobExecuted, ...)
 │   │   │   │   ├── chunk-calculation/     (AdaptiveChunkCalculator)
-│   │   │   │   └── consumption-learning/  (AdaptiveConsumptionLearner)
+│   │   │   │   └── consumption-learning/  (AdaptiveConsumptionLearner, KillRule)
 │   │   │   ├── customindex/   (JobRequest__c.NextExecutionDateTime__c)
 │   │   │   ├── lwc/           (jobDescriptionResetConsumption)
 │   │   │   ├── objects/       (JobDescription__c, JobRequest__c, ApexJobConfig__c)
