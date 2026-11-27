@@ -103,6 +103,10 @@
                 <behavior>Readonly</behavior>
                 <field>SmallestFailingChunk__c</field>
             </layoutItems>
+            <layoutItems>
+                <behavior>Readonly</behavior>
+                <field>KillBackoffUntil__c</field>
+            </layoutItems>
         </layoutColumns>
         <layoutColumns>
             <layoutItems>

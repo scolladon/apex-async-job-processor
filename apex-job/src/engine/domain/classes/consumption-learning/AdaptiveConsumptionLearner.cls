@@ -24,9 +24,14 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
     this.updateModel(consumed, chunkSize, -SAFETY_STEP, inCooldown);
   }
 
-  public void adjustFromKill(final Integer chunkSize) {
+  public void adjustFromKill(final Integer chunkSize, final Datetime killedAt) {
+    final KillRule rule = new KillRule(this.job);
+    final Boolean floorKill = rule.isFloorKill(chunkSize);
     this.updateFieldsOnFailure(chunkSize);
-    if (this.requiresResetOnKill()) {
+    if (floorKill) {
+      this.resetConsumptionModel();
+      this.job.KillBackoffUntil__c = killedAt.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES);
+    } else if (rule.exhaustsAttempts()) {
       this.resetConsumptionModel();
     } else {
       this.inflateConsumptionModel();
@@ -165,10 +170,6 @@ public without sharing class AdaptiveConsumptionLearner implements ConsumptionLe
     this.job.SuccessStreak__c = 0;
     this.job.SmallestFailingChunk__c = 0;
     this.job.ConsecutiveVariationCount__c = 0;
-  }
-
-  private Boolean requiresResetOnKill() {
-    return this.job.MaxExecutionAttempt__c != -1 && this.job.ConsecutiveFailures__c >= this.job.MaxExecutionAttempt__c;
   }
 
   private void updateFieldsOnFailure(final Integer chunkSize) {

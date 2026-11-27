@@ -744,4 +744,66 @@ private class JobSelectorImplTest {
     Assert.isFalse(foundCalloutJob, 'When callout limit is 0 (DML + callout scenario), should exclude jobs with callouts');
     Assert.isTrue(foundNonCalloutJob, 'When callout limit is 0, should still include jobs without callouts');
   }
+
+  @IsTest
+  static void givenDescriptionBackedOffUntilFuture_whenGetEligibleJobs_thenExcludesItsRequests() {
+    // Arrange
+    insertDueRequestBackedOffUntil('BackedOffJob', System.now().addMinutes(5));
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.getAvailableLimitsSpy.returns(buildMaxAvailableGovernorLimits());
+    final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
+
+    // Act
+    Test.startTest();
+    final List<JobRequest__c> result = sut.getEligibleJobs(new List<Id>());
+    Test.stopTest();
+
+    // Assert
+    Assert.isFalse(containsRequestNamed(result, 'BackedOffJob'), 'Should not return requests of a description in a kill backoff');
+  }
+
+  @IsTest
+  static void givenDescriptionBackoffElapsed_whenGetEligibleJobs_thenReturnsItsRequests() {
+    // Arrange
+    insertDueRequestBackedOffUntil('BackoffElapsedJob', System.now().addMinutes(-1));
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.getAvailableLimitsSpy.returns(buildMaxAvailableGovernorLimits());
+    final JobSelectorImpl sut = new JobSelectorImpl(mocks.factoryStub);
+
+    // Act
+    Test.startTest();
+    final List<JobRequest__c> result = sut.getEligibleJobs(new List<Id>());
+    Test.stopTest();
+
+    // Assert
+    Assert.isTrue(containsRequestNamed(result, 'BackoffElapsedJob'), 'Should return requests once the kill backoff has elapsed');
+  }
+
+  private static void insertDueRequestBackedOffUntil(final String requestName, final Datetime backoffUntil) {
+    final JobDescription__c description = ApexJobTestFixture.aJobDescription()
+      .withName(requestName + 'Processor')
+      .withProcessorName(requestName + 'Processor')
+      .enabled()
+      .withKillBackoffUntil(backoffUntil)
+      .buildAndInsert();
+    final JobRequest__c request = ApexJobTestFixture.aJobRequest()
+      .withJobDescription(description)
+      .enabled()
+      .withStatus(ApexJobStatus.READY)
+      .withNextExecutionDateTime(System.now().addMinutes(-5))
+      .withAttemptNumber(0)
+      .withName(requestName)
+      .withArgument('{"backoff": "job"}')
+      .build();
+    insert as system request;
+  }
+
+  private static Boolean containsRequestNamed(final List<JobRequest__c> requests, final String requestName) {
+    for (JobRequest__c request : requests) {
+      if (request.Name == requestName) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

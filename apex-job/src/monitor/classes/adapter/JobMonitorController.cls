@@ -60,7 +60,7 @@ public with sharing class JobMonitorController {
     return out;
   }
 
-  // Not cacheable: ExecutionsInCurrentWindow__c and CurrentWindowStart__c are volatile runtime state
+  // Not cacheable: ExecutionsInCurrentWindow__c, CurrentWindowStart__c and KillBackoffUntil__c are volatile runtime state
   @AuraEnabled
   public static List<JobDescription__c> getJobDescriptionInfos(final List<Id> jobDescriptionIds) {
     return [
@@ -74,7 +74,8 @@ public with sharing class JobMonitorController {
         SmallestFailingChunk__c,
         SuccessStreak__c,
         ConsecutiveFailures__c,
-        LastExecutionDateTime__c
+        LastExecutionDateTime__c,
+        KillBackoffUntil__c
       FROM JobDescription__c
       WHERE Id IN :jobDescriptionIds
       WITH SYSTEM_MODE

@@ -9,6 +9,7 @@ private class JobMonitorControllerTest {
   private static final Integer SUCCESS_STREAK = 7;
   private static final Integer CONSECUTIVE_FAILURES = 2;
   private static final Datetime LAST_EXECUTION = Datetime.newInstanceGmt(2026, 1, 15, 10, 30, 0);
+  private static final Datetime KILL_BACKOFF_UNTIL = Datetime.newInstanceGmt(2026, 1, 15, 10, 35, 0);
   private static final String MANAGE_ENGINE_PERMISSION = 'Manage_Async_Job_Engine';
   private static final String ADMIN_PERMISSION_SET = 'AdminAsyncJob';
 
@@ -70,6 +71,7 @@ private class JobMonitorControllerTest {
       .withSmallestFailingChunk(SMALLEST_FAILING_CHUNK)
       .withSuccessStreak(SUCCESS_STREAK)
       .withConsecutiveFailures(CONSECUTIVE_FAILURES)
+      .withKillBackoffUntil(KILL_BACKOFF_UNTIL)
       .build();
     description.LastExecutionDateTime__c = LAST_EXECUTION;
     insert as system description;
@@ -84,6 +86,7 @@ private class JobMonitorControllerTest {
     Assert.areEqual(SUCCESS_STREAK, result[0].SuccessStreak__c, 'Should expose SuccessStreak__c');
     Assert.areEqual(CONSECUTIVE_FAILURES, result[0].ConsecutiveFailures__c, 'Should expose ConsecutiveFailures__c');
     Assert.areEqual(LAST_EXECUTION, result[0].LastExecutionDateTime__c, 'Should expose LastExecutionDateTime__c');
+    Assert.areEqual(KILL_BACKOFF_UNTIL, result[0].KillBackoffUntil__c, 'Should expose KillBackoffUntil__c');
   }
 
   @IsTest

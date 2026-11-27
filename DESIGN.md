@@ -89,6 +89,7 @@ JobDescription__c [1]                          JobRequest__c [N]
   ├── VariationResetCount__c (Number, 3)         // consecutive variations before model reset
   ├── ConsecutiveVariationCount__c (Number, 0)   // engine-managed counter
   ├── KillCooldownCount__c (Number, 3)           // consecutive successes that must pass before EWMA resumes after a kill/failure
+  ├── KillBackoffUntil__c (DateTime)             // engine-managed; not selected before this time after a floor kill
   ├── LastExecutionDateTime__c (DateTime)
   └── 18 dimensions × 3 fields = 54 consumption model fields
 ```
@@ -139,6 +140,7 @@ AND NextExecutionDateTime__c <= NOW()
 AND (AttemptNumber__c < MaxExecutionAttempt__c OR MaxExecutionAttempt__c = -1)
 AND (AllowedDays__c includes current day OR AllowedDays__c IS NULL)
 AND (TIMENOW() between AllowedStartTime__c and AllowedEndTime__c, or both NULL)
+AND (KillBackoffUntil__c IS NULL OR NOW() >= KillBackoffUntil__c)
 ```
 
 The selector query filters on `IsCandidate__c = TRUE AND NextExecutionDateTime__c <= :now`; the date filter is indexed.
@@ -258,7 +260,7 @@ All domain classes live under `apex-job/src/engine/domain/classes/`. No database
 ### Subdirectories
 
 - `chunk-calculation/` — `ChunkSizeCalculator` interface + `AdaptiveChunkCalculator` implementation.
-- `consumption-learning/` — `ConsumptionLearner` interface + `AdaptiveConsumptionLearner` implementation.
+- `consumption-learning/` — `ConsumptionLearner` interface + `AdaptiveConsumptionLearner` implementation; `KillRule` holds the kill predicates the learner branches on (floor kill, exhausted attempts).
 
 ---
 
@@ -480,9 +482,12 @@ DEFAULT_KILL_COOLDOWN_COUNT   = 3     (consecutive successes before EWMA resumes
 
 ### On Kill (governor limit crash, no consumed limits available)
 
-Two paths:
+Three paths, first match wins:
+- **Floor kill**: one-item chunk and, as selected before this kill, `SmallestFailingChunk__c` 1 or 2 or `MaxChunkSize__c < 1` → full reset plus `KillBackoffUntil__c = kill end time + KILL_BACKOFF_MINUTES (5)`.
 - **Reset**: If `ConsecutiveFailures >= MaxExecutionAttempt` → wipe all model fields to unknown sentinels (including `ConsecutiveVariationCount__c = 0`).
 - **Inflate**: For each dimension, lower safety by `SAFETY_STEP` AND multiply `base` and `perItem` by `KILL_PENALTY (1.1)`. If safety would drop below 0.5 → reset instead.
+
+The other resets leave a running backoff untouched; the operator Reset clears it.
 
 ### State Transition Summary
 
@@ -754,7 +759,7 @@ apex-job/
 │   │   ├── domain/
 │   │   │   ├── classes/       (ApexJob, JobCandidate, JobExecutable, JobExecuted, ...)
 │   │   │   │   ├── chunk-calculation/     (AdaptiveChunkCalculator)
-│   │   │   │   └── consumption-learning/  (AdaptiveConsumptionLearner)
+│   │   │   │   └── consumption-learning/  (AdaptiveConsumptionLearner, KillRule)
 │   │   │   ├── customindex/   (JobRequest__c.NextExecutionDateTime__c)
 │   │   │   ├── lwc/           (jobDescriptionResetConsumption)
 │   │   │   ├── objects/       (JobDescription__c, JobRequest__c, ApexJobConfig__c)

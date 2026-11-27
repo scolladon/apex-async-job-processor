@@ -149,7 +149,7 @@ public with sharing class JobExecuted {
     } else if (this.jobExecutionResult.status == ApexJobStatus.SUCCESS) {
       consumptionLearner.adjustFromSuccess(this.jobExecutionResult.consumedLimits, this.jobRequests.size());
     } else if (this.jobExecutionResult.status == ApexJobStatus.KILLED) {
-      consumptionLearner.adjustFromKill(this.jobRequests.size());
+      consumptionLearner.adjustFromKill(this.jobRequests.size(), this.stagingInfo.endTime);
     }
   }
 
@@ -184,7 +184,7 @@ public with sharing class JobExecuted {
       this.nextTry = this.endTime.addMinutes(minutes);
 
       this.candidateStatusRetryable = RETRYABLE_STATUS.contains(result.status);
-      this.candidateAbortable = this.candidateStatusRetryable && description.MaxExecutionAttempt__c != -1;
+      this.candidateAbortable = this.candidateStatusRetryable && description.MaxExecutionAttempt__c != ApexJobConstant.UNLIMITED_EXECUTION_ATTEMPTS;
       this.recurrentCandidate = description.isRecurrent__c == true;
 
       final String rawErrorMessage = result.error?.toString() ?? '';

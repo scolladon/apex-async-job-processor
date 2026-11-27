@@ -24,6 +24,7 @@
       ,0) &gt; 0)
   ,OR (ISNULL(JobDescription__r.AllowedStartTime__c), TIMENOW() &gt;= JobDescription__r.AllowedStartTime__c)
   ,OR (ISNULL(JobDescription__r.AllowedEndTime__c), TIMENOW() &lt;= JobDescription__r.AllowedEndTime__c)
+  ,OR(ISNULL(JobDescription__r.KillBackoffUntil__c), NOW() &gt;= JobDescription__r.KillBackoffUntil__c)
   ,OR(
     ISNULL(JobDescription__r.MaxExecutionsPerMinute__c),
     JobDescription__r.MaxExecutionsPerMinute__c = 0,

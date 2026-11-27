@@ -273,7 +273,7 @@ Malformed arguments
  - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls)).
  - On a kill the platform rolls back every chunk of that Queueable. The charged chunk (the one in flight, else the last completed one) is recorded `KILLED`; every other completed chunk runs again with its status and attempt number unchanged, while its description still learns from the measured run and counts it against `MaxExecutionsPerMinute__c`. The engine re-enqueues promptly.
  - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptiveConsumptionLearner`).
- - Known limit: a job that exceeds a governor limit even with a one-item chunk is killed on every try. With the default `MaxExecutionAttempt__c = -1` it is retried at once, forever: the jobs selected after it in a Queueable never run, and the jobs run before it are rolled back and retried each cycle. Give such jobs a finite `MaxExecutionAttempt__c` so their requests end `ABORTED`.
+ - Known limit: a job that exceeds a governor limit even at one item is killed again. Once its own failures have capped it at one item (or it was killed running alone with an unknown model), the engine resets its model and does not select the description for `KILL_BACKOFF_MINUTES` (5) minutes (`JobDescription__c.KillBackoffUntil__c`), so the other descriptions keep running; each period costs one failed Queueable. With `MaxExecutionAttempt__c = -1` this repeats forever: give such jobs a finite value so their requests end `ABORTED`. Reset clears the backoff.
 
  ## Exploitation
 
@@ -314,7 +314,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
   - Engine status: one `getEngineStatus()` call (enabled flag, executor count, watcher scheduled).
 
 - **Tables and status**
-  - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution.
+  - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution and the kill backoff end (`KillBackoffUntil__c`) — a backed-off description's requests leave the Requests table until it passes.
   - Requests: live candidate queue ordered by priority, chunk size, callout base, and dates.
   - Engine state: enabled flag, active executors, recovery scheduler alive.
 
@@ -389,6 +389,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Time window and days respected (`AllowedDays__c`, `AllowedStartTime__c`, `AllowedEndTime__c`).
  - Attempts below `MaxExecutionAttempt__c` (or -1 for unlimited).
  - `NextExecutionDateTime__c <= now` (a null date is not scheduled).
+ - `JobDescription__c.KillBackoffUntil__c` unset or past.
 
  Tip: The learner updates consumption fields on `JobDescription__c`. You rarely set them by hand.
 
@@ -448,6 +449,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Tracks `Base`, `PerItem`, `Safety` per dimension from `ConsumptionModel.asList()` (internally cached).
  - Success: safety +0.05 (capped at 0.98), reset failure count, increment success streak, raise `MaxChunkSize__c` up to `MaxChunkSizeLimit__c`.
  - Failure: safety -0.05, track `ConsecutiveFailures__c` and `SmallestFailingChunk__c`.
+ - Floor kill: a one-item kill of a description already capped at one item (`SmallestFailingChunk__c` 1 or 2) or with an unknown model resets the model and sets `KillBackoffUntil__c` to the kill time + 5 minutes. When no chunk is in flight the kill is charged to the last completed chunk, so a subscriber logger exhausting a limit can back off an unknown or capped description for one period.
  - Kill: penalize `Base` and `PerItem` by 1.1, lower safety. Reset if failures reach configured max.
  - Per-dimension base/per-item updates use an **EWMA blend** (`α·observed + (1−α)·current`, α = `LearningRate__c`, default 0.30) — smooth adaptation instead of a hard `max()` ratchet that outliers could stick permanently.
  - Observations whose variation exceeds `VariationResetThreshold__c`, and only when the absolute deviation of the chunk total also exceeds the dimension's noise floor, are not assimilated; instead `ConsecutiveVariationCount__c` increments. A full model reset fires only once the counter reaches `VariationResetCount__c` (default 3), so a single noisy sample can no longer wipe months of learning.

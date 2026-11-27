@@ -102,6 +102,7 @@ public without sharing class ApexJobManager {
     jobDescription.ConsecutiveVariationCount__c = 0;
     jobDescription.ExecutionsInCurrentWindow__c = 0;
     jobDescription.CurrentWindowStart__c = null;
+    jobDescription.KillBackoffUntil__c = null;
     repository.upsertJobDescriptionByProcessorName(jobDescription);
   }
 

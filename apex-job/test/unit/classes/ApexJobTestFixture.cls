@@ -289,6 +289,11 @@ public class ApexJobTestFixture {
       return this;
     }
 
+    public JobDescriptionBuilder withKillBackoffUntil(final Datetime value) {
+      this.record.KillBackoffUntil__c = value;
+      return this;
+    }
+
     public JobDescriptionBuilder withAggregateQueriesConsumption(final Integer value) {
       this.record.AggregateQueriesBaseConsumption__c = value;
       return this;
