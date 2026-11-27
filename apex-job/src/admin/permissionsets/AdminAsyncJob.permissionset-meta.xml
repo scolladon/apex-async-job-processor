@@ -202,6 +202,11 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.KillBackoffUntil__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.LastExecutionDateTime__c</field>
         <readable>true</readable>
     </fieldPermissions>

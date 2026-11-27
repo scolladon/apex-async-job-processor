@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>KillBackoffUntil__c</fullName>
+    <description>Engine-managed. After a kill at one item, the description is not selected before this time.</description>
+    <label>Kill Backoff Until</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>
