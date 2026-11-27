@@ -236,6 +236,8 @@ Same backlog, drained by one disciplined executor instead of a swarm — plus a 
  - Payload is set via `ApexJobManager.request().payload(...)` or `.payloadJson(...)`.
  - At runtime, `JobRequestArgumentParser` deserializes each `JobRequest__c.Argument__c` into `ApexJobContext.arguments` before your processor runs.
  - A chunk may contain several arguments. Make your work idempotent.
+- Delivery is at-least-once: when the Queueable dies with an unhandled exception the platform rolls back the DML of every chunk it ran, but callouts and publish-immediately platform events already happened and repeat when the chunk runs again.
+- To see what a rolled-back chunk did: the request's `LastExecutionMessage__c` holds the rollback trace (failed `AsyncApexJob` id, exception, callouts made, immediate events published), `JobIds__c` keeps the failed `AsyncApexJob` id among the last 20, and the engine logger error line `AsyncJob: chunk rolled back <description> (<request ids>): <trace>` is the durable record, since a later successful retry deletes the request.
 
 Malformed arguments
  - If `Argument__c` cannot be parsed by `JSON.deserializeUntyped`, the request is marked `Status__c = MALFORMED_ARGUMENT` and is **not** retried (the data is user-supplied and won't fix itself).
@@ -269,7 +271,7 @@ Malformed arguments
  Kill handling (hard transaction aborts)
  - You never return `KILLED` yourself.
  - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls)).
- - Results are recorded and the engine re-enqueues promptly.
+ - On a kill the platform rolls back every chunk of that Queueable. The charged chunk (the one in flight, else the last completed one) is recorded `KILLED`; every other completed chunk runs again with its status and attempt number unchanged, while its description still learns from the measured run and counts it against `MaxExecutionsPerMinute__c`. The engine re-enqueues promptly.
  - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptiveConsumptionLearner`).
 
  ## Exploitation
