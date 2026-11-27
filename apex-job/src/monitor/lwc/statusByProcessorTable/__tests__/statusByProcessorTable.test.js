@@ -47,6 +47,7 @@ describe("c-status-by-processor-table", () => {
         SuccessStreak__c: 5,
         ConsecutiveFailures__c: 2,
         LastExecutionDateTime__c: "2026-11-26T10:00:00.000Z",
+        KillBackoffUntil__c: "2026-11-26T10:05:00.000Z",
         MaxExecutionsPerMinute__c: 10,
         ExecutionsInCurrentWindow__c: 4
       }
@@ -70,6 +71,7 @@ describe("c-status-by-processor-table", () => {
         successStreak: 5,
         consecutiveFailure: 2,
         lastExecutionDateTime: "2026-11-26T10:00:00.000Z",
+        killBackoffUntil: "2026-11-26T10:05:00.000Z",
         maxExecutionsPerMinute: 10,
         executionsInCurrentWindow: 4
       })
@@ -91,6 +93,23 @@ describe("c-status-by-processor-table", () => {
     const lastExec = columns.find((column) => column.fieldName === "lastExecutionDateTime");
     expect(lastExec.type).toBe("date");
     expect(lastExec.typeAttributes).toEqual(expect.objectContaining({ year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+  });
+
+  it("givenColumns_whenRendered_thenKillBackoffUntilIsDateTimeAfterConsecutiveFailure", async () => {
+    // Arrange
+    const sut = mount();
+
+    // Act
+    await jest.advanceTimersByTimeAsync(0);
+    const columns = datatable(sut).columns;
+
+    // Assert
+    const killBackoff = columns.find((column) => column.fieldName === "killBackoffUntil");
+    const lastExec = columns.find((column) => column.fieldName === "lastExecutionDateTime");
+    expect(killBackoff.label).toBe("Kill Backoff Until");
+    expect(killBackoff.type).toBe("date");
+    expect(killBackoff.typeAttributes).toEqual(lastExec.typeAttributes);
+    expect(columns.indexOf(killBackoff)).toBe(columns.findIndex((column) => column.label === "Consecutive Failure") + 1);
   });
 
   it("givenConnected_whenIntervalElapses_thenOneApexCallPerInterval", async () => {

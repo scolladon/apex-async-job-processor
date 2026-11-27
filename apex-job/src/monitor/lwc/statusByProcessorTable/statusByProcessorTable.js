@@ -4,6 +4,7 @@ import getStatusByProcessor from "@salesforce/apex/JobMonitorController.getStatu
 import getJobDescriptionInfos from "@salesforce/apex/JobMonitorController.getJobDescriptionInfos";
 
 const POLL_INTERVAL_MS = 5000;
+const DATE_TIME_TYPE_ATTRIBUTES = { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" };
 
 export default class StatusByProcessorTable extends LightningElement {
   rowValues = [];
@@ -17,13 +18,14 @@ export default class StatusByProcessorTable extends LightningElement {
       { label: "Smallest Failing", fieldName: "smallestFailingChunk", type: "number", hideDefaultActions: true },
       { label: "Success Streak", fieldName: "successStreak", type: "number", hideDefaultActions: true },
       { label: "Consecutive Failure", fieldName: "consecutiveFailure", type: "number", hideDefaultActions: true },
+      { label: "Kill Backoff Until", fieldName: "killBackoffUntil", type: "date", typeAttributes: DATE_TIME_TYPE_ATTRIBUTES, hideDefaultActions: true, wrapText: true },
       { label: "Rate Limit", fieldName: "maxExecutionsPerMinute", type: "number", hideDefaultActions: true },
       { label: "Exec/min", fieldName: "executionsInCurrentWindow", type: "number", hideDefaultActions: true },
       {
         label: "Last Exec",
         fieldName: "lastExecutionDateTime",
         type: "date",
-        typeAttributes: { year: "numeric", month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" },
+        typeAttributes: DATE_TIME_TYPE_ATTRIBUTES,
         hideDefaultActions: true,
         wrapText: true
       }
@@ -75,6 +77,7 @@ export default class StatusByProcessorTable extends LightningElement {
       successStreak: info.SuccessStreak__c,
       consecutiveFailure: info.ConsecutiveFailures__c,
       lastExecutionDateTime: info.LastExecutionDateTime__c,
+      killBackoffUntil: info.KillBackoffUntil__c,
       maxExecutionsPerMinute: info.MaxExecutionsPerMinute__c,
       executionsInCurrentWindow: info.ExecutionsInCurrentWindow__c
     };

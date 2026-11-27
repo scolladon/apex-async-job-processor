@@ -314,7 +314,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
   - Engine status: one `getEngineStatus()` call (enabled flag, executor count, watcher scheduled).
 
 - **Tables and status**
-  - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution.
+  - Status by processor: grouped counts by `Status__c`, max chunk metrics, attempts, next/last execution and the kill backoff end (`KillBackoffUntil__c`) — a backed-off description's requests leave the Requests table until it passes.
   - Requests: live candidate queue ordered by priority, chunk size, callout base, and dates.
   - Engine state: enabled flag, active executors, recovery scheduler alive.
 
