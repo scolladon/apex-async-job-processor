@@ -10,6 +10,9 @@ private class ApexJobFactoryImplTest {
     public void error(final String message) {
       recordedMessages.add(message);
     }
+
+    public void flush() {
+    }
   }
 
   @IsTest

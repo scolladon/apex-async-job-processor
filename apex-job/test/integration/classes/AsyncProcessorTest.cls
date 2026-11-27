@@ -10,6 +10,9 @@ public class AsyncProcessorTest {
     public void error(final String message) {
       recordedMessages.add('ERROR:' + message);
     }
+
+    public void flush() {
+    }
   }
 
   @TestSetup

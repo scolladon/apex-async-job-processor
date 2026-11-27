@@ -27,6 +27,14 @@ public without sharing class ApexJobFailSafeLogger implements ApexJobLogger {
     }
   }
 
+  public void flush() {
+    try {
+      this.subscriberLogger.flush();
+    } catch (Exception loggerError) {
+      this.reportFailure(loggerError);
+    }
+  }
+
   private void reportFailure(final Exception loggerError) {
     this.fallbackLogger.error(FAILURE_PREFIX + loggerError.getTypeName() + ': ' + loggerError.getMessage());
   }

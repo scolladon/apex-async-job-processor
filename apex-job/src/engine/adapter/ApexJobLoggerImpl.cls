@@ -8,6 +8,9 @@ public without sharing class ApexJobLoggerImpl implements ApexJobLogger {
   }
 
   @SuppressWarnings('PMD.EmptyStatementBlock')
+  public void flush() {
+  }
+
   private void log(String message, LoggingLevel level) {
     System.debug(level, message); //NOPMD
   }

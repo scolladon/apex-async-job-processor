@@ -18,6 +18,7 @@ public class ApexJobTestMock {
   // Spies
   public MethodSpy errorSpy { get; private set; }
   public MethodSpy debugSpy { get; private set; }
+  public MethodSpy flushSpy { get; private set; }
   public MethodSpy selectorSpy { get; private set; }
   public MethodSpy getEligibleJobsSpy { get; private set; }
   public MethodSpy repositorySpy { get; private set; }
@@ -87,6 +88,7 @@ public class ApexJobTestMock {
     // Logger Spies
     this.errorSpy = loggerMock.spyOn('error');
     this.debugSpy = loggerMock.spyOn('debug');
+    this.flushSpy = loggerMock.spyOn('flush');
 
     // Selector Spies
     this.getEligibleJobsSpy = selectorMock.spyOn('getEligibleJobs');

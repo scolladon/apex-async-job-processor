@@ -19,6 +19,9 @@ private class ApexJobLoggerResolverTest {
     public void error(final String message) {
       recordedMessages.add(message);
     }
+
+    public void flush() {
+    }
   }
 
   public class NotALogger {
@@ -41,6 +44,9 @@ private class ApexJobLoggerResolverTest {
     public void error(final String message) {
       recordedMessages.add(message);
     }
+
+    public void flush() {
+    }
   }
 
   public class ThrowingCtorLogger implements ApexJobLogger {
@@ -55,6 +61,9 @@ private class ApexJobLoggerResolverTest {
     public void error(final String message) {
       recordedMessages.add(message);
     }
+
+    public void flush() {
+    }
   }
 
   public class ThrowingLogger implements ApexJobLogger {
@@ -65,6 +74,10 @@ private class ApexJobLoggerResolverTest {
     public void error(final String message) {
       throw new TestException(message);
     }
+
+    public void flush() {
+      throw new TestException('flush');
+    }
   }
 
   private class PrivateLogger implements ApexJobLogger {
@@ -74,6 +87,9 @@ private class ApexJobLoggerResolverTest {
 
     public void error(final String message) {
       recordedMessages.add(message);
+    }
+
+    public void flush() {
     }
   }
 
