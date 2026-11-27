@@ -333,32 +333,56 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  The engine logs through the `ApexJobLogger` port. To route its log lines to your own tooling, write a class and name it in the org default of `ApexJobConfig__c.LoggerClassName__c`.
 
  Contract:
- - The class is `public`, has a `public` no-argument constructor, and implements `ApexJobLogger` (`void error(String message); void debug(String message);`, a `public` interface, no namespace).
+ - The class is `public`, has a `public` no-argument constructor, and implements `ApexJobLogger` (`void error(String message); void debug(String message); void flush();`, a `public` interface, no namespace).
  - The name is `MyLogger` or `Outer.Inner`; it is trimmed and case-insensitive.
  - Blank means System.debug, with no extra line.
  - Unusable class (not found, not public, not an `ApexJobLogger`, no usable no-arg constructor, constructor throws): the engine falls back to System.debug and writes one error line naming the class and the reason.
  - A logger that throws while logging: the line and the failure go to System.debug, engine flow is unchanged.
  - The setting is read in every transaction (enqueuing, Queueable, Finalizer, trigger wake-up, watcher); a change applies from the next transaction.
- - The executor carries its logger inside the next Queueable: hold only serializable state (stateless adapters).
- - Keep it cheap: a `System.LimitException` cannot be caught. The engine logs one debug line per executed chunk inside the Queueable loop, plus 1 line in the Finalizer on success and up to 6 (4 of them `error()`) when recording and re-enqueueing both fail, and that cost sits outside the learned consumption model, so no job reserves room for it. Keep DML and event publishing out of `debug()`.
+ - The engine calls `flush()` once at the end of every Queueable (in a `finally`, so not after an uncatchable `LimitException`), once at the end of every Finalizer and once after logging a failed enqueue. Buffer lines and persist them in `flush()`.
+- The executor carries its logger inside the next Queueable and the Finalizer: hold only serializable state.
+ - Keep it cheap: a `System.LimitException` cannot be caught. The engine logs one debug line per executed chunk inside the Queueable loop, plus, in the Finalizer, 1 line on success, one `error()` per chunk rolled back by an unhandled exception, and up to 6 (4 of them `error()`) when recording and re-enqueueing both fail. That cost sits outside the learned consumption model, so no job reserves room for it. Keep DML and event publishing in `flush()`, never in `debug()` or `error()`.
 
  Example adapter for [Nebula Logger](https://github.com/jongpie/NebulaLogger), written and owned by the subscriber (not shipped in this package):
 
  ```apex
- public class NebulaApexJobLogger implements ApexJobLogger {
-   public void error(final String message) {
-     Logger.error(message);
-     Logger.saveLog();
-   }
-   public void debug(final String message) {
-     Logger.debug(message);
-   }
- }
- ```
+public class NebulaApexJobLogger implements ApexJobLogger {
+  private final List<Entry> entries = new List<Entry>();
 
- Nebula buffers entries in memory until `saveLog()`, and the port has no flush hook. The example saves only on `error()`, which also flushes the debug entries buffered before it; debug entries of a transaction that logs no error are discarded. The engine logs no error inside the Queueable, so with this example the per-chunk Queueable debug lines are never saved: only Finalizer entries are persisted, and only when an error is logged. Each save spends Nebula's save-path limits inside the engine transaction.
+  public void debug(final String message) {
+    this.entries.add(new Entry(System.LoggingLevel.DEBUG, message));
+  }
 
- Candidate rules (`JobRequest__c.IsCandidate__c`):
+  public void error(final String message) {
+    this.entries.add(new Entry(System.LoggingLevel.ERROR, message));
+  }
+
+  public void flush() {
+    if (System.isQueueable()) {
+      return;
+    }
+    for (Entry entry : this.entries) {
+      Logger.newEntry(entry.level, entry.message);
+    }
+    this.entries.clear();
+    Logger.saveLog();
+  }
+
+  private class Entry {
+    private final System.LoggingLevel level;
+    private final String message;
+
+    private Entry(final System.LoggingLevel level, final String message) {
+      this.level = level;
+      this.message = message;
+    }
+  }
+}
+```
+
+Nebula buffers entries in statics, which reset between the Queueable and its Finalizer. The engine carries the executor, and its logger instance, into the Finalizer, so buffering in instance state keeps the Queueable's lines even when a `LimitException` ends the Queueable before its own flush. The adapter skips the Queueable flush (`System.isQueueable()` is false in a Finalizer), so the Finalizer saves everything once. Replayed entries carry the Finalizer's timestamp and transaction; add a timestamp to `Entry` to keep the original time. The buffer counts against the Queueable heap. Lines the spawner logs on the trigger or watcher path are saved by the spawner's own flush.
+
+Candidate rules (`JobRequest__c.IsCandidate__c`):
  - `JobRequest__c.Enabled__c` and `JobDescription__c.Enabled__c` must be true.
  - Status in READY, FAILURE, KILLED. (Terminal statuses — `SUCCESS`, `ABORTED`, `MALFORMED_ARGUMENT` — are never re-selected.)
  - Time window and days respected (`AllowedDays__c`, `AllowedStartTime__c`, `AllowedEndTime__c`).

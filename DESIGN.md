@@ -346,6 +346,8 @@ LIMIT 50
 
 Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped. Every enqueue first checks for a free queueable slot (`Limits.getQueueableJobs() < Limits.getLimitQueueableJobs()`) and returns `null` otherwise, ahead of the `isRunning` query. `wakeUp()` is the trigger's entry point: once per transaction, skipped in Batch and `@future` contexts.
 
+`ApexJobLogger` exposes `error()`, `debug()` and `flush()`. The engine calls `flush()` at three points: in a `finally` around the Queueable body (after the Finalizer is attached, so it is skipped when a `LimitException` kills the Queueable), in a `finally` around the whole Finalizer body, and after the spawner logs a `DuplicateMessageException` enqueue failure. Adapters buffer lines and persist them in `flush()`.
+
 ### ApexJobWatcher — Schedulable Watchdog
 
 12 cron jobs (every 5 minutes) call `spawner.enqueue()`. If the executor chain dies unexpectedly, the watcher restarts it within 5 minutes. Scheduling is idempotent — checks for existing `CronTrigger` records before creating.
