@@ -1,7 +1,6 @@
 public without sharing class KillRule {
   private static final Integer SINGLE_ITEM_CHUNK = 1;
   private static final Integer CAPPED_AT_ONE_ITEM_FAILING_CHUNK = 2;
-  private static final Integer UNLIMITED_ATTEMPTS = -1;
 
   private final JobDescription__c job;
 
@@ -14,7 +13,7 @@ public without sharing class KillRule {
   }
 
   public Boolean exhaustsAttempts() {
-    return this.job.MaxExecutionAttempt__c != UNLIMITED_ATTEMPTS && this.job.ConsecutiveFailures__c >= this.job.MaxExecutionAttempt__c;
+    return this.job.MaxExecutionAttempt__c != ApexJobConstant.UNLIMITED_EXECUTION_ATTEMPTS && this.job.ConsecutiveFailures__c >= this.job.MaxExecutionAttempt__c;
   }
 
   private Boolean isModelUnknown() {
