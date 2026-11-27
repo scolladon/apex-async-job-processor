@@ -1,5 +1,10 @@
 @IsTest
 private class JobExecutedTest {
+  private static final Id FAILED_JOB_ID = TestDataFactory.generateUniqueFakeId(AsyncApexJob.SObjectType);
+  private static final String CAUSE_MESSAGE = 'Too many DML statements: 151';
+  private static final String SENSITIVE_ARGUMENT = 'sensitive-argument';
+  private static final Integer LAST_EXECUTION_MESSAGE_LENGTH = 131072;
+
   @IsTest
   static void givenStageExecution_whenJobSucceeds_thenRecordsSuccess() {
     // Arrange
@@ -465,6 +470,257 @@ private class JobExecutedTest {
     Expect.that(mocks.adjustFromSuccessSpy).hasNotBeenCalled();
     Expect.that(mocks.adjustFromFailureSpy).hasNotBeenCalled();
     Expect.that(mocks.adjustFromKillSpy).hasNotBeenCalled();
+  }
+
+  @IsTest
+  static void givenSuccessfulRunRolledBack_whenStageExecution_thenRequestKeepsStatusAttemptAndNextExecution() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final Datetime nextExecution = Datetime.newInstance(2030, 1, 1, 8, 0, 0);
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(2).withNextExecutionDateTime(nextExecution).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.READY.name(), jobRequest.Status__c, 'Status must stay READY');
+    Assert.areEqual(2, jobRequest.AttemptNumber__c, 'Attempt number must not be incremented');
+    Assert.areEqual(nextExecution, jobRequest.NextExecutionDateTime__c, 'Next execution must be unchanged');
+  }
+
+  @IsTest
+  static void givenRunRolledBack_whenStageExecution_thenRequestMessageNamesFailedJobExceptionCalloutsAndImmediateEvents() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    final String message = jobRequest.LastExecutionMessage__c;
+    Assert.isTrue(message.startsWith('Rolled back: AsyncApexJob ' + String.valueOf(FAILED_JOB_ID)), message);
+    Assert.isTrue(message.contains('JobExecutedTest.TestException: ' + CAUSE_MESSAGE), message);
+    Assert.isTrue(message.contains('Callouts made: 2.'), message);
+    Assert.isTrue(message.contains('Immediate events published: 1.'), message);
+    Assert.isTrue(message.endsWith('The chunk will run again.'), message);
+  }
+
+  @IsTest
+  static void givenRunRolledBack_whenStageExecution_thenTimingFieldsUntouched() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.isNull(jobRequest.WaitTime__c, 'Wait time untouched');
+    Assert.isNull(jobRequest.ChunkRunTime__c, 'Chunk run time untouched');
+    Assert.isNull(jobRequest.UnitRunTime__c, 'Unit run time untouched');
+    Assert.isNull(jobRequest.ProcessingTime__c, 'Processing time untouched');
+    Assert.isNull(jobRequest.LastSelectionDateTime__c, 'Last selection untouched');
+    Assert.isNull(jobRequest.LastExecutionDateTime__c, 'Last execution untouched');
+  }
+
+  @IsTest
+  static void givenOversizedExceptionMessage_whenRolledBack_thenMessageTruncatedToFieldLength() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException('x'.repeat(LAST_EXECUTION_MESSAGE_LENGTH))));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(LAST_EXECUTION_MESSAGE_LENGTH, jobRequest.LastExecutionMessage__c.length(), 'Message must be truncated to the field length');
+  }
+
+  @IsTest
+  static void givenRolledBackRun_whenDescribeRollback_thenNamesDescriptionRequestIdsAndTrace() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c first = ApexJobTestFixture.aJobRequest().withName('first').withAttemptNumber(0).build();
+    first.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobRequest__c second = ApexJobTestFixture.aJobRequest().withName('second').withAttemptNumber(0).build();
+    second.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ first, second }), buildMeasuredResult(ApexJobStatus.SUCCESS))
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    final String result = sut.describeRollback();
+
+    // Assert
+    final String expectedPrefix = 'RolledBackJob (' + String.valueOf(first.Id) + ', ' + String.valueOf(second.Id) + '): Rolled back: AsyncApexJob ' + String.valueOf(FAILED_JOB_ID);
+    Assert.isTrue(result.startsWith(expectedPrefix), result);
+  }
+
+  @IsTest
+  static void givenExecutedChunk_whenDescribeExecution_thenNamesDescriptionRequestIdsAndStatusOnly() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('ExecutedJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c first = ApexJobTestFixture.aJobRequest().withName('first').withAttemptNumber(0).build();
+    first.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    first.Argument__c = SENSITIVE_ARGUMENT;
+    final JobRequest__c second = ApexJobTestFixture.aJobRequest().withName('second').withAttemptNumber(0).build();
+    second.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ first, second }), buildMeasuredResult(ApexJobStatus.SUCCESS));
+
+    // Act
+    final String result = sut.describeExecution();
+
+    // Assert
+    Assert.areEqual('ExecutedJob (' + String.valueOf(first.Id) + ', ' + String.valueOf(second.Id) + '): SUCCESS', result);
+    Assert.isFalse(result.contains(SENSITIVE_ARGUMENT), 'Request arguments must stay out of the log line');
+  }
+
+  @IsTest
+  static void givenNullStatusFromProcessor_whenDescribeExecution_thenDescribesWithoutThrowing() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('NullStatusJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c request = ApexJobTestFixture.aJobRequest().withName('only').withAttemptNumber(0).build();
+    request.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ request }), new ApexJobResult((ApexJobStatus) null));
+
+    // Act
+    final String result = sut.describeExecution();
+
+    // Assert
+    Assert.isTrue(result.startsWith('NullStatusJob (' + String.valueOf(request.Id) + '): '), result);
+  }
+
+  @IsTest
+  static void givenSuccessfulRunRolledBack_whenStageExecution_thenLearnerAdjustsFromSuccessWithMeasuredLimits() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final ApexJobResult result = buildMeasuredResult(ApexJobStatus.SUCCESS);
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Expect.that(mocks.adjustFromSuccessSpy).hasBeenCalledWith(result.consumedLimits, 1);
+  }
+
+  @IsTest
+  static void givenFailedRunRolledBack_whenStageExecution_thenLearnerAdjustsFromFailureWithMeasuredLimits() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withStatus(ApexJobStatus.FAILURE).withAttemptNumber(1).build();
+    final ApexJobResult result = new ApexJobResult(new TestException('boom'));
+    result.consumedLimits = ApexJobTestFixture.aLimitsUsage().withCallout(2).withPublishImmediateDml(1).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Expect.that(mocks.adjustFromFailureSpy).hasBeenCalledWith(result.consumedLimits, 1);
+    Assert.areEqual(ApexJobStatus.FAILURE.name(), jobRequest.Status__c, 'Status must stay FAILURE');
+    Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number must not be incremented');
+  }
+
+  @IsTest
+  static void givenMalformedRunRolledBack_whenStageExecution_thenRequestKeepsStatusAndLearnerNotInvoked() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('bad').withAttemptNumber(0).build();
+    jobRequest.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final ApexJobResult result = buildMeasuredResult(ApexJobStatus.MALFORMED_ARGUMENT);
+    result.malformedRequestErrors = new Map<Id, String>{ jobRequest.Id => 'bad' };
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.READY.name(), jobRequest.Status__c, 'Malformed row must not be marked terminal');
+    Assert.isTrue(jobRequest.LastExecutionMessage__c.startsWith('Rolled back: AsyncApexJob '), 'Trace must be written');
+    Expect.that(mocks.adjustFromSuccessSpy).hasNotBeenCalled();
+    Expect.that(mocks.adjustFromFailureSpy).hasNotBeenCalled();
+    Expect.that(mocks.adjustFromKillSpy).hasNotBeenCalled();
+    Assert.isNotNull(jobDescription.LastExecutionDateTime__c, 'Description last execution must be set');
+  }
+
+  @IsTest
+  static void givenRateLimitConfigured_whenRolledBackRunStaged_thenWindowCountsChunkSize() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('RolledBackJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(100)
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be set to chunk size for fresh window');
+    Assert.isNotNull(jobDescription.CurrentWindowStart__c, 'Window start should be set');
+  }
+
+  @IsTest
+  static void givenCompletedRun_whenRolledBackBy_thenOriginalEntryStagesAsBefore() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS));
+    sut.rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(ApexJobStatus.SUCCESS.name(), jobRequest.Status__c, 'Original entry must still complete the request');
+    Assert.areEqual(1, jobRequest.AttemptNumber__c, 'Attempt number must be incremented');
+    Assert.areEqual('', jobRequest.LastExecutionMessage__c, 'Message must be empty for success');
+  }
+
+  private static ApexJobResult buildMeasuredResult(final ApexJobStatus status) {
+    final ApexJobResult result = new ApexJobResult(status);
+    result.consumedLimits = ApexJobTestFixture.aLimitsUsage().withCallout(2).withPublishImmediateDml(1).build();
+    return result;
+  }
+
+  private static List<JobRequest__c> attachDescription(final JobDescription__c description, final List<JobRequest__c> requests) {
+    for (JobRequest__c request : requests) {
+      request.JobDescription__r = description;
+    }
+    return requests;
+  }
+
+  private static JobExecuted buildCompletedRun(final ApexJobTestMock mocks, final List<JobRequest__c> requests, final ApexJobResult result) {
+    return new JobExecuted(mocks.factoryStub, new JobExecutable(mocks.factoryStub, requests), result);
   }
 
   // Test exception class

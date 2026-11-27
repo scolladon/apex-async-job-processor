@@ -1,5 +1,6 @@
 @IsTest
 public class AsyncProcessorTest {
+  private static final String FLUSH_MARKER = 'FLUSH';
   private static List<String> recordedMessages = new List<String>();
 
   public class RecordingLogger implements ApexJobLogger {
@@ -9,6 +10,10 @@ public class AsyncProcessorTest {
 
     public void error(final String message) {
       recordedMessages.add('ERROR:' + message);
+    }
+
+    public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 
@@ -483,6 +488,7 @@ public class AsyncProcessorTest {
       // Assert
       Assert.areEqual(1, countStartingWith(recordedMessages, 'DEBUG:Job executed: '), 'The Queueable should log through the configured logger');
       Assert.areEqual(1, countStartingWith(recordedMessages, 'DEBUG:Enqueued AsyncApexJobExecutor.execute() again in '), 'The Finalizer should log through the configured logger');
+      Assert.areEqual(1, countStartingWith(recordedMessages, FLUSH_MARKER), 'Only the Finalizer should flush the configured logger');
     }
   }
 

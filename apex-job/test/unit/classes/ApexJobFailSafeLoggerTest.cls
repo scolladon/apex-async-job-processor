@@ -6,8 +6,10 @@ private class ApexJobFailSafeLoggerTest {
   private static Mock fallbackMock = Mock.forType(ApexJobLogger.class);
   private static MethodSpy subscriberDebugSpy = subscriberMock.spyOn('debug');
   private static MethodSpy subscriberErrorSpy = subscriberMock.spyOn('error');
+  private static MethodSpy subscriberFlushSpy = subscriberMock.spyOn('flush');
   private static MethodSpy fallbackDebugSpy = fallbackMock.spyOn('debug');
   private static MethodSpy fallbackErrorSpy = fallbackMock.spyOn('error');
+  private static MethodSpy fallbackFlushSpy = fallbackMock.spyOn('flush');
 
   private class TestException extends Exception {
   }
@@ -74,5 +76,34 @@ private class ApexJobFailSafeLoggerTest {
     Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
     final String failure = (String) fallbackErrorSpy.getArguments(0)[0];
     Assert.areEqual(FAILURE_PREFIX + 'ApexJobFailSafeLoggerTest.TestException: boom', failure);
+  }
+
+  @IsTest
+  static void givenWorkingSubscriberLogger_whenFlush_thenDelegatesToSubscriberOnly() {
+    // Arrange
+    final ApexJobFailSafeLogger sut = buildSut();
+
+    // Act
+    sut.flush();
+
+    // Assert
+    Expect.that(subscriberFlushSpy).hasBeenCalledTimes(1);
+    Expect.that(fallbackFlushSpy).hasNotBeenCalled();
+    Expect.that(fallbackErrorSpy).hasNotBeenCalled();
+  }
+
+  @IsTest
+  static void givenThrowingSubscriberFlush_whenFlush_thenReportsFailureToFallback() {
+    // Arrange
+    subscriberFlushSpy.throwsException(new TestException('flush failed'));
+    final ApexJobFailSafeLogger sut = buildSut();
+
+    // Act
+    sut.flush();
+
+    // Assert
+    Expect.that(fallbackErrorSpy).hasBeenCalledTimes(1);
+    final String failure = (String) fallbackErrorSpy.getArguments(0)[0];
+    Assert.areEqual(FAILURE_PREFIX + 'ApexJobFailSafeLoggerTest.TestException: flush failed', failure);
   }
 }

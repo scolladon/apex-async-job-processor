@@ -3,11 +3,16 @@ public with sharing class JobExecuted {
   private static final String MAX_EXECUTION_ATTEMPT_REACHED = 'Max execution attempt reached';
   private static final Integer MAX_EXECUTION_ATTEMPT_NUMBER = 9999999;
   private static final Integer MAX_LONG_TEXT_LENGTH = 131072;
+  private static final String ROLLBACK_TRACE_FORMAT = 'Rolled back: AsyncApexJob {0} failed with {1}: {2}. Callouts made: {3}. Immediate events published: {4}. The chunk will run again.';
+  private static final String CHUNK_DESCRIPTION_FORMAT = '{0} ({1}): {2}';
+  private static final String REQUEST_ID_SEPARATOR = ', ';
 
   @TestVisible
   private final ApexJobResult jobExecutionResult;
   private final ApexJobFactory factory;
   private final JobRequestExecutionStagingInfo stagingInfo;
+  private final RequestStaging requestStaging;
+  private final String rollbackTrace;
   public final JobDescription__c jobDescription { get; private set; }
   public final List<JobRequest__c> jobRequests { get; private set; }
   public final JobExecutable executable { get; private set; }
@@ -19,11 +24,46 @@ public with sharing class JobExecuted {
     this.jobRequests = jobExecutable.jobRequests;
     this.jobExecutionResult = jobExecutionResult;
     this.stagingInfo = new JobRequestExecutionStagingInfo(jobExecutable, jobExecutionResult, this.jobDescription);
+    this.rollbackTrace = null;
+    this.requestStaging = new CompletedRunStaging();
+  }
+
+  private JobExecuted(final JobExecuted completed, final String rollbackTrace) {
+    this.factory = completed.factory;
+    this.executable = completed.executable;
+    this.jobDescription = completed.jobDescription;
+    this.jobRequests = completed.jobRequests;
+    this.jobExecutionResult = completed.jobExecutionResult;
+    this.stagingInfo = completed.stagingInfo;
+    this.rollbackTrace = rollbackTrace;
+    this.requestStaging = new RollbackTraceStaging(rollbackTrace);
+  }
+
+  public JobExecuted rolledBackBy(final Id failedAsyncJobId, final RollbackCause cause) {
+    final LimitsUsage consumed = this.jobExecutionResult.consumedLimits;
+    final String trace = String.format(ROLLBACK_TRACE_FORMAT, new List<Object>{ failedAsyncJobId, cause.typeName, cause.message, consumed.callout, consumed.publishImmediateDml });
+    return new JobExecuted(this, trace.left(MAX_LONG_TEXT_LENGTH));
+  }
+
+  public String describeRollback() {
+    return String.format(CHUNK_DESCRIPTION_FORMAT, new List<Object>{ this.jobDescription.Name, this.joinRequestIds(), this.rollbackTrace });
+  }
+
+  public String describeExecution() {
+    return String.format(CHUNK_DESCRIPTION_FORMAT, new List<Object>{ this.jobDescription.Name, this.joinRequestIds(), this.jobExecutionResult.status.name() });
   }
 
   public void stageExecution() {
-    this.stageJobRequestsChunkExecution();
+    this.requestStaging.stage(this);
     this.stageJobDescriptionExecution();
+  }
+
+  private String joinRequestIds() {
+    final List<String> ids = new List<String>();
+    for (JobRequest__c job : this.jobRequests) {
+      ids.add(String.valueOf(job.Id));
+    }
+    return String.join(ids, REQUEST_ID_SEPARATOR);
   }
 
   private void stageJobRequestsChunkExecution() {
@@ -149,6 +189,40 @@ public with sharing class JobExecuted {
 
       final String rawErrorMessage = result.error?.toString() ?? '';
       this.errorMessage = rawErrorMessage.left(MAX_LONG_TEXT_LENGTH);
+    }
+  }
+
+  public class RollbackCause {
+    public final String typeName { get; private set; }
+    public final String message { get; private set; }
+
+    public RollbackCause(final Exception cause) {
+      this.typeName = cause.getTypeName();
+      this.message = cause.getMessage();
+    }
+  }
+
+  private interface RequestStaging {
+    void stage(JobExecuted executed);
+  }
+
+  private class CompletedRunStaging implements RequestStaging {
+    public void stage(final JobExecuted executed) {
+      executed.stageJobRequestsChunkExecution();
+    }
+  }
+
+  private class RollbackTraceStaging implements RequestStaging {
+    private final String trace;
+
+    public RollbackTraceStaging(final String trace) {
+      this.trace = trace;
+    }
+
+    public void stage(final JobExecuted executed) {
+      for (JobRequest__c job : executed.jobRequests) {
+        job.LastExecutionMessage__c = this.trace;
+      }
     }
   }
 }

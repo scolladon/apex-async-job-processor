@@ -18,6 +18,10 @@ public class ApexJobTestMock {
   // Spies
   public MethodSpy errorSpy { get; private set; }
   public MethodSpy debugSpy { get; private set; }
+  public MethodSpy flushSpy { get; private set; }
+  public MethodSpy getLoggerSpy { get; private set; }
+  public MethodSpy newLoggerSpy { get; private set; }
+  public MethodSpy adoptLoggerSpy { get; private set; }
   public MethodSpy selectorSpy { get; private set; }
   public MethodSpy getEligibleJobsSpy { get; private set; }
   public MethodSpy repositorySpy { get; private set; }
@@ -72,7 +76,11 @@ public class ApexJobTestMock {
     this.argumentParserStub = (JobRequestArgumentParser) argumentParserMock.stub;
 
     // Factory Spies
-    factoryMock.spyOn('getLogger').returns(this.loggerStub);
+    this.getLoggerSpy = factoryMock.spyOn('getLogger');
+    this.getLoggerSpy.returns(this.loggerStub);
+    this.newLoggerSpy = factoryMock.spyOn('newLogger');
+    this.newLoggerSpy.returns(this.loggerStub);
+    this.adoptLoggerSpy = factoryMock.spyOn('adoptLogger');
     factoryMock.spyOn('getSelector').returns(this.selectorStub);
     factoryMock.spyOn('getRepository').returns(this.repositoryStub);
     factoryMock.spyOn('getSpawner').returns(this.spawnerStub);
@@ -87,6 +95,7 @@ public class ApexJobTestMock {
     // Logger Spies
     this.errorSpy = loggerMock.spyOn('error');
     this.debugSpy = loggerMock.spyOn('debug');
+    this.flushSpy = loggerMock.spyOn('flush');
 
     // Selector Spies
     this.getEligibleJobsSpy = selectorMock.spyOn('getEligibleJobs');

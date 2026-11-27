@@ -193,14 +193,14 @@ System.enqueueJob(new AsyncApexJobExecutor(), options)
 ═══════════════════════════════════════════════════════════
      │
      ├── [Block 1: Persist]
-     │     ├── wasLastChunkKilled() gate:
-     │     │     UNHANDLED_EXCEPTION AND lastExecutableJob set AND
-     │     │     last entry of jobExecutionResults was produced by a
-     │     │     DIFFERENT executable (reference inequality)
-     │     │     → Synthesize KILLED result (idempotent: prevents the
-     │     │       SUCCESS-then-kill race from producing a duplicate)
+     │     ├── UNHANDLED_EXCEPTION →
+     │     │     charged chunk (in flight, else list tail) → synthesize KILLED
+     │     │     other completed chunks → rolledBackBy(): request trace only,
+     │     │       description staged as a completed run
+     │     │     one engine error line each (logged before recording)
      │     └── JobRepository.recordJobExecution(results)
      │           ├── JobExecuted.stageExecution() per result:
+     │           │     ├── request side: completed-run staging or rollback trace
      │           │     ├── Calculate timing metrics
      │           │     ├── Determine next status (state machine)
      │           │     └── ConsumptionLearner.adjustFrom{Success|Failure|Kill}()
@@ -221,6 +221,7 @@ Created (READY) ──▶ Picked up (IsCandidate__c = TRUE)
     ├── SUCCESS ──▶ READY + NextExecutionDateTime (recurrent)
     ├── FAILURE ──▶ READY + NextExecutionDateTime, AttemptNumber++
     ├── KILLED  ──▶ READY + NextExecutionDateTime
+    ├── ROLLED BACK ──▶ status/attempt unchanged, trace written, re-selected
     └── ABORTED ──▶ Final state (attempt limit reached)
 ```
 
@@ -249,9 +250,10 @@ All domain classes live under `apex-job/src/engine/domain/classes/`. No database
 
 **`JobExecutable`** — Executes a chunk. Parses arguments via `JobRequestArgumentParser`; short-circuits to `MALFORMED_ARGUMENT` without invoking the processor when every request is malformed. Otherwise instantiates the processor via reflection (`Type.forName`), passes only the valid arguments, wraps execution in limit snapshots. Catches processor exceptions and converts to `FAILURE` results. Attaches `malformedRequestErrors` to the `ApexJobResult` for per-request staging. Returns a `JobExecuted`.
 
-**`JobExecuted`** — Post-execution staging. Exposes `executable` (public read-only reference to the source `JobExecutable`, used by the finalizer's idempotent kill-gate). Two responsibilities:
+**`JobExecuted`** — Post-execution staging. Exposes `executable` (public read-only reference to the source `JobExecutable`, used by the finalizer to tell the in-flight chunk from the completed ones). Three responsibilities:
 1. Stage `JobRequest__c` records: compute timing metrics, determine next status via a state machine. Malformed requests (in `malformedRequestErrors`) are tagged terminal (`Status__c = MALFORMED_ARGUMENT`, no retry).
 2. Drive consumption learning: route to `ConsumptionLearner.adjustFrom{Success|Failure|Kill}()` based on result status. Skipped entirely when the chunk-level status is `MALFORMED_ARGUMENT` — no processor ran, so no limits were consumed that deserve learning.
+3. Record a rollback: `rolledBackBy(Id, JobExecuted.RollbackCause)` returns a rolled-back copy whose request side only writes the rollback trace (`LastExecutionMessage__c`) while the description side stages as a completed run; `describeRollback()` renders the engine log line.
 
 ### Subdirectories
 
@@ -344,6 +346,8 @@ LIMIT 50
 
 Enqueues the next `AsyncApexJobExecutor` with `QueueableDuplicateSignature` to prevent race-condition double-enqueues. `DuplicateMessageException` is caught and silently dropped. Every enqueue first checks for a free queueable slot (`Limits.getQueueableJobs() < Limits.getLimitQueueableJobs()`) and returns `null` otherwise, ahead of the `isRunning` query. `wakeUp()` is the trigger's entry point: once per transaction, skipped in Batch and `@future` contexts.
 
+`ApexJobLogger` exposes `error()`, `debug()` and `flush()`. The engine calls `flush()` in one place: a `finally` around the whole Finalizer body, after recording and re-enqueueing; the Queueable never flushes. Each executor resolves a fresh logger with `ApexJobFactory.newLogger()` when it is created, and both its Queueable and its Finalizer first call `ApexJobFactory.adoptLogger()` with it, so the spawner and every other service log into that one instance, the single Finalizer flush covers the Queueable's lines and its own, and the executor the Finalizer enqueues starts with a fresh logger instead of inheriting the buffered one. Lines logged outside a Queueable and its Finalizer (trigger wake-up, watcher) are never flushed by the engine. The per-chunk Queueable debug line is a bounded summary from `JobExecuted.describeExecution()`: description name, request ids, status. Adapters buffer lines and persist them in `flush()`.
+
 ### ApexJobWatcher — Schedulable Watchdog
 
 12 cron jobs (every 5 minutes) call `spawner.enqueue()`. If the executor chain dies unexpectedly, the watcher restarts it within 5 minutes. Scheduling is idempotent — checks for existing `CronTrigger` records before creating.
@@ -399,7 +403,7 @@ Implements `Queueable`, `Finalizer`, and `Database.AllowsCallouts`. The same ins
 **Queueable phase**: Attaches self as Finalizer, runs an infinite loop querying candidates and executing chunks until no candidates remain or governor limits are exhausted.
 
 **Finalizer phase**: Two independent try/catch blocks:
-1. **Persist**: If `UNHANDLED_EXCEPTION` and a job was in-flight, synthesize a `KILLED` result. Persist all results via `recordJobExecution`.
+1. **Persist**: If `UNHANDLED_EXCEPTION`: the chunk in flight (else the last completed one) is recorded `KILLED`; every other completed chunk is recorded rolled back (request status and attempt unchanged, trace written, description learns), one error line each. Persist all results via `recordJobExecution`.
 2. **Re-enqueue**: If system enabled, enqueue the next executor (delay 0 if work done and recorded; configured idle delay if idle or if recording threw, results discarded).
 
 The two-block design ensures a persistence failure does not prevent re-enqueueing.

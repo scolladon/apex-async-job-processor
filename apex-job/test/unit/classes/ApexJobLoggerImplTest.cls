@@ -29,4 +29,21 @@ private class ApexJobLoggerImplTest {
     // This test verifies the method executes without exceptions
     Assert.isTrue(true, 'Debug method should execute without throwing exceptions');
   }
+
+  @IsTest
+  static void givenLogger_whenFlush_thenDoesNotThrow() {
+    // Arrange
+    final ApexJobLogger sut = new ApexJobLoggerImpl();
+    Boolean thrown = false;
+
+    // Act
+    try {
+      sut.flush();
+    } catch (Exception flushError) {
+      thrown = true;
+    }
+
+    // Assert
+    Assert.isFalse(thrown, 'Flush should not throw');
+  }
 }

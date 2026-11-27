@@ -1,5 +1,6 @@
 @IsTest
 private class ApexJobFactoryImplTest {
+  private static final String FLUSH_MARKER = 'FLUSH';
   private static List<String> recordedMessages = new List<String>();
 
   public class RecordingLogger implements ApexJobLogger {
@@ -9,6 +10,10 @@ private class ApexJobFactoryImplTest {
 
     public void error(final String message) {
       recordedMessages.add(message);
+    }
+
+    public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 
@@ -36,6 +41,48 @@ private class ApexJobFactoryImplTest {
 
     // Assert
     Assert.areEqual(new List<String>{ 'probe' }, recordedMessages, 'The configured logger should receive the line');
+  }
+
+  @IsTest
+  static void givenAdoptedLogger_whenAnotherFactoryGetsLogger_thenReturnsAdoptedInstance() {
+    // Arrange
+    final ApexJobLogger adopted = new RecordingLogger();
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+    sut.adoptLogger(adopted);
+
+    // Act
+    final ApexJobLogger result = new ApexJobFactoryImpl().getLogger();
+
+    // Assert
+    Assert.isTrue(result === adopted, 'Every factory of the transaction must hand out the adopted logger');
+  }
+
+  @IsTest
+  static void givenAdoptedLogger_whenNewLogger_thenReturnsFreshInstance() {
+    // Arrange
+    final ApexJobLogger adopted = new RecordingLogger();
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+    sut.adoptLogger(adopted);
+
+    // Act
+    final ApexJobLogger result = sut.newLogger();
+
+    // Assert
+    Assert.isTrue(result !== adopted, 'A new logger must never be the adopted instance');
+    Assert.isInstanceOfType(result, ApexJobLoggerImpl.class, 'A blank configuration resolves the default logger');
+  }
+
+  @IsTest
+  static void givenLoggerClassNameConfigured_whenFlush_thenFlushesConfiguredLogger() {
+    // Arrange
+    insert as system new ApexJobConfig__c(LoggerClassName__c = 'ApexJobFactoryImplTest.RecordingLogger');
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+
+    // Act
+    sut.getLogger().flush();
+
+    // Assert
+    Assert.areEqual(new List<String>{ FLUSH_MARKER }, recordedMessages, 'The configured logger should be flushed through the fail-safe wrapper');
   }
 
   @IsTest

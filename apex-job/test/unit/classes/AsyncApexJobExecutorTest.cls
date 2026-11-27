@@ -1,5 +1,9 @@
 @IsTest
 private class AsyncApexJobExecutorTest {
+  private static final String ROLLED_BACK_LOG_PREFIX = 'AsyncJob: chunk rolled back ';
+  private static final String EXECUTION_SUMMARY = 'ExecutedJob (a01): SUCCESS';
+  private static final Id FAILED_JOB_ID = TestDataFactory.generateUniqueFakeId(AsyncApexJob.SObjectType);
+
   @IsTest
   static void givenFinalizerContext_whenExecuteWithSystemDisabled_thenExecuteDoNotReenqueue() {
     // Arrange
@@ -130,9 +134,24 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.isSystemEnabledSpy).hasBeenCalledTimes(1);
   }
 
+  class SucceededFinalizerContext implements FinalizerContext {
+    public Id getAsyncApexJobId() {
+      return FAILED_JOB_ID;
+    }
+    public Id getRequestId() {
+      return null;
+    }
+    public System.ParentJobResult getResult() {
+      return ParentJobResult.SUCCESS;
+    }
+    public Exception getException() {
+      return null;
+    }
+  }
+
   class KilledFinalizerContext implements FinalizerContext {
     public Id getAsyncApexJobId() {
-      return null;
+      return FAILED_JOB_ID;
     }
     public Id getRequestId() {
       return null;
@@ -219,6 +238,7 @@ private class AsyncApexJobExecutorTest {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    jobExecutedMock.spyOn('describeExecution').returns(EXECUTION_SUMMARY);
     final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
     final MethodSpy executeChunkSpy = jobExecutableMock.spyOn('executeChunk');
     executeChunkSpy.returns(jobExecutedMock.stub);
@@ -241,6 +261,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.getJobCandidatesSpy).hasBeenCalledTimes(2);
     Expect.that(executeChunkSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.enqueueSpy).hasNotBeenCalled();
+    Expect.that(mocks.debugSpy).hasBeenCalledWith('Job executed: ' + EXECUTION_SUMMARY);
   }
 
   @IsTest
@@ -274,21 +295,25 @@ private class AsyncApexJobExecutorTest {
   }
 
   @IsTest
-  static void givenLastChunkAlreadyRecorded_whenFinalizerFires_thenNoDoubleRecord() {
-    // Arrange — simulate the success-then-kill race: the chunk is already in the results list.
+  static void givenSuccessIsLastResultAndNoChunkInFlight_whenFinalizerRunsWithUnhandledException_thenRecordsTailAsKilled() {
+    // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     mocks.isSystemEnabledSpy.returns(true);
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
     final JobExecutable inFlight = buildExecutable(mocks);
     sut.lastExecutableJob = inFlight;
-    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, inFlight, new ApexJobResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, inFlight, buildCompletedResult(ApexJobStatus.SUCCESS)));
 
     // Act
     sut.execute(new KilledFinalizerContext());
 
-    // Assert — list must still contain exactly one result, not two.
-    Assert.areEqual(1, sut.jobExecutionResults.size(), 'Finalizer must not append a KILLED duplicate when the chunk is already recorded');
-    Assert.areEqual(ApexJobStatus.SUCCESS, sut.jobExecutionResults[0].jobExecutionResult.status, 'Existing SUCCESS record must be preserved unchanged');
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(1, recorded.size(), 'The tail must be recorded once');
+    Assert.areEqual(ApexJobStatus.KILLED, recorded[0].jobExecutionResult.status, 'The tail must be recorded as KILLED');
+    Assert.isTrue(recorded[0].executable === inFlight, 'The killed entry must carry the tail chunk');
+    Expect.that(mocks.errorSpy).hasNotBeenCalled();
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
   }
 
   @IsTest
@@ -308,34 +333,339 @@ private class AsyncApexJobExecutorTest {
   }
 
   @IsTest
-  static void givenPreviousChunkRecordedButCurrentInFlight_whenFinalizerFires_thenKilledAppendedForCurrent() {
-    // Arrange — executor finished chunk N, started chunk N+1, then was killed mid-executeChunk.
+  static void givenSuccessForChunkNAndChunkNPlus1InFlight_whenFinalizerRunsWithUnhandledException_thenRecordsChunkNRolledBackAndChunkNPlus1Killed() {
+    // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     mocks.isSystemEnabledSpy.returns(true);
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
     final JobExecutable previousChunk = buildExecutable(mocks);
     final JobExecutable currentChunk = buildExecutable(mocks);
-    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, previousChunk, new ApexJobResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, previousChunk, buildCompletedResult(ApexJobStatus.SUCCESS)));
     sut.lastExecutableJob = currentChunk;
 
     // Act
     sut.execute(new KilledFinalizerContext());
 
-    // Assert — two results: previous SUCCESS plus current KILLED.
-    Assert.areEqual(2, sut.jobExecutionResults.size(), 'Finalizer must append KILLED for the new in-flight chunk while preserving the previously recorded SUCCESS');
-    Assert.areEqual(ApexJobStatus.KILLED, sut.jobExecutionResults[1].jobExecutionResult.status, 'The new tail record must be KILLED');
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(2, recorded.size(), 'Chunk N and chunk N+1 must be recorded');
+    Assert.isTrue(recorded[1].executable === currentChunk, 'The killed entry must carry the in-flight chunk');
+    Assert.areEqual(ApexJobStatus.KILLED, recorded[1].jobExecutionResult.status, 'The in-flight chunk must be KILLED');
+    assertRolledBack(stagedRequestOf(recorded[0]));
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
+  }
+
+  @IsTest
+  static void givenSeveralCompletedChunksAndChunkInFlight_whenFinalizerRunsWithUnhandledException_thenRollsBackEveryCompletedChunk() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable chunkA = buildExecutable(mocks);
+    final JobExecutable chunkB = buildExecutable(mocks);
+    final JobExecutable chunkC = buildExecutable(mocks);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkA, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkB, buildCompletedResult(ApexJobStatus.FAILURE)));
+    sut.lastExecutableJob = chunkC;
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(3, recorded.size(), 'Two rolled back chunks and one killed chunk must be recorded');
+    assertRolledBack(stagedRequestOf(recorded[0]));
+    assertRolledBack(stagedRequestOf(recorded[1]));
+    Assert.isTrue(recorded[2].executable === chunkC, 'The killed entry must carry the in-flight chunk');
+  }
+
+  @IsTest
+  static void givenSeveralCompletedChunksAndNullPointer_whenFinalizerRunsWithUnhandledException_thenRollsBackAllButTailAndKillsTail() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable chunkA = buildExecutable(mocks);
+    final JobExecutable chunkB = buildExecutable(mocks);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkA, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkB, buildCompletedResult(ApexJobStatus.SUCCESS)));
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(2, recorded.size(), 'The rolled back chunk and the killed tail must be recorded');
+    assertRolledBack(stagedRequestOf(recorded[0]));
+    Assert.areEqual(ApexJobStatus.KILLED, recorded[1].jobExecutionResult.status, 'The tail must be KILLED');
+    Assert.isTrue(recorded[1].executable === chunkB, 'The killed entry must carry the tail chunk');
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
+  }
+
+  @IsTest
+  static void givenSeveralCompletedChunksAndPointerOnTail_whenFinalizerRunsWithUnhandledException_thenRollsBackAllButTailAndKillsTail() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable chunkA = buildExecutable(mocks);
+    final JobExecutable chunkB = buildExecutable(mocks);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkA, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkB, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = chunkB;
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(2, recorded.size(), 'The rolled back chunk and the killed tail must be recorded');
+    assertRolledBack(stagedRequestOf(recorded[0]));
+    Assert.areEqual(ApexJobStatus.KILLED, recorded[1].jobExecutionResult.status, 'The tail must be KILLED');
+    Assert.isTrue(recorded[1].executable === chunkB, 'The killed entry must carry the tail chunk');
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
+  }
+
+  @IsTest
+  static void givenCompletedChunksAndChunkInFlight_whenFinalizerRunsWithUnhandledException_thenLogsOneErrorPerRolledBackChunk() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable chunkA = buildExecutable(mocks);
+    final JobExecutable chunkB = buildExecutable(mocks);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkA, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkB, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = buildExecutable(mocks);
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    Expect.that(mocks.errorSpy).hasBeenCalledTimes(2);
+    assertRollbackLogLine((String) mocks.errorSpy.getArguments(0).get(0), chunkA);
+    assertRollbackLogLine((String) mocks.errorSpy.getArguments(1).get(0), chunkB);
+  }
+
+  @IsTest
+  static void givenRolledBackChunkAndRecordingThrows_whenFinalizerRuns_thenRollbackLineIsLoggedBeforeFailure() {
+    // Arrange
+    final Integer idleDelayInMinutes = 3;
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.getEnqueueDelayInMinutesSpy.returns(idleDelayInMinutes);
+    mocks.recordJobExecutionSpy.throwsException(new TestException('Test exception'));
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, buildExecutable(mocks), buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = buildExecutable(mocks);
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    Expect.that(mocks.errorSpy).hasBeenCalledTimes(3);
+    Assert.isTrue(((String) mocks.errorSpy.getArguments(0).get(0)).startsWith(ROLLED_BACK_LOG_PREFIX), 'The rollback line must be logged first');
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(idleDelayInMinutes);
+  }
+
+  @IsTest
+  static void givenNoResultAndNoPointer_whenFinalizerRunsWithUnhandledException_thenRecordsNothingAndReenqueuesWithIdleDelay() {
+    // Arrange
+    final Integer idleDelayInMinutes = 3;
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.getEnqueueDelayInMinutesSpy.returns(idleDelayInMinutes);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    Assert.isTrue(recordedEntries(mocks).isEmpty(), 'Nothing must be recorded');
+    Expect.that(mocks.errorSpy).hasNotBeenCalled();
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(idleDelayInMinutes);
+  }
+
+  @IsTest
+  static void givenSuccessResults_whenFinalizerRunsWithSuccessfulParent_thenRecordsResultsUnchanged() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecuted first = new JobExecuted(mocks.factoryStub, buildExecutable(mocks), buildCompletedResult(ApexJobStatus.SUCCESS));
+    final JobExecuted second = new JobExecuted(mocks.factoryStub, buildExecutable(mocks), buildCompletedResult(ApexJobStatus.SUCCESS));
+    sut.jobExecutionResults.add(first);
+    sut.jobExecutionResults.add(second);
+
+    // Act
+    sut.execute(new SucceededFinalizerContext());
+
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(2, recorded.size(), 'Both results must be recorded');
+    Assert.isTrue(recorded[0] === first && recorded[1] === second, 'Results must be recorded unchanged');
+    Expect.that(mocks.errorSpy).hasNotBeenCalled();
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
+  }
+
+  @IsTest
+  static void givenJobsToRun_whenQueueableExecutes_thenLogsChunkWithoutFlushing() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
+    mocks.newLoggerSpy.returns(logger);
+    final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
+    jobExecutableMock.spyOn('executeChunk').returns(jobExecutedMock.stub);
+    final Mock jobCandidateMock = Mock.forType(JobCandidate.class);
+    jobCandidateMock.spyOn('getExecutableChunk').returns((JobExecutable) jobExecutableMock.stub);
+    mocks.getJobCandidatesSpy.returnsOnce(new List<JobCandidate>{ (JobCandidate) jobCandidateMock.stub });
+    mocks.getJobCandidatesSpy.returns(new List<JobCandidate>());
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute(new QueueableContextStub());
+
+    // Assert
+    Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.DEBUG_CALL), 'The executed chunk must be logged');
+    Assert.areEqual(0, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'The Queueable must leave the flush to its Finalizer');
+    Expect.that(mocks.adoptLoggerSpy).hasBeenCalledWith(logger);
+  }
+
+  @IsTest
+  static void givenFinalizerReenqueues_whenSpawnerAndNextExecutorResolveLoggers_thenSpawnerSharesCarriedLoggerAndNextExecutorGetsFreshOne() {
+    // Arrange
+    insert as system new ApexJobConfig__c(Enabled__c = true);
+    final LoggerProbeFactory factory = new LoggerProbeFactory();
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(factory);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Assert.isTrue(factory.loggerSeenBySpawner === sut.logger, 'The spawner must log into the logger the Finalizer carried');
+    Assert.isTrue(factory.nextExecutor.logger !== sut.logger, 'The next executor must not inherit the carried logger');
+  }
+
+  @IsTest
+  static void givenCarriedLogger_whenFinalizerRuns_thenFactoryAdoptsIt() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Expect.that(mocks.adoptLoggerSpy).hasBeenCalledWith(mocks.loggerStub);
+  }
+
+  @IsTest
+  static void givenRecordedResults_whenFinalizerRuns_thenFlushesLoggerOnce() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    sut.jobExecutionResults.add((JobExecuted) jobExecutedMock.stub);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenSystemDisabled_whenFinalizerRuns_thenFlushesLoggerOnce() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(false);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenRolledBackChunkAndRecordingThrows_whenFinalizerRuns_thenFlushesLoggerOnceAfterLogging() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
+    mocks.newLoggerSpy.returns(logger);
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.recordJobExecutionSpy.throwsException(new TestException('Test exception'));
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, buildExecutable(mocks), buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = buildExecutable(mocks);
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    Assert.isTrue(logger.countOf(ApexJobCallOrderLogger.ERROR_CALL) > 0, 'The rollback and recording failure must be logged');
+    Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'The logger must be flushed once');
+    Assert.areEqual(ApexJobCallOrderLogger.FLUSH_CALL, logger.lastCall(), 'The flush must follow every log line');
+  }
+
+  private static void assertRollbackLogLine(final String line, final JobExecutable chunk) {
+    Assert.isTrue(line.startsWith(ROLLED_BACK_LOG_PREFIX), line);
+    Assert.isTrue(line.contains(chunk.jobRequests[0].JobDescription__r.Name), line);
+    Assert.isTrue(line.contains(String.valueOf(chunk.jobRequests[0].Id)), line);
+    Assert.isTrue(line.contains(String.valueOf(FAILED_JOB_ID)), line);
   }
 
   private static JobExecutable buildExecutable(final ApexJobTestMock mocks) {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withProcessorName('AsyncApexJobExecutorTest.NoOpProcessor').build();
-    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withAttemptNumber(0).build();
+    jobRequest.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
     jobRequest.JobDescription__r = jobDescription;
     return new JobExecutable(mocks.factoryStub, new List<JobRequest__c>{ jobRequest });
+  }
+
+  private static ApexJobResult buildCompletedResult(final ApexJobStatus status) {
+    final ApexJobResult result = new ApexJobResult(status);
+    result.consumedLimits = ApexJobTestFixture.aLimitsUsage().withCallout(2).withPublishImmediateDml(1).build();
+    return result;
+  }
+
+  private static List<JobExecuted> recordedEntries(final ApexJobTestMock mocks) {
+    return (List<JobExecuted>) mocks.recordJobExecutionSpy.getArguments(0).get(0);
+  }
+
+  private static JobRequest__c stagedRequestOf(final JobExecuted entry) {
+    entry.stageExecution();
+    return entry.jobRequests[0];
+  }
+
+  private static void assertRolledBack(final JobRequest__c request) {
+    Assert.areEqual(ApexJobStatus.READY.name(), request.Status__c, 'A rolled back request must stay READY');
+    Assert.areEqual(0, request.AttemptNumber__c, 'A rolled back request must not consume an attempt');
+    final String message = request.LastExecutionMessage__c;
+    Assert.isTrue(message.contains(String.valueOf(FAILED_JOB_ID)), message);
+    Assert.isTrue(message.contains('Callouts made: 2.'), message);
+    Assert.isTrue(message.contains('Immediate events published: 1.'), message);
   }
 
   public class NoOpProcessor implements ApexJob {
     public ApexJobResult execute(final ApexJobContext ctx) {
       return new ApexJobResult(ApexJobStatus.SUCCESS);
+    }
+  }
+
+  private class LoggerProbeFactory extends ApexJobFactoryImpl {
+    public ApexJobLogger loggerSeenBySpawner;
+    public AsyncApexJobExecutor nextExecutor;
+
+    public override JobExecutorSpawner getSpawner() {
+      this.loggerSeenBySpawner = new ApexJobFactoryImpl().getLogger();
+      this.nextExecutor = new AsyncApexJobExecutor(this);
+      return (JobExecutorSpawner) Mock.forType(JobExecutorSpawner.class).stub;
     }
   }
 

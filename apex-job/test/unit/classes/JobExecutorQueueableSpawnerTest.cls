@@ -42,6 +42,31 @@ private class JobExecutorQueueableSpawnerTest {
   }
 
   @IsTest
+  static void givenDuplicateSignature_whenEnqueue_thenLogsFailureWithoutFlushing() {
+    // Arrange
+    ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
+    mocks.getLoggerSpy.returns(logger);
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.isRunningSpy.returns(false);
+    JobExecutorQueueableSpawner sut = new JobExecutorQueueableSpawner(mocks.factoryStub);
+    Integer delayInMinutes = 5;
+
+    // Act
+    Test.startTest();
+    AsyncOptions options = new AsyncOptions();
+    options.MinimumQueueableDelayInMinutes = delayInMinutes;
+    options.DuplicateSignature = QueueableDuplicateSignature.Builder().addInteger(delayInMinutes).addString(AsyncApexJobExecutor.class.getName()).build();
+    System.enqueueJob(new AsyncApexJobExecutor(), options);
+    sut.enqueue(delayInMinutes);
+    Test.stopTest();
+
+    // Assert
+    Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.ERROR_CALL), 'The enqueue failure must be logged');
+    Assert.areEqual(0, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'Only the Finalizer flushes the logger');
+  }
+
+  @IsTest
   static void givenJobExecutorQueueableSpawner_whenEnqueuedWithDelay_thenJobEnqueued() {
     // Arrange
     ApexJobTestMock mocks = new ApexJobTestMock();
@@ -55,6 +80,7 @@ private class JobExecutorQueueableSpawnerTest {
 
     // Assert
     Assert.isNotNull(jobId);
+    Expect.that(mocks.flushSpy).hasNotBeenCalled();
   }
 
   @IsTest

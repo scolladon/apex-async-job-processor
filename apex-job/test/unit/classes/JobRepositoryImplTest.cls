@@ -367,6 +367,40 @@ private class JobRepositoryImplTest {
     Assert.areEqual(String.valueOf(asyncJobId).left(ID_15_LENGTH), result[TRACKED_JOB_ID_CAPACITY - 1], 'Newest id should be appended last');
   }
 
+  @IsTest
+  static void givenRolledBackSuccessfulRun_whenRecordJobExecution_thenRequestKeptWithTraceAndJobIdAndDescriptionUpdated() {
+    // Arrange
+    final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').enabled().withMaxChunkSize(-1).build();
+    insert as system jobDesc;
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('TestJob').withJobDescription(jobDesc.Id).ready().withAttemptNumber(0).enabled().build();
+    jobRequest.JobDescription__r = jobDesc;
+    insert as system jobRequest;
+    final ApexJobResult result = new ApexJobResult(ApexJobStatus.SUCCESS);
+    result.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
+    final Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType);
+    final JobExecuted rolledBack = new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(asyncJobId, new JobExecuted.RollbackCause(new TestException('Too many DML statements: 151')));
+    final JobRepository sut = new JobRepositoryImpl();
+
+    // Act
+    Test.startTest();
+    sut.recordJobExecution(new List<JobExecuted>{ rolledBack }, new TestFinalizerContext(asyncJobId));
+    Test.stopTest();
+
+    // Assert
+    final List<JobRequest__c> rows = [SELECT Status__c, AttemptNumber__c, JobIds__c, LastExecutionMessage__c FROM JobRequest__c WHERE Id = :jobRequest.Id WITH SYSTEM_MODE];
+    Assert.areEqual(1, rows.size(), 'Rolled-back request must not be deleted');
+    Assert.areEqual(ApexJobStatus.READY.name(), rows[0].Status__c, 'Status must stay READY');
+    Assert.areEqual(0, rows[0].AttemptNumber__c, 'Attempt number must stay 0');
+    Assert.areEqual(String.valueOf(asyncJobId).left(ID_15_LENGTH), rows[0].JobIds__c, 'JobIds__c must carry the failed job id');
+    Assert.isTrue(rows[0].LastExecutionMessage__c.startsWith('Rolled back: AsyncApexJob ' + String.valueOf(asyncJobId)), 'Trace must be persisted');
+    final JobDescription__c updatedDescription = [SELECT LastExecutionDateTime__c FROM JobDescription__c WHERE Id = :jobDesc.Id WITH SYSTEM_MODE];
+    Assert.isNotNull(updatedDescription.LastExecutionDateTime__c, 'Description must still be updated');
+  }
+
+  private class TestException extends Exception {
+  }
+
   private class TestFinalizerContext implements FinalizerContext {
     private Id asyncJobId;
     public TestFinalizerContext(Id asyncJobId) {
