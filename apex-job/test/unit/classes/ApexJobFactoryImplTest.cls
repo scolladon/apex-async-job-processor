@@ -1,5 +1,6 @@
 @IsTest
 private class ApexJobFactoryImplTest {
+  private static final String FLUSH_MARKER = 'FLUSH';
   private static List<String> recordedMessages = new List<String>();
 
   public class RecordingLogger implements ApexJobLogger {
@@ -12,6 +13,7 @@ private class ApexJobFactoryImplTest {
     }
 
     public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 

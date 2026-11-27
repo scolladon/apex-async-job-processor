@@ -3,6 +3,7 @@ private class ApexJobLoggerResolverTest {
   private static final String CTOR_FAILURE = 'constructor failed';
   private static final String FIXTURE_PREFIX = 'ApexJobLoggerResolverTest.';
 
+  private static final String FLUSH_MARKER = 'FLUSH';
   private static List<String> recordedMessages = new List<String>();
   private static Mock fallbackMock = Mock.forType(ApexJobLogger.class);
   private static MethodSpy fallbackDebugSpy = fallbackMock.spyOn('debug');
@@ -21,6 +22,7 @@ private class ApexJobLoggerResolverTest {
     }
 
     public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 
@@ -46,6 +48,7 @@ private class ApexJobLoggerResolverTest {
     }
 
     public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 
@@ -63,6 +66,7 @@ private class ApexJobLoggerResolverTest {
     }
 
     public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 
@@ -90,6 +94,7 @@ private class ApexJobLoggerResolverTest {
     }
 
     public void flush() {
+      recordedMessages.add(FLUSH_MARKER);
     }
   }
 
