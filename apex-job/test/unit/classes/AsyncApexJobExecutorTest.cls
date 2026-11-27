@@ -505,6 +505,89 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
   }
 
+  @IsTest
+  static void givenJobsToRun_whenQueueableExecutes_thenFlushesLoggerOnce() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
+    jobExecutableMock.spyOn('executeChunk').returns(jobExecutedMock.stub);
+    final Mock jobCandidateMock = Mock.forType(JobCandidate.class);
+    jobCandidateMock.spyOn('getExecutableChunk').returns((JobExecutable) jobExecutableMock.stub);
+    mocks.getJobCandidatesSpy.returnsOnce(new List<JobCandidate>{ (JobCandidate) jobCandidateMock.stub });
+    mocks.getJobCandidatesSpy.returns(new List<JobCandidate>());
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute(new QueueableContextStub());
+
+    // Assert
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenSystemDisabled_whenQueueableExecutes_thenFlushesLoggerOnce() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(false);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute(new QueueableContextStub());
+
+    // Assert
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenRecordedResults_whenFinalizerRuns_thenFlushesLoggerOnce() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    sut.jobExecutionResults.add((JobExecuted) jobExecutedMock.stub);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenSystemDisabled_whenFinalizerRuns_thenFlushesLoggerOnce() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(false);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+
+    // Act
+    sut.execute((FinalizerContext) null);
+
+    // Assert
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
+  static void givenRolledBackChunkAndRecordingThrows_whenFinalizerRuns_thenFlushesLoggerOnceAfterLogging() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.recordJobExecutionSpy.throwsException(new TestException('Test exception'));
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, buildExecutable(mocks), buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = buildExecutable(mocks);
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    Expect.that(mocks.errorSpy).hasBeenCalledTimes(3);
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
   private static void assertRollbackLogLine(final String line, final JobExecutable chunk) {
     Assert.isTrue(line.startsWith(ROLLED_BACK_LOG_PREFIX), line);
     Assert.isTrue(line.contains(chunk.jobRequests[0].JobDescription__r.Name), line);

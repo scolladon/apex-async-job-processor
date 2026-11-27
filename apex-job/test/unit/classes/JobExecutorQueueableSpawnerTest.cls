@@ -42,6 +42,29 @@ private class JobExecutorQueueableSpawnerTest {
   }
 
   @IsTest
+  static void givenDuplicateSignature_whenEnqueue_thenFlushesLoggerAfterLogging() {
+    // Arrange
+    ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    mocks.isRunningSpy.returns(false);
+    JobExecutorQueueableSpawner sut = new JobExecutorQueueableSpawner(mocks.factoryStub);
+    Integer delayInMinutes = 5;
+
+    // Act
+    Test.startTest();
+    AsyncOptions options = new AsyncOptions();
+    options.MinimumQueueableDelayInMinutes = delayInMinutes;
+    options.DuplicateSignature = QueueableDuplicateSignature.Builder().addInteger(delayInMinutes).addString(AsyncApexJobExecutor.class.getName()).build();
+    System.enqueueJob(new AsyncApexJobExecutor(), options);
+    sut.enqueue(delayInMinutes);
+    Test.stopTest();
+
+    // Assert
+    Expect.that(mocks.errorSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+  }
+
+  @IsTest
   static void givenJobExecutorQueueableSpawner_whenEnqueuedWithDelay_thenJobEnqueued() {
     // Arrange
     ApexJobTestMock mocks = new ApexJobTestMock();

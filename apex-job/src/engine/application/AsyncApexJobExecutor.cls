@@ -24,6 +24,14 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     final JobExecutorFinalizerAttacher finalizerAttacher = this.factory.getFinalizerAttacher();
     finalizerAttacher.attach(this);
 
+    try {
+      this.runChunks(queueableContext);
+    } finally {
+      this.logger.flush();
+    }
+  }
+
+  private void runChunks(final QueueableContext queueableContext) {
     if (this.cannotRun(queueableContext.getJobId())) {
       return;
     }
@@ -54,6 +62,15 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
 
   public void execute(FinalizerContext finalizerContext) {
     try {
+      this.recordExecution(finalizerContext);
+      this.reenqueue();
+    } finally {
+      this.logger.flush();
+    }
+  }
+
+  private void recordExecution(final FinalizerContext finalizerContext) {
+    try {
       if (finalizerContext?.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
         this.rollBackTransaction(finalizerContext);
       }
@@ -64,7 +81,9 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       this.logger.error(e.getStackTraceString());
       this.discardUnrecordedResults();
     }
+  }
 
+  private void reenqueue() {
     try {
       if (this.configService.isSystemEnabled() != true) {
         return;
