@@ -392,7 +392,7 @@ private class JobRepositoryImplTest {
     Assert.areEqual(1, rows.size(), 'Rolled-back request must not be deleted');
     Assert.areEqual(ApexJobStatus.READY.name(), rows[0].Status__c, 'Status must stay READY');
     Assert.areEqual(0, rows[0].AttemptNumber__c, 'Attempt number must stay 0');
-    Assert.areEqual(String.valueOf(asyncJobId).left(15), rows[0].JobIds__c, 'JobIds__c must carry the failed job id');
+    Assert.areEqual(String.valueOf(asyncJobId).left(ID_15_LENGTH), rows[0].JobIds__c, 'JobIds__c must carry the failed job id');
     Assert.isTrue(rows[0].LastExecutionMessage__c.startsWith('Rolled back: AsyncApexJob ' + String.valueOf(asyncJobId)), 'Trace must be persisted');
     final JobDescription__c updatedDescription = [SELECT LastExecutionDateTime__c FROM JobDescription__c WHERE Id = :jobDesc.Id WITH SYSTEM_MODE];
     Assert.isNotNull(updatedDescription.LastExecutionDateTime__c, 'Description must still be updated');

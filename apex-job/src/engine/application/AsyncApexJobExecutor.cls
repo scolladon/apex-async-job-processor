@@ -119,7 +119,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     if (this.jobExecutionResults.isEmpty()) {
       return true;
     }
-    return this.lastCompletedChunk() != this.lastExecutableJob;
+    return this.lastCompletedChunk() !== this.lastExecutableJob;
   }
 
   private JobExecutable lastCompletedChunk() {

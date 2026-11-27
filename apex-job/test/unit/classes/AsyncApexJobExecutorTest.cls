@@ -309,6 +309,8 @@ private class AsyncApexJobExecutorTest {
     Assert.areEqual(1, recorded.size(), 'The tail must be recorded once');
     Assert.areEqual(ApexJobStatus.KILLED, recorded[0].jobExecutionResult.status, 'The tail must be recorded as KILLED');
     Assert.isTrue(recorded[0].executable === inFlight, 'The killed entry must carry the tail chunk');
+    Expect.that(mocks.errorSpy).hasNotBeenCalled();
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
   }
 
   @IsTest
@@ -394,6 +396,31 @@ private class AsyncApexJobExecutorTest {
     assertRolledBack(stagedRequestOf(recorded[0]));
     Assert.areEqual(ApexJobStatus.KILLED, recorded[1].jobExecutionResult.status, 'The tail must be KILLED');
     Assert.isTrue(recorded[1].executable === chunkB, 'The killed entry must carry the tail chunk');
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
+  }
+
+  @IsTest
+  static void givenSeveralCompletedChunksAndPointerOnTail_whenFinalizerRunsWithUnhandledException_thenRollsBackAllButTailAndKillsTail() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.isSystemEnabledSpy.returns(true);
+    final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
+    final JobExecutable chunkA = buildExecutable(mocks);
+    final JobExecutable chunkB = buildExecutable(mocks);
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkA, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.jobExecutionResults.add(new JobExecuted(mocks.factoryStub, chunkB, buildCompletedResult(ApexJobStatus.SUCCESS)));
+    sut.lastExecutableJob = chunkB;
+
+    // Act
+    sut.execute(new KilledFinalizerContext());
+
+    // Assert
+    final List<JobExecuted> recorded = recordedEntries(mocks);
+    Assert.areEqual(2, recorded.size(), 'The rolled back chunk and the killed tail must be recorded');
+    assertRolledBack(stagedRequestOf(recorded[0]));
+    Assert.areEqual(ApexJobStatus.KILLED, recorded[1].jobExecutionResult.status, 'The tail must be KILLED');
+    Assert.isTrue(recorded[1].executable === chunkB, 'The killed entry must carry the tail chunk');
+    Expect.that(mocks.enqueueSpy).hasBeenCalledWith(0);
   }
 
   @IsTest
