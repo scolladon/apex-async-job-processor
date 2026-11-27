@@ -379,7 +379,7 @@ private class JobRepositoryImplTest {
     result.consumedLimits = ApexJobTestFixture.aLimitsUsage().build();
     final Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType);
     final JobExecuted rolledBack = new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequest }), result)
-      .rolledBackBy(asyncJobId, new TestException('Too many DML statements: 151'));
+      .rolledBackBy(asyncJobId, new JobExecuted.RollbackCause(new TestException('Too many DML statements: 151')));
     final JobRepository sut = new JobRepositoryImpl();
 
     // Act

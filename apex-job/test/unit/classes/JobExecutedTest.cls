@@ -479,7 +479,7 @@ private class JobExecutedTest {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(2).withNextExecutionDateTime(nextExecution).build();
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
-      .rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -497,7 +497,7 @@ private class JobExecutedTest {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
-      .rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -518,7 +518,7 @@ private class JobExecutedTest {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
-      .rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -539,7 +539,7 @@ private class JobExecutedTest {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
-      .rolledBackBy(FAILED_JOB_ID, new TestException('x'.repeat(LAST_EXECUTION_MESSAGE_LENGTH)));
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException('x'.repeat(LAST_EXECUTION_MESSAGE_LENGTH))));
 
     // Act
     sut.stageExecution();
@@ -558,7 +558,7 @@ private class JobExecutedTest {
     final JobRequest__c second = ApexJobTestFixture.aJobRequest().withName('second').withAttemptNumber(0).build();
     second.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ first, second }), buildMeasuredResult(ApexJobStatus.SUCCESS))
-      .rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     final String result = sut.describeRollback();
@@ -575,7 +575,8 @@ private class JobExecutedTest {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     final ApexJobResult result = buildMeasuredResult(ApexJobStatus.SUCCESS);
-    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result).rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -592,7 +593,8 @@ private class JobExecutedTest {
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withStatus(ApexJobStatus.FAILURE).withAttemptNumber(1).build();
     final ApexJobResult result = new ApexJobResult(new TestException('boom'));
     result.consumedLimits = ApexJobTestFixture.aLimitsUsage().withCallout(2).withPublishImmediateDml(1).build();
-    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result).rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -612,7 +614,8 @@ private class JobExecutedTest {
     jobRequest.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
     final ApexJobResult result = buildMeasuredResult(ApexJobStatus.MALFORMED_ARGUMENT);
     result.malformedRequestErrors = new Map<Id, String>{ jobRequest.Id => 'bad' };
-    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result).rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), result)
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -638,7 +641,7 @@ private class JobExecutedTest {
       .build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS))
-      .rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+      .rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();
@@ -655,7 +658,7 @@ private class JobExecutedTest {
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('RolledBackJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS));
-    sut.rolledBackBy(FAILED_JOB_ID, new TestException(CAUSE_MESSAGE));
+    sut.rolledBackBy(FAILED_JOB_ID, new JobExecuted.RollbackCause(new TestException(CAUSE_MESSAGE)));
 
     // Act
     sut.stageExecution();

@@ -39,9 +39,9 @@ public with sharing class JobExecuted {
     this.requestStaging = new RollbackTraceStaging(rollbackTrace);
   }
 
-  public JobExecuted rolledBackBy(final Id failedAsyncJobId, final Exception cause) {
+  public JobExecuted rolledBackBy(final Id failedAsyncJobId, final RollbackCause cause) {
     final LimitsUsage consumed = this.jobExecutionResult.consumedLimits;
-    final String trace = String.format(ROLLBACK_TRACE_FORMAT, new List<Object>{ failedAsyncJobId, cause.getTypeName(), cause.getMessage(), consumed.callout, consumed.publishImmediateDml });
+    final String trace = String.format(ROLLBACK_TRACE_FORMAT, new List<Object>{ failedAsyncJobId, cause.typeName, cause.message, consumed.callout, consumed.publishImmediateDml });
     return new JobExecuted(this, trace.left(MAX_LONG_TEXT_LENGTH));
   }
 
@@ -185,6 +185,16 @@ public with sharing class JobExecuted {
 
       final String rawErrorMessage = result.error?.toString() ?? '';
       this.errorMessage = rawErrorMessage.left(MAX_LONG_TEXT_LENGTH);
+    }
+  }
+
+  public class RollbackCause {
+    public final String typeName { get; private set; }
+    public final String message { get; private set; }
+
+    public RollbackCause(final Exception cause) {
+      this.typeName = cause.getTypeName();
+      this.message = cause.getMessage();
     }
   }
 
