@@ -1,4 +1,3 @@
-import { LightningElement } from 'lwc';
+import { LightningElement } from "lwc";
 
-export default class JobMonitorConsole extends LightningElement {
-}
+export default class JobMonitorConsole extends LightningElement {}

@@ -1,7 +1,7 @@
-import { LightningElement, api } from 'lwc';
-import resetConsumptionModel from '@salesforce/apex/JobDescriptionActionsController.resetConsumptionModel';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
-import { CloseActionScreenEvent } from 'lightning/actions';
+import { LightningElement, api } from "lwc";
+import resetConsumptionModel from "@salesforce/apex/JobDescriptionActionsController.resetConsumptionModel";
+import { ShowToastEvent } from "lightning/platformShowToastEvent";
+import { CloseActionScreenEvent } from "lightning/actions";
 
 export default class JobDescriptionResetConsumption extends LightningElement {
   @api recordId;
@@ -11,18 +11,18 @@ export default class JobDescriptionResetConsumption extends LightningElement {
       await resetConsumptionModel({ recordId: this.recordId });
       this.dispatchEvent(
         new ShowToastEvent({
-          title: 'Consumption model reset',
-          message: 'The consumption model has been reset for this processor.',
-          variant: 'success'
+          title: "Consumption model reset",
+          message: "The consumption model has been reset for this processor.",
+          variant: "success"
         })
       );
     } catch (e) {
-      const message = e?.body?.message ?? 'Unexpected error';
+      const message = e?.body?.message ?? "Unexpected error";
       this.dispatchEvent(
         new ShowToastEvent({
-          title: 'Reset failed',
+          title: "Reset failed",
           message,
-          variant: 'error'
+          variant: "error"
         })
       );
     } finally {
@@ -30,4 +30,3 @@ export default class JobDescriptionResetConsumption extends LightningElement {
     }
   }
 }
-
