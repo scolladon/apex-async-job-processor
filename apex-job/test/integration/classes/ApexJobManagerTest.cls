@@ -53,6 +53,20 @@ private class ApexJobManagerTest {
   }
 
   @IsTest
+  static void givenBackedOffDescription_whenResetConsumptionModel_thenKillBackoffCleared() {
+    // Arrange
+    final String processorName = 'Proc_Backoff';
+    insert as system new JobDescription__c(ProcessorName__c = processorName, Enabled__c = true, KillBackoffUntil__c = System.now().addMinutes(5));
+
+    // Act
+    ApexJobManager.resetConsumptionModel(processorName);
+
+    // Assert
+    final JobDescription__c jd = [SELECT KillBackoffUntil__c FROM JobDescription__c WHERE ProcessorName__c = :processorName WITH SYSTEM_MODE LIMIT 1];
+    Assert.isNull(jd.KillBackoffUntil__c, 'Reset must clear the kill backoff');
+  }
+
+  @IsTest
   static void givenProcessorName_whenResetConsumptionModel_thenAllConsumptionsAAreReset() {
     // Arrange
     final String processorName = 'Proc_E';

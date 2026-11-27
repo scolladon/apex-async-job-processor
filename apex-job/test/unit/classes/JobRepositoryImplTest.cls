@@ -398,6 +398,41 @@ private class JobRepositoryImplTest {
     Assert.isNotNull(updatedDescription.LastExecutionDateTime__c, 'Description must still be updated');
   }
 
+  @IsTest
+  static void givenFloorKilledChunk_whenRecordJobExecution_thenDescriptionBacksOffAndModelResets() {
+    // Arrange
+    final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription()
+      .withName('FloorKilledProcessor')
+      .withProcessorName('FloorKilledProcessor')
+      .enabled()
+      .withMaxChunkSize(1)
+      .withSmallestFailingChunk(1)
+      .build();
+    insert as system jobDesc;
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('FloorKilledJob').withJobDescription(jobDesc.Id).ready().withAttemptNumber(0).enabled().build();
+    jobRequest.JobDescription__r = jobDesc;
+    insert as system jobRequest;
+    final ApexJobResult result = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError('Too many DML statements: 151', ''));
+    final Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType);
+    final JobExecuted killed = new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequest }), result);
+    final JobRepository sut = new JobRepositoryImpl();
+
+    // Act
+    Test.startTest();
+    sut.recordJobExecution(new List<JobExecuted>{ killed }, new TestFinalizerContext(asyncJobId));
+    Test.stopTest();
+
+    // Assert
+    final JobRequest__c request = [SELECT LastExecutionDateTime__c FROM JobRequest__c WHERE Id = :jobRequest.Id WITH SYSTEM_MODE];
+    final JobDescription__c description = [SELECT KillBackoffUntil__c, MaxChunkSize__c FROM JobDescription__c WHERE Id = :jobDesc.Id WITH SYSTEM_MODE];
+    Assert.areEqual(
+      request.LastExecutionDateTime__c.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES),
+      description.KillBackoffUntil__c,
+      'Backoff must be persisted as kill time plus the backoff period'
+    );
+    Assert.areEqual(ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE, description.MaxChunkSize__c, 'Model must be reset');
+  }
+
   private class TestException extends Exception {
   }
 
