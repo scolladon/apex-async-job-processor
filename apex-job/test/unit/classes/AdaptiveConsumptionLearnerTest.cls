@@ -125,7 +125,8 @@ private class AdaptiveConsumptionLearnerTest {
     Test.stopTest();
 
     // Assert
-    assertModelResetAndBackedOff(job);
+    Assert.areEqual(KILLED_AT.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES), job.KillBackoffUntil__c, 'Should back off');
+    assertModelReset(job);
   }
 
   @IsTest
@@ -140,7 +141,8 @@ private class AdaptiveConsumptionLearnerTest {
     Test.stopTest();
 
     // Assert
-    assertModelResetAndBackedOff(job);
+    Assert.areEqual(KILLED_AT.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES), job.KillBackoffUntil__c, 'Should back off');
+    assertModelReset(job);
   }
 
   @IsTest
@@ -155,7 +157,8 @@ private class AdaptiveConsumptionLearnerTest {
     Test.stopTest();
 
     // Assert
-    assertModelResetAndBackedOff(job);
+    Assert.areEqual(KILLED_AT.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES), job.KillBackoffUntil__c, 'Should back off');
+    assertModelReset(job);
   }
 
   @IsTest
@@ -229,12 +232,11 @@ private class AdaptiveConsumptionLearnerTest {
     Assert.areEqual(KILLED_AT, job.KillBackoffUntil__c, 'Should keep the running backoff');
   }
 
-  private static void assertModelResetAndBackedOff(final JobDescription__c job) {
+  private static void assertModelReset(final JobDescription__c job) {
     Assert.areEqual(ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE, job.MaxChunkSize__c, 'Should reset max chunk size');
     Assert.areEqual(0, job.SmallestFailingChunk__c, 'Should reset smallest failing chunk');
     Assert.areEqual(0, job.ConsecutiveFailures__c, 'Should reset consecutive failures');
     Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, job.CpuTimeBaseConsumption__c, 'Should reset base consumption');
-    Assert.areEqual(KILLED_AT.addMinutes(ApexJobConstant.KILL_BACKOFF_MINUTES), job.KillBackoffUntil__c, 'Should back off');
   }
 
   @IsTest
