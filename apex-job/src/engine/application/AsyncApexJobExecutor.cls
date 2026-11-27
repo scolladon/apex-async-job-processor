@@ -1,4 +1,6 @@
 public without sharing class AsyncApexJobExecutor implements Finalizer, Queueable, Database.AllowsCallouts {
+  private static final String ROLLED_BACK_CHUNK_LOG_PREFIX = 'AsyncJob: chunk rolled back ';
+
   private ApexJobConfigService configService;
   private ApexJobLogger logger;
   private ApexJobFactory factory;
@@ -52,12 +54,8 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
 
   public void execute(FinalizerContext finalizerContext) {
     try {
-      // In case the last job has been killed we need to record it
-      if (this.wasLastChunkKilled(finalizerContext)) {
-        final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(finalizerContext.getException()));
-        final JobExecuted executionResult = new JobExecuted(this.factory, this.lastExecutableJob, killedJobResult);
-        this.jobExecutionResults.add(executionResult);
-        this.lastExecutableJob = null;
+      if (finalizerContext?.getResult() == ParentJobResult.UNHANDLED_EXCEPTION) {
+        this.rollBackTransaction(finalizerContext);
       }
       this.factory.getRepository().recordJobExecution(this.jobExecutionResults, finalizerContext);
     } catch (Exception e) {
@@ -81,18 +79,54 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
     }
   }
 
-  private Boolean wasLastChunkKilled(final FinalizerContext finalizerContext) {
-    if (finalizerContext?.getResult() != ParentJobResult.UNHANDLED_EXCEPTION) {
-      return false;
+  private void rollBackTransaction(final FinalizerContext finalizerContext) {
+    final JobExecutable killedChunk = this.findKilledChunk();
+    final List<JobExecuted> surviving = this.rollBackCompletedChunks(finalizerContext, killedChunk);
+    if (killedChunk != null) {
+      final ApexJobResult killedJobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError(finalizerContext.getException()));
+      surviving.add(new JobExecuted(this.factory, killedChunk, killedJobResult));
     }
+    this.jobExecutionResults = surviving;
+  }
+
+  private List<JobExecuted> rollBackCompletedChunks(final FinalizerContext finalizerContext, final JobExecutable killedChunk) {
+    final List<JobExecuted> rolledBack = new List<JobExecuted>();
+    for (JobExecuted completed : this.jobExecutionResults) {
+      if (completed.executable !== killedChunk) {
+        rolledBack.add(this.rollBack(completed, finalizerContext));
+      }
+    }
+    return rolledBack;
+  }
+
+  private JobExecuted rollBack(final JobExecuted completed, final FinalizerContext finalizerContext) {
+    final JobExecuted rolledBack = completed.rolledBackBy(finalizerContext.getAsyncApexJobId(), new JobExecuted.RollbackCause(finalizerContext.getException()));
+    this.logger.error(ROLLED_BACK_CHUNK_LOG_PREFIX + rolledBack.describeRollback());
+    return rolledBack;
+  }
+
+  private JobExecutable findKilledChunk() {
+    if (this.isChunkInFlight()) {
+      return this.lastExecutableJob;
+    }
+    return this.lastCompletedChunk();
+  }
+
+  private Boolean isChunkInFlight() {
     if (this.lastExecutableJob == null) {
       return false;
     }
     if (this.jobExecutionResults.isEmpty()) {
       return true;
     }
-    final JobExecuted lastRecorded = this.jobExecutionResults[this.jobExecutionResults.size() - 1];
-    return lastRecorded.executable != this.lastExecutableJob;
+    return this.lastCompletedChunk() != this.lastExecutableJob;
+  }
+
+  private JobExecutable lastCompletedChunk() {
+    if (this.jobExecutionResults.isEmpty()) {
+      return null;
+    }
+    return this.jobExecutionResults[this.jobExecutionResults.size() - 1].executable;
   }
 
   private void discardUnrecordedResults() {
