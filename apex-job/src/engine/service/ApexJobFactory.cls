@@ -1,5 +1,6 @@
 public interface ApexJobFactory {
   ApexJobLogger getLogger();
+  void adoptLogger(ApexJobLogger carried);
   JobSelector getSelector();
   JobRepository getRepository();
   JobExecutorSpawner getSpawner();

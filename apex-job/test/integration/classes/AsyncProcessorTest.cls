@@ -488,7 +488,7 @@ public class AsyncProcessorTest {
       // Assert
       Assert.areEqual(1, countStartingWith(recordedMessages, 'DEBUG:Job executed: '), 'The Queueable should log through the configured logger');
       Assert.areEqual(1, countStartingWith(recordedMessages, 'DEBUG:Enqueued AsyncApexJobExecutor.execute() again in '), 'The Finalizer should log through the configured logger');
-      Assert.areEqual(2, countStartingWith(recordedMessages, FLUSH_MARKER), 'The Queueable and the Finalizer should each flush the configured logger once');
+      Assert.areEqual(1, countStartingWith(recordedMessages, FLUSH_MARKER), 'Only the Finalizer should flush the configured logger');
     }
   }
 

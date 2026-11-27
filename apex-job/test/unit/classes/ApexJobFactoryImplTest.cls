@@ -44,6 +44,33 @@ private class ApexJobFactoryImplTest {
   }
 
   @IsTest
+  static void givenAdoptedLogger_whenAnotherFactoryGetsLogger_thenReturnsAdoptedInstance() {
+    // Arrange
+    final ApexJobLogger adopted = new RecordingLogger();
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+    sut.adoptLogger(adopted);
+
+    // Act
+    final ApexJobLogger result = new ApexJobFactoryImpl().getLogger();
+
+    // Assert
+    Assert.isTrue(result === adopted, 'Every factory of the transaction must hand out the adopted logger');
+  }
+
+  @IsTest
+  static void givenLoggerClassNameConfigured_whenFlush_thenFlushesConfiguredLogger() {
+    // Arrange
+    insert as system new ApexJobConfig__c(LoggerClassName__c = 'ApexJobFactoryImplTest.RecordingLogger');
+    final ApexJobFactory sut = new ApexJobFactoryImpl();
+
+    // Act
+    sut.getLogger().flush();
+
+    // Assert
+    Assert.areEqual(new List<String>{ FLUSH_MARKER }, recordedMessages, 'The configured logger should be flushed through the fail-safe wrapper');
+  }
+
+  @IsTest
   static void givenFactoryImpl_whenGetLoggerCalledTwice_thenReturnsSameInstance() {
     // Arrange
     ApexJobFactory sut = new ApexJobFactoryImpl();

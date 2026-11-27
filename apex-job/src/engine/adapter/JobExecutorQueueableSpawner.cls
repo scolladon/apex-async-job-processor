@@ -41,7 +41,6 @@ public without sharing class JobExecutorQueueableSpawner implements JobExecutorS
       this.logger.debug('AsyncJob: Error while enqueuing AsyncApexJobExecutor, engine killed');
       this.logger.debug(ex.getStackTraceString());
       this.logger.error(ex.getMessage());
-      this.logger.flush();
     }
     return null;
   }

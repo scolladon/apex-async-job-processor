@@ -17,6 +17,10 @@ public virtual class ApexJobFactoryImpl implements ApexJobFactory {
     return ApexJobFactoryImpl.loggerInstance;
   }
 
+  public void adoptLogger(final ApexJobLogger carried) {
+    ApexJobFactoryImpl.loggerInstance = carried;
+  }
+
   public JobSelector getSelector() {
     if (ApexJobFactoryImpl.selectorInstance == null) {
       ApexJobFactoryImpl.selectorInstance = new JobSelectorImpl();

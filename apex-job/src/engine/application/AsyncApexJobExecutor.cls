@@ -23,12 +23,7 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
   public void execute(QueueableContext queueableContext) {
     final JobExecutorFinalizerAttacher finalizerAttacher = this.factory.getFinalizerAttacher();
     finalizerAttacher.attach(this);
-
-    try {
-      this.runChunks(queueableContext);
-    } finally {
-      this.logger.flush();
-    }
+    this.runChunks(queueableContext);
   }
 
   private void runChunks(final QueueableContext queueableContext) {
@@ -56,11 +51,12 @@ public without sharing class AsyncApexJobExecutor implements Finalizer, Queueabl
       }
       final JobExecuted executionResult = this.lastExecutableJob.executeChunk();
       this.jobExecutionResults.add(executionResult);
-      this.logger.debug('Job executed: ' + executionResult);
+      this.logger.debug('Job executed: ' + executionResult.describeExecution());
     }
   }
 
   public void execute(FinalizerContext finalizerContext) {
+    this.factory.adoptLogger(this.logger);
     try {
       this.recordExecution(finalizerContext);
       this.reenqueue();

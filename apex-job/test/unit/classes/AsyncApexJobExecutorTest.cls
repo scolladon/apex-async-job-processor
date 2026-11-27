@@ -1,6 +1,7 @@
 @IsTest
 private class AsyncApexJobExecutorTest {
   private static final String ROLLED_BACK_LOG_PREFIX = 'AsyncJob: chunk rolled back ';
+  private static final String EXECUTION_SUMMARY = 'ExecutedJob (a01): SUCCESS';
   private static final Id FAILED_JOB_ID = TestDataFactory.generateUniqueFakeId(AsyncApexJob.SObjectType);
 
   @IsTest
@@ -237,6 +238,7 @@ private class AsyncApexJobExecutorTest {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
+    jobExecutedMock.spyOn('describeExecution').returns(EXECUTION_SUMMARY);
     final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
     final MethodSpy executeChunkSpy = jobExecutableMock.spyOn('executeChunk');
     executeChunkSpy.returns(jobExecutedMock.stub);
@@ -259,6 +261,7 @@ private class AsyncApexJobExecutorTest {
     Expect.that(mocks.getJobCandidatesSpy).hasBeenCalledTimes(2);
     Expect.that(executeChunkSpy).hasBeenCalledTimes(1);
     Expect.that(mocks.enqueueSpy).hasNotBeenCalled();
+    Expect.that(mocks.debugSpy).hasBeenCalledWith('Job executed: ' + EXECUTION_SUMMARY);
   }
 
   @IsTest
@@ -506,9 +509,11 @@ private class AsyncApexJobExecutorTest {
   }
 
   @IsTest
-  static void givenJobsToRun_whenQueueableExecutes_thenFlushesLoggerOnce() {
+  static void givenJobsToRun_whenQueueableExecutes_thenLogsChunkWithoutFlushing() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
+    mocks.getLoggerSpy.returns(logger);
     final Mock jobExecutedMock = Mock.forType(JobExecuted.class);
     final Mock jobExecutableMock = Mock.forType(JobExecutable.class);
     jobExecutableMock.spyOn('executeChunk').returns(jobExecutedMock.stub);
@@ -523,21 +528,22 @@ private class AsyncApexJobExecutorTest {
     sut.execute(new QueueableContextStub());
 
     // Assert
-    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+    Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.DEBUG_CALL), 'The executed chunk must be logged');
+    Assert.areEqual(0, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'The Queueable must leave the flush to its Finalizer');
   }
 
   @IsTest
-  static void givenSystemDisabled_whenQueueableExecutes_thenFlushesLoggerOnce() {
+  static void givenCarriedLogger_whenFinalizerRuns_thenFactoryAdoptsIt() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
-    mocks.isSystemEnabledSpy.returns(false);
+    mocks.isSystemEnabledSpy.returns(true);
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
 
     // Act
-    sut.execute(new QueueableContextStub());
+    sut.execute((FinalizerContext) null);
 
     // Assert
-    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+    Expect.that(mocks.adoptLoggerSpy).hasBeenCalledWith(mocks.loggerStub);
   }
 
   @IsTest
@@ -574,6 +580,8 @@ private class AsyncApexJobExecutorTest {
   static void givenRolledBackChunkAndRecordingThrows_whenFinalizerRuns_thenFlushesLoggerOnceAfterLogging() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
+    mocks.getLoggerSpy.returns(logger);
     mocks.isSystemEnabledSpy.returns(true);
     mocks.recordJobExecutionSpy.throwsException(new TestException('Test exception'));
     final AsyncApexJobExecutor sut = new AsyncApexJobExecutor(mocks.factoryStub);
@@ -584,8 +592,9 @@ private class AsyncApexJobExecutorTest {
     sut.execute(new KilledFinalizerContext());
 
     // Assert
-    Expect.that(mocks.errorSpy).hasBeenCalledTimes(3);
-    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+    Assert.isTrue(logger.countOf(ApexJobCallOrderLogger.ERROR_CALL) > 0, 'The rollback and recording failure must be logged');
+    Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'The logger must be flushed once');
+    Assert.areEqual(ApexJobCallOrderLogger.FLUSH_CALL, logger.lastCall(), 'The flush must follow every log line');
   }
 
   private static void assertRollbackLogLine(final String line, final JobExecutable chunk) {

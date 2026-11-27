@@ -2,6 +2,7 @@
 private class JobExecutedTest {
   private static final Id FAILED_JOB_ID = TestDataFactory.generateUniqueFakeId(AsyncApexJob.SObjectType);
   private static final String CAUSE_MESSAGE = 'Too many DML statements: 151';
+  private static final String SENSITIVE_ARGUMENT = 'sensitive-argument';
   private static final Integer LAST_EXECUTION_MESSAGE_LENGTH = 131072;
 
   @IsTest
@@ -566,6 +567,26 @@ private class JobExecutedTest {
     // Assert
     final String expectedPrefix = 'RolledBackJob (' + String.valueOf(first.Id) + ', ' + String.valueOf(second.Id) + '): Rolled back: AsyncApexJob ' + String.valueOf(FAILED_JOB_ID);
     Assert.isTrue(result.startsWith(expectedPrefix), result);
+  }
+
+  @IsTest
+  static void givenExecutedChunk_whenDescribeExecution_thenNamesDescriptionRequestIdsAndStatusOnly() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('ExecutedJob').withProcessorName('JobExecutedTest.TestApexJob').withMaxChunkSize(2).build();
+    final JobRequest__c first = ApexJobTestFixture.aJobRequest().withName('first').withAttemptNumber(0).build();
+    first.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    first.Argument__c = SENSITIVE_ARGUMENT;
+    final JobRequest__c second = ApexJobTestFixture.aJobRequest().withName('second').withAttemptNumber(0).build();
+    second.Id = TestDataFactory.generateUniqueFakeId(JobRequest__c.SObjectType);
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ first, second }), buildMeasuredResult(ApexJobStatus.SUCCESS));
+
+    // Act
+    final String result = sut.describeExecution();
+
+    // Assert
+    Assert.areEqual('ExecutedJob (' + String.valueOf(first.Id) + ', ' + String.valueOf(second.Id) + '): SUCCESS', result);
+    Assert.isFalse(result.contains(SENSITIVE_ARGUMENT), 'Request arguments must stay out of the log line');
   }
 
   @IsTest

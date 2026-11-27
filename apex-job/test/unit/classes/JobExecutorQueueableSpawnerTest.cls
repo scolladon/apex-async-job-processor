@@ -42,9 +42,11 @@ private class JobExecutorQueueableSpawnerTest {
   }
 
   @IsTest
-  static void givenDuplicateSignature_whenEnqueue_thenFlushesLoggerAfterLogging() {
+  static void givenDuplicateSignature_whenEnqueue_thenLogsFailureWithoutFlushing() {
     // Arrange
     ApexJobTestMock mocks = new ApexJobTestMock();
+    final ApexJobCallOrderLogger logger = new ApexJobCallOrderLogger();
+    mocks.getLoggerSpy.returns(logger);
     mocks.isSystemEnabledSpy.returns(true);
     mocks.isRunningSpy.returns(false);
     JobExecutorQueueableSpawner sut = new JobExecutorQueueableSpawner(mocks.factoryStub);
@@ -60,8 +62,8 @@ private class JobExecutorQueueableSpawnerTest {
     Test.stopTest();
 
     // Assert
-    Expect.that(mocks.errorSpy).hasBeenCalledTimes(1);
-    Expect.that(mocks.flushSpy).hasBeenCalledTimes(1);
+    Assert.areEqual(1, logger.countOf(ApexJobCallOrderLogger.ERROR_CALL), 'The enqueue failure must be logged');
+    Assert.areEqual(0, logger.countOf(ApexJobCallOrderLogger.FLUSH_CALL), 'Only the Finalizer flushes the logger');
   }
 
   @IsTest
@@ -78,6 +80,7 @@ private class JobExecutorQueueableSpawnerTest {
 
     // Assert
     Assert.isNotNull(jobId);
+    Expect.that(mocks.flushSpy).hasNotBeenCalled();
   }
 
   @IsTest

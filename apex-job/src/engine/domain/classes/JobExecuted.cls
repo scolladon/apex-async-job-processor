@@ -4,7 +4,7 @@ public with sharing class JobExecuted {
   private static final Integer MAX_EXECUTION_ATTEMPT_NUMBER = 9999999;
   private static final Integer MAX_LONG_TEXT_LENGTH = 131072;
   private static final String ROLLBACK_TRACE_FORMAT = 'Rolled back: AsyncApexJob {0} failed with {1}: {2}. Callouts made: {3}. Immediate events published: {4}. The chunk will run again.';
-  private static final String ROLLBACK_DESCRIPTION_FORMAT = '{0} ({1}): {2}';
+  private static final String CHUNK_DESCRIPTION_FORMAT = '{0} ({1}): {2}';
   private static final String REQUEST_ID_SEPARATOR = ', ';
 
   @TestVisible
@@ -46,7 +46,11 @@ public with sharing class JobExecuted {
   }
 
   public String describeRollback() {
-    return String.format(ROLLBACK_DESCRIPTION_FORMAT, new List<Object>{ this.jobDescription.Name, this.joinRequestIds(), this.rollbackTrace });
+    return String.format(CHUNK_DESCRIPTION_FORMAT, new List<Object>{ this.jobDescription.Name, this.joinRequestIds(), this.rollbackTrace });
+  }
+
+  public String describeExecution() {
+    return String.format(CHUNK_DESCRIPTION_FORMAT, new List<Object>{ this.jobDescription.Name, this.joinRequestIds(), this.jobExecutionResult.status.name() });
   }
 
   public void stageExecution() {
