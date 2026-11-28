@@ -160,7 +160,7 @@ A description with `MaxExecutionsPerMinute__c` = N runs at most N items in any 6
 - Every staged chunk (success, failure, abort, kill, malformed, rolled back) is logged at its end in `RateLog__c` by the Finalizer, as `endEpochMs:items;` entries.
 - The budget is checked at selection by `AdaptiveChunkCalculator` through `SlidingRateWindow`. The log is the authority.
 - `RateBlockedUntil__c` is only a selector filter. It is recomputed at each write with the N of that write and rounded up to the second, because a DateTime field floors milliseconds.
-- An oversized log (`RateLog__c` holds 131072 characters) coalesces its oldest entries, which over-counts. Malformed entries are skipped.
+- An oversized log (`RateLog__c` holds 131072 characters) coalesces its oldest entries, which over-counts. Malformed entries are skipped. An entry ending after the read or write time can only come from an edit: it is not counted and the next write drops it, so it cannot block the description. Item counts are summed as `Long`, so an edited log cannot wrap the count and lift the cap.
 - Reset clears the log and the hint.
 - No seed: in the minute after deploy, up to N extra items may be admitted once.
 - Cold start: the probes showed a one-item overrun, so the calculator caps its below-one path by the remaining budget and `JobCandidate` always asks the calculator. Every sizing path re-checks the log.
