@@ -4,6 +4,7 @@ private class JobCandidateTest {
   static void givenGetExecutableChunk_whenChunkSizeIsUnknown_thenReturnsExecutableWithOneItem() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.getMaxPossibleSpy.returns(1);
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(-1).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
@@ -15,6 +16,33 @@ private class JobCandidateTest {
     // Assert
     Assert.isNotNull(result, 'Should return executable when chunk size is unknown for first execution');
     Assert.areEqual(1, result.jobRequests.size(), 'Should return chunk of size 1');
+    Expect.that(mocks.getMaxPossibleSpy).hasBeenCalled();
+  }
+
+  @IsTest
+  static void givenUnknownModelWithRateBudgetExhausted_whenGetExecutableChunk_thenReturnsNull() {
+    // Arrange
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestProcessor')
+      .withProcessorName('TestProcessor')
+      .withMaxChunkSize(-1)
+      .withMaxExecutionsPerMinute(1)
+      .withRateLog((System.now().getTime() - 10000) + ':1;')
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
+    jobRequest.JobDescription__r = jobDescription;
+    final Mock limitServiceMock = Mock.forType(LimitService.class);
+    limitServiceMock.spyOn('getAvailableLimits').returns(ApexJobTestFixture.aLimitsUsage().withCpuTime(10000).build());
+    final Mock factoryMock = Mock.forType(ApexJobFactory.class);
+    factoryMock.spyOn('getChunkSizeCalculator').returns(new AdaptiveChunkCalculator((LimitService) limitServiceMock.stub));
+    factoryMock.spyOn('getLimitService').returns(limitServiceMock.stub);
+    final JobCandidate sut = new JobCandidate((ApexJobFactory) factoryMock.stub, new List<JobRequest__c>{ jobRequest });
+
+    // Act
+    final JobExecutable result = sut.getExecutableChunk();
+
+    // Assert
+    Assert.isNull(result, 'One item ended 10 s ago against a limit of 1');
   }
 
   @IsTest

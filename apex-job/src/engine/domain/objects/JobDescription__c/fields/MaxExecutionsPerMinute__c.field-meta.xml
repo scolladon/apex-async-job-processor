@@ -2,7 +2,7 @@
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>MaxExecutionsPerMinute__c</fullName>
     <defaultValue>0</defaultValue>
-    <description>Maximum number of job requests that can be processed per minute for this job description. 0 or null means no rate limit.</description>
+    <description>Maximum number of job requests processed in any 60-second window for this job description. 0 or null means no rate limit.</description>
     <externalId>false</externalId>
     <label>Max Executions Per Minute</label>
     <precision>18</precision>

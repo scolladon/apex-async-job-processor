@@ -97,13 +97,13 @@ private class AdaptiveChunkCalculatorTest {
   }
 
   @IsTest
-  private static void givenRateLimitWithBudgetRemaining_whenGetMaxPossible_thenCapToRemainingBudget() {
+  private static void givenRateLimitWithItemsLoggedInWindow_whenGetMaxPossible_thenCapToRemainingBudget() {
     // Arrange
+    final Long now = System.now().getTime();
     final JobDescription__c job = ApexJobTestFixture.aJobDescription()
       .withMaxChunkSize(100)
       .withMaxExecutionsPerMinute(20)
-      .withExecutionsInCurrentWindow(15)
-      .withCurrentWindowStart(System.now())
+      .withRateLog((now - 5000) + ':15;')
       .withCpuTimeConsumption(100)
       .withCpuTimePerItemConsumption(10)
       .withCpuTimeSafety(0.9)
@@ -122,13 +122,13 @@ private class AdaptiveChunkCalculatorTest {
   }
 
   @IsTest
-  private static void givenRateLimitWithExpiredWindow_whenGetMaxPossible_thenFullBudget() {
+  private static void givenRateLimitWithEntriesOlderThanWindow_whenGetMaxPossible_thenFullBudget() {
     // Arrange
+    final Long now = System.now().getTime();
     final JobDescription__c job = ApexJobTestFixture.aJobDescription()
       .withMaxChunkSize(100)
       .withMaxExecutionsPerMinute(20)
-      .withExecutionsInCurrentWindow(20)
-      .withCurrentWindowStart(System.now().addMinutes(-2))
+      .withRateLog((now - 61000) + ':20;')
       .withCpuTimeConsumption(100)
       .withCpuTimePerItemConsumption(10)
       .withCpuTimeSafety(0.9)
@@ -143,7 +143,7 @@ private class AdaptiveChunkCalculatorTest {
     final Integer result = sut.getMaxPossible(job);
 
     // Assert
-    Assert.areEqual(20, result, 'Should use full budget when window has expired');
+    Assert.areEqual(20, result, 'Should use full budget when entries left the window');
   }
 
   @IsTest
@@ -152,8 +152,6 @@ private class AdaptiveChunkCalculatorTest {
     final JobDescription__c job = ApexJobTestFixture.aJobDescription()
       .withMaxChunkSize(100)
       .withMaxExecutionsPerMinute(3)
-      .withExecutionsInCurrentWindow(0)
-      .withCurrentWindowStart(System.now())
       .withCpuTimeConsumption(100)
       .withCpuTimePerItemConsumption(10)
       .withCpuTimeSafety(0.9)
@@ -174,11 +172,11 @@ private class AdaptiveChunkCalculatorTest {
   @IsTest
   private static void givenRateLimitFullyConsumed_whenGetMaxPossible_thenReturnZero() {
     // Arrange
+    final Long now = System.now().getTime();
     final JobDescription__c job = ApexJobTestFixture.aJobDescription()
       .withMaxChunkSize(100)
       .withMaxExecutionsPerMinute(10)
-      .withExecutionsInCurrentWindow(15)
-      .withCurrentWindowStart(System.now())
+      .withRateLog((now - 5000) + ':15;')
       .withCpuTimeConsumption(100)
       .withCpuTimePerItemConsumption(10)
       .withCpuTimeSafety(0.9)
@@ -197,13 +195,12 @@ private class AdaptiveChunkCalculatorTest {
   }
 
   @IsTest
-  private static void givenRateLimitWithNullWindow_whenGetMaxPossible_thenFullBudget() {
+  private static void givenRateLimitWithNullLog_whenGetMaxPossible_thenFullBudget() {
     // Arrange
     final JobDescription__c job = ApexJobTestFixture.aJobDescription()
       .withMaxChunkSize(100)
       .withMaxExecutionsPerMinute(10)
-      .withExecutionsInCurrentWindow(5)
-      .withCurrentWindowStart(null)
+      .withRateLog(null)
       .withCpuTimeConsumption(100)
       .withCpuTimePerItemConsumption(10)
       .withCpuTimeSafety(0.9)
@@ -218,6 +215,46 @@ private class AdaptiveChunkCalculatorTest {
     final Integer result = sut.getMaxPossible(job);
 
     // Assert
-    Assert.areEqual(10, result, 'Should use full budget when window start is null');
+    Assert.areEqual(10, result, 'Should use full budget when the log is null');
+  }
+
+  @IsTest
+  private static void givenOneItemEnded61sAgoAndNineItems2sAgo_whenGetMaxPossible_thenReturnsOne() {
+    // Arrange
+    final Long now = System.now().getTime();
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription()
+      .withMaxChunkSize(100)
+      .withMaxExecutionsPerMinute(10)
+      .withRateLog((now - 61000) + ':1;' + (now - 2000) + ':9;')
+      .withCpuTimeConsumption(100)
+      .withCpuTimePerItemConsumption(10)
+      .withCpuTimeSafety(0.9)
+      .build();
+
+    final Mock limitServiceMock = Mock.forType(LimitService.class);
+    limitServiceMock.spyOn('getAvailableLimits').returns(ApexJobTestFixture.aLimitsUsage().withCpuTime(500).build());
+
+    final AdaptiveChunkCalculator sut = new AdaptiveChunkCalculator((LimitService) limitServiceMock.stub);
+
+    // Act
+    final Integer result = sut.getMaxPossible(job);
+
+    // Assert
+    Assert.areEqual(1, result, 'Only the nine recent items count against a limit of 10');
+  }
+
+  @IsTest
+  private static void givenModelBelowOneItemWithRateBudgetExhausted_whenGetMaxPossible_thenReturnsZero() {
+    // Arrange
+    final JobDescription__c job = ApexJobTestFixture.aJobDescription().withMaxChunkSize(0).withMaxExecutionsPerMinute(1).withRateLog((System.now().getTime() - 10000) + ':1;').build();
+
+    final Mock limitServiceMock = Mock.forType(LimitService.class);
+    final AdaptiveChunkCalculator sut = new AdaptiveChunkCalculator((LimitService) limitServiceMock.stub);
+
+    // Act
+    final Integer result = sut.getMaxPossible(job);
+
+    // Assert
+    Assert.areEqual(0, result, 'One item ended 10 s ago against a limit of 1');
   }
 }

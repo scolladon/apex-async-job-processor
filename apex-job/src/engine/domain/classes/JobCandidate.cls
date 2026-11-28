@@ -24,12 +24,6 @@ public class JobCandidate {
   }
 
   private Integer calculateChunkSize() {
-    Integer chunkSize = this.jobDescription.MaxChunkSize__c.intValue();
-    if (chunkSize == ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE) {
-      return 1;
-    }
-
-    chunkSize = this.chunkSizeCalculator.getMaxPossible(this.jobDescription);
-    return Math.min(chunkSize, this.jobRequests.size());
+    return Math.min(this.chunkSizeCalculator.getMaxPossible(this.jobDescription), this.jobRequests.size());
   }
 }
