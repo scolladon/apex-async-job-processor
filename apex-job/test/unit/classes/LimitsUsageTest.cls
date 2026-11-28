@@ -35,4 +35,35 @@ private class LimitsUsageTest {
     // Assert
     Assert.areEqual(EXPECTED_COUNTER_FLOOR, result, 'A counter dimension uses the counter noise floor');
   }
+
+  @IsTest
+  static void givenGovernedLimits_whenDimensions_thenContainsEveryLearnedDimension() {
+    // Arrange
+    final Set<String> mustHave = new Set<String>{
+      'cpuTime',
+      'heapSize',
+      'callout',
+      'calloutTime',
+      'publishImmediateDml',
+      'dmlRows',
+      'dmlStatements',
+      'queryRows',
+      'queries',
+      'soslQueries',
+      'futureCalls',
+      'aggregateQueries',
+      'apexCursorRows',
+      'fetchCallsOnApexCursor',
+      'emailInvocations',
+      'mobilePushApexCalls',
+      'queryLocatorRows',
+      'queueableJobs'
+    };
+
+    // Act
+    final Set<String> result = new Set<String>(LimitsUsage.dimensions());
+
+    // Assert
+    Assert.isTrue(result.containsAll(mustHave), 'Every dimension with consumption fields on the description is learned and reset');
+  }
 }
