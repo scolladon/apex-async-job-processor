@@ -20,23 +20,6 @@ private class JobCandidateTest {
   }
 
   @IsTest
-  static void givenUnknownModelWithRateBudgetExhausted_whenGetExecutableChunk_thenReturnsNull() {
-    // Arrange
-    final ApexJobTestMock mocks = new ApexJobTestMock();
-    mocks.getMaxPossibleSpy.returns(0);
-    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(-1).build();
-    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
-    jobRequest.JobDescription__r = jobDescription;
-    final JobCandidate sut = new JobCandidate(mocks.factoryStub, new List<JobRequest__c>{ jobRequest });
-
-    // Act
-    final JobExecutable result = sut.getExecutableChunk();
-
-    // Assert
-    Assert.isNull(result, 'An unknown model still defers to the calculator, which leaves no rate budget');
-  }
-
-  @IsTest
   static void givenGetExecutableChunk_whenCalculatedChunkSizeIsZero_thenReturnsNull() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();

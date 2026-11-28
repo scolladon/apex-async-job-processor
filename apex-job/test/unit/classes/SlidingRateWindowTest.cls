@@ -303,11 +303,7 @@ private class SlidingRateWindowTest {
   @IsTest
   static void givenLogLongerThanField_whenSerialize_thenFitsAndCoalescesOldestIntoNext() {
     // Arrange
-    final List<String> texts = new List<String>();
-    for (Integer i = 0; i < 8400; i++) {
-      texts.add((T0 + i * 5) + ':1;');
-    }
-    final SlidingRateWindow sut = SlidingRateWindow.parse(MAX_ITEMS, String.join(texts, '')).record(T0 + 45 * SECOND_MS, 1);
+    final SlidingRateWindow sut = oversizedWindow(MAX_ITEMS);
 
     // Act
     final String result = sut.serialize();
@@ -317,11 +313,26 @@ private class SlidingRateWindowTest {
     Assert.areEqual(8401L, sut.itemCount(), 'The window keeps every item');
     Assert.areEqual(8401L, SlidingRateWindow.parse(MAX_ITEMS, result).itemCount(), 'Coalescing keeps every item');
     Assert.isTrue(result.endsWith((T0 + 45 * SECOND_MS) + ':1;'), 'The newest entry is kept as is');
-    Assert.areEqual(
-      LARGE_MAX_ITEMS - 8401,
-      SlidingRateWindow.parse(LARGE_MAX_ITEMS, result).remainingBudget(T0 + 60 * SECOND_MS + 1),
-      'Coalesced items keep the later end, so they still count once the oldest raw entry has left the window'
-    );
+  }
+
+  @IsTest
+  static void givenCoalescedLog_whenBudgetReadAfterOldestRawEntryLeftWindow_thenMergedItemsStillCount() {
+    // Arrange
+    final SlidingRateWindow sut = SlidingRateWindow.parse(LARGE_MAX_ITEMS, oversizedWindow(LARGE_MAX_ITEMS).serialize());
+
+    // Act
+    final Integer result = sut.remainingBudget(T0 + 60 * SECOND_MS + 1);
+
+    // Assert
+    Assert.areEqual(LARGE_MAX_ITEMS - 8401, result, 'Coalesced items keep the later end, so they still count once the oldest raw entry has left the window');
+  }
+
+  private static SlidingRateWindow oversizedWindow(final Integer maxItems) {
+    final List<String> texts = new List<String>();
+    for (Integer i = 0; i < 8400; i++) {
+      texts.add((T0 + i * 5) + ':1;');
+    }
+    return SlidingRateWindow.parse(maxItems, String.join(texts, '')).record(T0 + 45 * SECOND_MS, 1);
   }
 
   @IsTest
