@@ -1,3 +1,5 @@
+> Superseded: the fixed window below admits 2N−1 items at its boundary; the sliding-window log in docs/design/2026-11-27-sliding-window-rate-limiter.md replaces it. MaxExecutionsPerMinute__c is unchanged.
+
 # Rate Limiting per JobDescription — Design
 
 Limit the number of times a `JobDescription__c` can be executed per minute, counted as individual `JobRequest__c` records processed.

@@ -90,6 +90,11 @@ JobDescription__c [1]                          JobRequest__c [N]
   ├── ConsecutiveVariationCount__c (Number, 0)   // engine-managed counter
   ├── KillCooldownCount__c (Number, 3)           // consecutive successes that must pass before EWMA resumes after a kill/failure
   ├── KillBackoffUntil__c (DateTime)             // engine-managed; not selected before this time after a floor kill
+  ├── MaxExecutionsPerMinute__c (Number, 0 = no limit)
+  ├── ExecutionsInCurrentWindow__c (Number)      // engine-managed; items in the last 60 s at the last write
+  ├── RateLog__c (LongTextArea, 131072)          // engine-managed; endEpochMs:items; of the last 60 s
+  ├── RateBlockedUntil__c (DateTime)             // engine-managed; not selected before this time
+  ├── CurrentWindowStart__c (DateTime)           // deprecated, not written
   ├── LastExecutionDateTime__c (DateTime)
   └── 18 dimensions × 3 fields = 54 consumption model fields
 ```
@@ -141,11 +146,24 @@ AND (AttemptNumber__c < MaxExecutionAttempt__c OR MaxExecutionAttempt__c = -1)
 AND (AllowedDays__c includes current day OR AllowedDays__c IS NULL)
 AND (TIMENOW() between AllowedStartTime__c and AllowedEndTime__c, or both NULL)
 AND (KillBackoffUntil__c IS NULL OR NOW() >= KillBackoffUntil__c)
+AND (MaxExecutionsPerMinute__c IS NULL OR = 0 OR RateBlockedUntil__c IS NULL OR NOW() >= RateBlockedUntil__c)
 ```
 
 The selector query filters on `IsCandidate__c = TRUE AND NextExecutionDateTime__c <= :now`; the date filter is indexed.
 
 A request runs when `NextExecutionDateTime__c <= now`; leave the field unset on insert to run as soon as possible. A `null` date (explicit on insert, or left by an update) means not scheduled, so a manual re-queue must set a date.
+
+### Rate limit
+
+A description with `MaxExecutionsPerMinute__c` = N runs at most N items in any 60 s; items are `JobRequest__c` rows.
+
+- Every staged chunk (success, failure, abort, kill, malformed, rolled back) is logged at its end in `RateLog__c` by the Finalizer, as `endEpochMs:items;` entries.
+- The budget is checked at selection by `AdaptiveChunkCalculator` through `SlidingRateWindow`. The log is the authority.
+- `RateBlockedUntil__c` is only a selector filter. It is recomputed at each write with the N of that write and rounded up to the second, because a DateTime field floors milliseconds.
+- An oversized log (`RateLog__c` holds 131072 characters) coalesces its oldest entries, which over-counts. Malformed entries are skipped.
+- Reset clears the log and the hint.
+- No seed: in the minute after deploy, up to N extra items may be admitted once.
+- Cold start: the probes showed a one-item overrun, so the calculator caps its below-one path by the remaining budget and `JobCandidate` always asks the calculator. Every sizing path re-checks the log.
 
 ---
 
@@ -563,7 +581,7 @@ Each request is tried independently in a `try/catch` around `JSON.deserializeUnt
 
 ### Consumption-learning skip
 
-`JobExecuted.stageJobDescriptionExecution()` still runs `updateRateLimitCounter()` (a malformed-spam flood is bounded by the per-minute rate limit like any other burst). But when the chunk-level status is `MALFORMED_ARGUMENT`, the method **returns before invoking the `ConsumptionLearner`** — no processor ran, so the observed limits don't describe meaningful work and shouldn't be blended into `base`/`perItem`.
+`JobExecuted.stageJobDescriptionExecution()` still runs `updateRateLimitCounter()` (a malformed-spam flood is bounded by the rate limit (≤ N items in any 60 s) like any other burst). But when the chunk-level status is `MALFORMED_ARGUMENT`, the method **returns before invoking the `ConsumptionLearner`** — no processor ran, so the observed limits don't describe meaningful work and shouldn't be blended into `base`/`perItem`.
 
 ---
 
@@ -692,7 +710,7 @@ A description gets at most one chunk of at most 50 requests per transaction. `Jo
 
 **Why it stays:**
 
-- The rate counter is written only in the finalizer (`JobExecuted.updateRateLimitCounter`) and read by `AdaptiveChunkCalculator.remainingRateBudget`, so several chunks in one transaction would read a stale counter.
+- The rate log (`RateLog__c`) is written only in the finalizer (`JobExecuted.updateRateLimitCounter`) and read by `AdaptiveChunkCalculator.remainingRateBudget`, so several chunks in one transaction would read a stale counter.
 - The consumption learner runs in the finalizer, so later chunks would size against an un-updated model.
 - Every eligible description gets a turn.
 - A failing finalizer would lose up to about 5,000 recordings instead of 50.
