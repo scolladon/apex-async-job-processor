@@ -433,6 +433,52 @@ private class JobRepositoryImplTest {
     Assert.areEqual(ApexJobConstant.UNKNOWN_MAX_CHUNK_SIZE, description.MaxChunkSize__c, 'Model must be reset');
   }
 
+  @IsTest
+  static void givenChunkReachingRateLimit_whenRecordJobExecution_thenPersistsLogAndWholeSecondHint() {
+    // Arrange
+    final JobDescription__c jobDesc = ApexJobTestFixture.aJobDescription()
+      .withName('RateLimitedProcessor')
+      .withProcessorName('RateLimitedProcessor')
+      .enabled()
+      .withMaxChunkSize(-1)
+      .withMaxExecutionsPerMinute(1)
+      .build();
+    insert as system jobDesc;
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('RateLimitedJob').withJobDescription(jobDesc.Id).ready().withAttemptNumber(0).enabled().build();
+    jobRequest.JobDescription__r = jobDesc;
+    insert as system jobRequest;
+    final ApexJobResult result = new ApexJobResult(ApexJobStatus.SUCCESS);
+    result.consumedLimits = ApexJobTestFixture.aLimitsUsage()
+      .withCpuTime(1)
+      .withHeapSize(1)
+      .withCallout(1)
+      .withCalloutTime(1)
+      .withPublishImmediateDml(1)
+      .withDmlRows(1)
+      .withDmlStatements(1)
+      .withQueryRows(1)
+      .withQueries(1)
+      .withSoslQueries(1)
+      .withFutureCalls(1)
+      .build();
+    final Id asyncJobId = TestDataFactory.generateUniqueFakeId(JobDescription__c.SObjectType);
+    final JobExecuted executed = new JobExecuted(new ApexJobFactoryImpl(), new JobExecutable(new ApexJobFactoryImpl(), new List<JobRequest__c>{ jobRequest }), result);
+    final JobRepository sut = new JobRepositoryImpl();
+
+    // Act
+    Test.startTest();
+    sut.recordJobExecution(new List<JobExecuted>{ executed }, new TestFinalizerContext(asyncJobId));
+    Test.stopTest();
+
+    // Assert
+    final JobDescription__c persisted = [SELECT RateLog__c, RateBlockedUntil__c FROM JobDescription__c WHERE Id = :jobDesc.Id WITH SYSTEM_MODE];
+    final Long endMs = jobDesc.LastExecutionDateTime__c.getTime();
+    final Long hintMs = persisted.RateBlockedUntil__c.getTime();
+    Assert.areEqual(endMs + ':1;', persisted.RateLog__c, 'Log should be persisted with the chunk end and size');
+    Assert.areEqual(0, Math.mod(hintMs, 1000), 'Persisted hint should be a whole second');
+    Assert.isTrue(hintMs >= endMs + 60000 && hintMs <= endMs + 60999, 'Persisted hint should be the chunk end plus the window, ceiled to the second');
+  }
+
   private class TestException extends Exception {
   }
 

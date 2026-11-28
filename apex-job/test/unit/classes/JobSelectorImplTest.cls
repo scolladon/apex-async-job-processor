@@ -297,8 +297,6 @@ private class JobSelectorImplTest {
       'JobDescription__r.KillCooldownCount__c',
       // Rate limit fields
       'JobDescription__r.MaxExecutionsPerMinute__c',
-      'JobDescription__r.ExecutionsInCurrentWindow__c',
-      //'JobDescription__r.CurrentWindowStart__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       //'JobDescription__r.RateLog__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       // Governor limits consumption fields
       'JobDescription__r.CpuTimeBaseConsumption__c',

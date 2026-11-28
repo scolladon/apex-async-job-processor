@@ -279,16 +279,6 @@ public class ApexJobTestFixture {
       return this;
     }
 
-    public JobDescriptionBuilder withExecutionsInCurrentWindow(final Integer value) {
-      this.record.ExecutionsInCurrentWindow__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withCurrentWindowStart(final Datetime value) {
-      this.record.CurrentWindowStart__c = value;
-      return this;
-    }
-
     public JobDescriptionBuilder withKillBackoffUntil(final Datetime value) {
       this.record.KillBackoffUntil__c = value;
       return this;
