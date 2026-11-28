@@ -158,14 +158,10 @@ public with sharing class JobExecuted {
     if (maxPerMinute <= 0) {
       return;
     }
-    final Datetime windowStart = this.jobDescription.CurrentWindowStart__c;
-    final Integer chunkSize = this.jobRequests.size();
-    if (windowStart == null || this.stagingInfo.endTime.getTime() - windowStart.getTime() >= ApexJobConstant.RATE_WINDOW_MS) {
-      this.jobDescription.CurrentWindowStart__c = this.stagingInfo.endTime;
-      this.jobDescription.ExecutionsInCurrentWindow__c = chunkSize;
-    } else {
-      this.jobDescription.ExecutionsInCurrentWindow__c = (this.jobDescription.ExecutionsInCurrentWindow__c ?? 0) + chunkSize;
-    }
+    final SlidingRateWindow window = SlidingRateWindow.parse(maxPerMinute, this.jobDescription.RateLog__c).record(this.stagingInfo.endTime.getTime(), this.jobRequests.size());
+    this.jobDescription.RateLog__c = window.serialize();
+    this.jobDescription.RateBlockedUntil__c = window.blockedUntil();
+    this.jobDescription.ExecutionsInCurrentWindow__c = window.itemCount();
   }
 
   private class JobRequestExecutionStagingInfo {

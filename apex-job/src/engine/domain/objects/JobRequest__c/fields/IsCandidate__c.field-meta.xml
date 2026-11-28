@@ -28,9 +28,8 @@
   ,OR(
     ISNULL(JobDescription__r.MaxExecutionsPerMinute__c),
     JobDescription__r.MaxExecutionsPerMinute__c = 0,
-    ISNULL(JobDescription__r.CurrentWindowStart__c),
-    (NOW() - JobDescription__r.CurrentWindowStart__c) * 1440 &gt;= 1,
-    JobDescription__r.ExecutionsInCurrentWindow__c &lt; JobDescription__r.MaxExecutionsPerMinute__c
+    ISNULL(JobDescription__r.RateBlockedUntil__c),
+    NOW() &gt;= JobDescription__r.RateBlockedUntil__c
   )
 )</formula>
     <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>

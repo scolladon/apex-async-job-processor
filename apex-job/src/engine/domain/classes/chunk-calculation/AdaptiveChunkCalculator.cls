@@ -2,6 +2,7 @@ public without sharing class AdaptiveChunkCalculator implements ChunkSizeCalcula
   private static final Decimal INCREASE_SCALING_FACTOR = 0.01;
   private static final Decimal DECREASE_SCALING_FACTOR = 3 * INCREASE_SCALING_FACTOR;
   private static final Decimal MAX_SCALING_FACTOR = 0.1;
+  private static final Integer COLD_START_CHUNK_SIZE = 1;
   private final LimitService limitService;
 
   public AdaptiveChunkCalculator() {
@@ -15,7 +16,7 @@ public without sharing class AdaptiveChunkCalculator implements ChunkSizeCalcula
 
   public Integer getMaxPossible(final JobDescription__c job) {
     if (job.MaxChunkSize__c < 1) {
-      return 1;
+      return Math.min(COLD_START_CHUNK_SIZE, this.remainingRateBudget(job));
     }
 
     final LimitsUsage available = limitService.getAvailableLimits();
@@ -79,11 +80,6 @@ public without sharing class AdaptiveChunkCalculator implements ChunkSizeCalcula
     if (maxPerMinute <= 0) {
       return ApexJobConstant.DEFAULT_MAX_CHUNK_SIZE;
     }
-    final Datetime windowStart = job.CurrentWindowStart__c;
-    if (windowStart == null || System.now().getTime() - windowStart.getTime() >= ApexJobConstant.RATE_WINDOW_MS) {
-      return maxPerMinute;
-    }
-    final Integer consumed = job.ExecutionsInCurrentWindow__c?.intValue() ?? 0;
-    return Math.max(0, maxPerMinute - consumed);
+    return SlidingRateWindow.parse(maxPerMinute, job.RateLog__c).remainingBudget(System.now().getTime());
   }
 }

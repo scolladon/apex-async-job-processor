@@ -67,10 +67,50 @@ private class ApexJobManagerTest {
   }
 
   @IsTest
+  static void givenRateLimitedDescription_whenResetConsumptionModel_thenRateLogAndHintCleared() {
+    // Arrange
+    final String processorName = 'Proc_RateLimited';
+    insert as system new JobDescription__c(
+      ProcessorName__c = processorName,
+      Enabled__c = true,
+      MaxExecutionsPerMinute__c = 10,
+      RateLog__c = (System.now().getTime() - 5000) + ':10;',
+      RateBlockedUntil__c = System.now().addSeconds(30)
+    );
+
+    // Act
+    ApexJobManager.resetConsumptionModel(processorName);
+
+    // Assert
+    final JobDescription__c jd = [SELECT RateLog__c, RateBlockedUntil__c FROM JobDescription__c WHERE ProcessorName__c = :processorName WITH SYSTEM_MODE LIMIT 1];
+    Assert.isNull(jd.RateLog__c, 'Reset must clear the rate log');
+    Assert.isNull(jd.RateBlockedUntil__c, 'Reset must clear the rate blocked hint');
+  }
+
+  @IsTest
   static void givenProcessorName_whenResetConsumptionModel_thenAllConsumptionsAAreReset() {
     // Arrange
     final String processorName = 'Proc_E';
-    insert as system new JobDescription__c(
+    insert as system seedConsumedDescription(processorName);
+
+    // Act
+    ApexJobManager.resetConsumptionModel(processorName);
+
+    // Assert
+    final JobDescription__c jd = queryWithConsumptions(processorName);
+    Assert.areEqual(-1, jd.MaxChunkSize__c, 'MaxChunkSize must be reset');
+    Assert.areEqual(0, jd.ConsecutiveVariationCount__c, 'ConsecutiveVariationCount must be reset (EWMA state)');
+    Assert.areEqual(0.42, jd.LearningRate__c, 'LearningRate is configuration and must be preserved by reset');
+    Assert.areEqual(7, jd.VariationResetCount__c, 'VariationResetCount is configuration and must be preserved by reset');
+    Assert.areEqual(0.55, jd.VariationResetThreshold__c, 'VariationResetThreshold is configuration and must be preserved by reset');
+    Assert.areEqual(5, jd.KillCooldownCount__c, 'KillCooldownCount is configuration and must be preserved by reset');
+    for (ConsumptionModel model : ConsumptionModel.asList()) {
+      assertModelReset(jd, model);
+    }
+  }
+
+  private static JobDescription__c seedConsumedDescription(final String processorName) {
+    final JobDescription__c description = new JobDescription__c(
       ProcessorName__c = processorName,
       Enabled__c = true,
       MaxChunkSize__c = 10,
@@ -81,189 +121,39 @@ private class ApexJobManagerTest {
       LearningRate__c = 0.42,
       VariationResetCount__c = 7,
       VariationResetThreshold__c = 0.55,
-      KillCooldownCount__c = 5,
-      CpuTimeBaseConsumption__c = 1,
-      CpuTimePerItemConsumption__c = 1,
-      CpuTimeSafety__c = 1,
-      HeapSizePerItemConsumption__c = 1,
-      HeapSizeSafety__c = 1,
-      HeapSizeBaseConsumption__c = 1,
-      CalloutBaseConsumption__c = 1,
-      CalloutPerItemConsumption__c = 1,
-      CalloutSafety__c = 1,
-      CalloutTimeBaseConsumption__c = 1,
-      CalloutTimePerItemConsumption__c = 1,
-      CalloutTimeSafety__c = 1,
-      DmlRowsBaseConsumption__c = 1,
-      DmlRowsPerItemConsumption__c = 1,
-      DmlRowsSafety__c = 1,
-      DmlStatementsBaseConsumption__c = 1,
-      DmlStatementsPerItemConsumption__c = 1,
-      DmlStatementsSafety__c = 1,
-      FutureCallsBaseConsumption__c = 1,
-      FutureCallsPerItemConsumption__c = 1,
-      FutureCallsSafety__c = 1,
-      PublishImmediateDmlBaseConsumption__c = 1,
-      PublishImmediateDmlPerItemConsumption__c = 1,
-      PublishImmediateDmlSafety__c = 1,
-      QueryRowsBaseConsumption__c = 1,
-      QueryRowsPerItemConsumption__c = 1,
-      QueryRowsSafety__c = 1,
-      QueriesBaseConsumption__c = 1,
-      QueriesPerItemConsumption__c = 1,
-      QueriesSafety__c = 1,
-      SoslQueriesBaseConsumption__c = 1,
-      SoslQueriesPerItemConsumption__c = 1,
-      SoslQueriesSafety__c = 1,
-      AggregateQueriesBaseConsumption__c = 1,
-      AggregateQueriesPerItemConsumption__c = 1,
-      AggregateQueriesSafety__c = 1,
-      ApexCursorRowsBaseConsumption__c = 1,
-      ApexCursorRowsPerItemConsumption__c = 1,
-      ApexCursorRowsSafety__c = 1,
-      FetchCallsOnApexCursorBaseConsumption__c = 1,
-      FetchCallsOnApexCursorPerItemConsumption__c = 1,
-      FetchCallsOnApexCursorSafety__c = 1,
-      EmailInvocationsBaseConsumption__c = 1,
-      EmailInvocationsPerItemConsumption__c = 1,
-      EmailInvocationsSafety__c = 1,
-      MobilePushApexCallsBaseConsumption__c = 1,
-      MobilePushApexCallsPerItemConsumption__c = 1,
-      MobilePushApexCallsSafety__c = 1,
-      QueryLocatorRowsBaseConsumption__c = 1,
-      QueryLocatorRowsPerItemConsumption__c = 1,
-      QueryLocatorRowsSafety__c = 1
+      KillCooldownCount__c = 5
     );
+    for (ConsumptionModel model : ConsumptionModel.asList()) {
+      description.put(model.base, 1);
+      description.put(model.perItem, 1);
+      description.put(model.safety, 1);
+    }
+    return description;
+  }
 
-    // Act
-    ApexJobManager.resetConsumptionModel(processorName);
+  private static JobDescription__c queryWithConsumptions(final String processorName) {
+    final List<String> fields = new List<String>{
+      'ProcessorName__c',
+      'MaxChunkSize__c',
+      'ConsecutiveVariationCount__c',
+      'LearningRate__c',
+      'VariationResetCount__c',
+      'VariationResetThreshold__c',
+      'KillCooldownCount__c'
+    };
+    for (ConsumptionModel model : ConsumptionModel.asList()) {
+      fields.add(model.base);
+      fields.add(model.perItem);
+      fields.add(model.safety);
+    }
+    final String soql = 'SELECT ' + String.join(fields, ', ') + ' FROM JobDescription__c WHERE ProcessorName__c = :processorName LIMIT 1';
+    return (JobDescription__c) Database.queryWithBinds(soql, new Map<String, Object>{ 'processorName' => processorName }, AccessLevel.SYSTEM_MODE)[0];
+  }
 
-    // Assert
-    final JobDescription__c jd = [
-      SELECT
-        ProcessorName__c,
-        MaxChunkSize__c,
-        ConsecutiveVariationCount__c,
-        LearningRate__c,
-        VariationResetCount__c,
-        VariationResetThreshold__c,
-        KillCooldownCount__c,
-        CpuTimeBaseConsumption__c,
-        CpuTimePerItemConsumption__c,
-        CpuTimeSafety__c,
-        HeapSizeBaseConsumption__c,
-        HeapSizePerItemConsumption__c,
-        HeapSizeSafety__c,
-        CalloutBaseConsumption__c,
-        CalloutPerItemConsumption__c,
-        CalloutSafety__c,
-        CalloutTimeBaseConsumption__c,
-        CalloutTimePerItemConsumption__c,
-        CalloutTimeSafety__c,
-        DmlRowsBaseConsumption__c,
-        DmlRowsPerItemConsumption__c,
-        DmlRowsSafety__c,
-        DmlStatementsBaseConsumption__c,
-        DmlStatementsPerItemConsumption__c,
-        DmlStatementsSafety__c,
-        FutureCallsBaseConsumption__c,
-        FutureCallsPerItemConsumption__c,
-        FutureCallsSafety__c,
-        PublishImmediateDmlBaseConsumption__c,
-        PublishImmediateDmlPerItemConsumption__c,
-        PublishImmediateDmlSafety__c,
-        QueryRowsBaseConsumption__c,
-        QueryRowsPerItemConsumption__c,
-        QueryRowsSafety__c,
-        QueriesBaseConsumption__c,
-        QueriesPerItemConsumption__c,
-        QueriesSafety__c,
-        SoslQueriesBaseConsumption__c,
-        SoslQueriesPerItemConsumption__c,
-        SoslQueriesSafety__c,
-        AggregateQueriesBaseConsumption__c,
-        AggregateQueriesPerItemConsumption__c,
-        AggregateQueriesSafety__c,
-        ApexCursorRowsBaseConsumption__c,
-        ApexCursorRowsPerItemConsumption__c,
-        ApexCursorRowsSafety__c,
-        FetchCallsOnApexCursorBaseConsumption__c,
-        FetchCallsOnApexCursorPerItemConsumption__c,
-        FetchCallsOnApexCursorSafety__c,
-        EmailInvocationsBaseConsumption__c,
-        EmailInvocationsPerItemConsumption__c,
-        EmailInvocationsSafety__c,
-        MobilePushApexCallsBaseConsumption__c,
-        MobilePushApexCallsPerItemConsumption__c,
-        MobilePushApexCallsSafety__c,
-        QueryLocatorRowsBaseConsumption__c,
-        QueryLocatorRowsPerItemConsumption__c,
-        QueryLocatorRowsSafety__c
-      FROM JobDescription__c
-      WHERE ProcessorName__c = :processorName
-      WITH SYSTEM_MODE
-      LIMIT 1
-    ];
-    Assert.areEqual(-1, jd.MaxChunkSize__c, 'MaxChunkSize must be reset');
-    Assert.areEqual(0, jd.ConsecutiveVariationCount__c, 'ConsecutiveVariationCount must be reset (EWMA state)');
-    Assert.areEqual(0.42, jd.LearningRate__c, 'LearningRate is configuration and must be preserved by reset');
-    Assert.areEqual(7, jd.VariationResetCount__c, 'VariationResetCount is configuration and must be preserved by reset');
-    Assert.areEqual(0.55, jd.VariationResetThreshold__c, 'VariationResetThreshold is configuration and must be preserved by reset');
-    Assert.areEqual(5, jd.KillCooldownCount__c, 'KillCooldownCount is configuration and must be preserved by reset');
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.CpuTimeBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.CpuTimePerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.CpuTimeSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.HeapSizeBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.HeapSizePerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.HeapSizeSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.CalloutBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.CalloutPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.CalloutSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.CalloutTimeBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.CalloutTimePerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.CalloutTimeSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.DmlRowsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.DmlRowsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.DmlRowsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.DmlStatementsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.DmlStatementsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.DmlStatementsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.FutureCallsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.FutureCallsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.FutureCallsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.PublishImmediateDmlBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.PublishImmediateDmlPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.PublishImmediateDmlSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.QueryRowsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.QueryRowsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.QueryRowsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.QueriesBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.QueriesPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.QueriesSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.SoslQueriesBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.SoslQueriesPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.SoslQueriesSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.futureCallsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.futureCallsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.futureCallsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.AggregateQueriesBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.AggregateQueriesPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.AggregateQueriesSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.ApexCursorRowsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.ApexCursorRowsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.ApexCursorRowsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.FetchCallsOnApexCursorBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.FetchCallsOnApexCursorPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.FetchCallsOnApexCursorSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.EmailInvocationsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.EmailInvocationsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.EmailInvocationsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.MobilePushApexCallsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.MobilePushApexCallsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.MobilePushApexCallsSafety__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.QueryLocatorRowsBaseConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.QueryLocatorRowsPerItemConsumption__c);
-    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.QueryLocatorRowsSafety__c);
+  private static void assertModelReset(final JobDescription__c jd, final ConsumptionModel model) {
+    Assert.areEqual(ApexJobConstant.UNKNOWN_BASE_CONSUMPTION, jd.get(model.base), model.base);
+    Assert.areEqual(ApexJobConstant.UNKNOWN_PERITEM_CONSUMPTION, jd.get(model.perItem), model.perItem);
+    Assert.areEqual(ApexJobConstant.UNKNOWN_SAFETY, jd.get(model.safety), model.safety);
   }
 
   @IsTest

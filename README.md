@@ -271,7 +271,7 @@ Malformed arguments
  Kill handling (hard transaction aborts)
  - You never return `KILLED` yourself.
  - The Queueable finalizer detects unhandled kills and appends a synthetic result with status `KILLED` (file: [AsyncApexJobExecutor](apex-job/src/engine/application/AsyncApexJobExecutor.cls)).
- - On a kill the platform rolls back every chunk of that Queueable. The charged chunk (the one in flight, else the last completed one) is recorded `KILLED`; every other completed chunk runs again with its status and attempt number unchanged, while its description still learns from the measured run and counts it against `MaxExecutionsPerMinute__c`. The engine re-enqueues promptly.
+ - On a kill the platform rolls back every chunk of that Queueable. The charged chunk (the one in flight, else the last completed one) is recorded `KILLED`; every other completed chunk runs again with its status and attempt number unchanged, while its description still learns from the measured run and logs its items in the description's rate window (`MaxExecutionsPerMinute__c`). The engine re-enqueues promptly.
  - The learner then adapts (penalizes consumption and/or resets) so next chunks run smaller and safer (files: `JobExecuted.stageJobDescriptionExecution()`, `AdaptiveConsumptionLearner`).
  - Known limit: a job that exceeds a governor limit even at one item is killed again. Once its own failures have capped it at one item (or it was killed running alone with an unknown model), the engine resets its model and does not select the description for `KILL_BACKOFF_MINUTES` (5) minutes (`JobDescription__c.KillBackoffUntil__c`), so the other descriptions keep running; each period costs one failed Queueable. With `MaxExecutionAttempt__c = -1` this repeats forever: give such jobs a finite value so their requests end `ABORTED`. Reset clears the backoff.
 
@@ -390,6 +390,7 @@ Monitoring is possible at all because the backlog lives in _your_ data, not the 
  - Attempts below `MaxExecutionAttempt__c` (or -1 for unlimited).
  - `NextExecutionDateTime__c <= now` (a null date is not scheduled).
  - `JobDescription__c.KillBackoffUntil__c` unset or past.
+ - `JobDescription__c.MaxExecutionsPerMinute__c` 0/unset, or `RateBlockedUntil__c` unset or past (at most N items in any 60 s).
 
  Tip: The learner updates consumption fields on `JobDescription__c`. You rarely set them by hand.
 

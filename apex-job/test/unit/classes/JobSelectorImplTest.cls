@@ -297,8 +297,7 @@ private class JobSelectorImplTest {
       'JobDescription__r.KillCooldownCount__c',
       // Rate limit fields
       'JobDescription__r.MaxExecutionsPerMinute__c',
-      'JobDescription__r.ExecutionsInCurrentWindow__c',
-      //'JobDescription__r.CurrentWindowStart__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
+      //'JobDescription__r.RateLog__c', // Not populated by getPopulatedFieldsAsMap from Apex because null value cf https://salesforce.stackexchange.com/a/204467
       // Governor limits consumption fields
       'JobDescription__r.CpuTimeBaseConsumption__c',
       'JobDescription__r.CpuTimePerItemConsumption__c',
@@ -656,14 +655,14 @@ private class JobSelectorImplTest {
       .withCalloutConsumption(5)
       .withCpuTimeConsumption(-1)
       .withHeapSizeConsumption(-1)
-      .withCalloutTimeConsumption(-1)
-      .withPublishImmediateDmlConsumption(-1)
-      .withDmlRowsConsumption(-1)
-      .withDmlStatementsConsumption(-1)
-      .withQueryRowsConsumption(-1)
-      .withQueriesConsumption(-1)
-      .withSoslQueriesConsumption(-1)
-      .withFutureCallsConsumption(-1)
+      .withBaseConsumption(JobDescription__c.CalloutTimeBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.PublishImmediateDmlBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.DmlRowsBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.DmlStatementsBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.QueryRowsBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.QueriesBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.SoslQueriesBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.FutureCallsBaseConsumption__c, -1)
       .buildAndInsert();
 
     ApexJobTestFixture.aJobRequest()
@@ -684,14 +683,14 @@ private class JobSelectorImplTest {
       .withCalloutConsumption(0)
       .withCpuTimeConsumption(-1)
       .withHeapSizeConsumption(-1)
-      .withCalloutTimeConsumption(-1)
-      .withPublishImmediateDmlConsumption(-1)
-      .withDmlRowsConsumption(-1)
-      .withDmlStatementsConsumption(-1)
-      .withQueryRowsConsumption(-1)
-      .withQueriesConsumption(-1)
-      .withSoslQueriesConsumption(-1)
-      .withFutureCallsConsumption(-1)
+      .withBaseConsumption(JobDescription__c.CalloutTimeBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.PublishImmediateDmlBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.DmlRowsBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.DmlStatementsBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.QueryRowsBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.QueriesBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.SoslQueriesBaseConsumption__c, -1)
+      .withBaseConsumption(JobDescription__c.FutureCallsBaseConsumption__c, -1)
       .buildAndInsert();
 
     final JobRequest__c jobWithoutCallout = ApexJobTestFixture.aJobRequest()

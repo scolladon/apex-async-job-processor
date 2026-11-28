@@ -306,7 +306,7 @@ private class JobExecutedTest {
   }
 
   @IsTest
-  static void givenRateLimitConfigured_whenJobSucceeds_thenUpdatesCounter() {
+  static void givenRateLimitConfigured_whenJobSucceeds_thenLogsChunkEndAndSize() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
@@ -329,23 +329,26 @@ private class JobExecutedTest {
     sut.stageExecution();
 
     // Assert
-    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be set to chunk size for fresh window');
-    Assert.isNotNull(jobDescription.CurrentWindowStart__c, 'Window start should be set');
+    final Long endMs = jobDescription.LastExecutionDateTime__c.getTime();
+    Assert.areEqual(endMs + ':1;', jobDescription.RateLog__c, 'Log should carry the chunk end and size');
+    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Count should be the window item count');
+    Assert.isNull(jobDescription.RateBlockedUntil__c, 'Hint should stay empty while budget remains');
+    Assert.isNull(jobDescription.CurrentWindowStart__c, 'Fixed window start should no longer be written');
   }
 
   @IsTest
-  static void givenRateLimitWithActiveWindow_whenJobSucceeds_thenIncrementsCounter() {
+  static void givenRecentEntriesInLog_whenJobSucceeds_thenAppendsAndCountsWindow() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
 
+    final Long loggedEnd = System.now().getTime() - 5000;
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
       .withName('TestApexJob')
       .withProcessorName('JobExecutedTest.TestApexJob')
       .withMaxChunkSize(5)
       .withMaxExecutionsPerMinute(100)
-      .withExecutionsInCurrentWindow(10)
-      .withCurrentWindowStart(System.now())
+      .withRateLog(loggedEnd + ':10;')
       .build();
     final JobRequest__c jobRequest1 = ApexJobTestFixture.aJobRequest().withName('Test1').withAttemptNumber(0).build();
     jobRequest1.JobDescription__r = jobDescription;
@@ -361,11 +364,13 @@ private class JobExecutedTest {
     sut.stageExecution();
 
     // Assert
-    Assert.areEqual(12, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be incremented by chunk size (10 + 2)');
+    final Long endMs = jobDescription.LastExecutionDateTime__c.getTime();
+    Assert.areEqual(loggedEnd + ':10;' + endMs + ':2;', jobDescription.RateLog__c, 'Log should append the chunk to the recent entries');
+    Assert.areEqual(12, jobDescription.ExecutionsInCurrentWindow__c, 'Count should cover the whole window (10 + 2)');
   }
 
   @IsTest
-  static void givenRateLimitWithExpiredWindow_whenJobSucceeds_thenResetsCounter() {
+  static void givenEntriesOlderThanWindow_whenJobSucceeds_thenPrunesThem() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final LimitsUsage consumedLimits = ApexJobTestFixture.aLimitsUsage().withCpuTime(100).withHeapSize(1000).build();
@@ -375,8 +380,7 @@ private class JobExecutedTest {
       .withProcessorName('JobExecutedTest.TestApexJob')
       .withMaxChunkSize(2)
       .withMaxExecutionsPerMinute(100)
-      .withExecutionsInCurrentWindow(50)
-      .withCurrentWindowStart(System.now().addMinutes(-2))
+      .withRateLog((System.now().getTime() - 120000) + ':50;')
       .build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
     jobRequest.JobDescription__r = jobDescription;
@@ -390,8 +394,54 @@ private class JobExecutedTest {
     sut.stageExecution();
 
     // Assert
-    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be reset to chunk size for expired window');
-    Assert.isTrue(jobDescription.CurrentWindowStart__c.getTime() > System.now().addMinutes(-1).getTime(), 'Window start should be refreshed to recent time');
+    final Long endMs = jobDescription.LastExecutionDateTime__c.getTime();
+    Assert.areEqual(endMs + ':1;', jobDescription.RateLog__c, 'Entries older than the window should be pruned');
+    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Count should only cover the chunk');
+  }
+
+  @IsTest
+  static void givenChunkReachingLimit_whenJobSucceeds_thenSetsHintToTippingEntryEndPlusWindow() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final Long loggedEnd = System.now().getTime() - 10000;
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestApexJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(2)
+      .withRateLog(loggedEnd + ':1;')
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    final Long hintMs = jobDescription.RateBlockedUntil__c.getTime();
+    Assert.areEqual(0, Math.mod(hintMs, 1000), 'Hint should be a whole second');
+    Assert.isTrue(hintMs >= loggedEnd + 60000 && hintMs <= loggedEnd + 60999, 'Hint should be the tipping entry end plus the window, ceiled to the second');
+  }
+
+  @IsTest
+  static void givenStaleHint_whenChunkLeavesBudget_thenClearsHint() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('TestApexJob')
+      .withProcessorName('JobExecutedTest.TestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(100)
+      .withRateBlockedUntil(System.now().addSeconds(30))
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), buildMeasuredResult(ApexJobStatus.SUCCESS));
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.isNull(jobDescription.RateBlockedUntil__c, 'Hint should be cleared when budget remains');
   }
 
   @IsTest
@@ -420,6 +470,8 @@ private class JobExecutedTest {
     // Assert
     Assert.areEqual(0, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should remain 0 when rate limiting is disabled');
     Assert.isNull(jobDescription.CurrentWindowStart__c, 'Window start should remain null when rate limiting is disabled');
+    Assert.isNull(jobDescription.RateLog__c, 'Log should remain empty when rate limiting is disabled');
+    Assert.isNull(jobDescription.RateBlockedUntil__c, 'Hint should remain empty when rate limiting is disabled');
   }
 
   @IsTest
@@ -667,7 +719,7 @@ private class JobExecutedTest {
   }
 
   @IsTest
-  static void givenRateLimitConfigured_whenRolledBackRunStaged_thenWindowCountsChunkSize() {
+  static void givenRateLimitConfigured_whenRolledBackRunStaged_thenRateLogCountsChunkSize() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
@@ -684,8 +736,29 @@ private class JobExecutedTest {
     sut.stageExecution();
 
     // Assert
-    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Counter should be set to chunk size for fresh window');
-    Assert.isNotNull(jobDescription.CurrentWindowStart__c, 'Window start should be set');
+    Assert.areEqual(jobDescription.LastExecutionDateTime__c.getTime() + ':1;', jobDescription.RateLog__c, 'Rolled back chunk should be logged');
+    Assert.areEqual(1, jobDescription.ExecutionsInCurrentWindow__c, 'Count should be the chunk size');
+  }
+
+  @IsTest
+  static void givenRateLimitConfigured_whenJobKilled_thenRateLogCountsChunkSize() {
+    // Arrange
+    final ApexJobTestMock mocks = new ApexJobTestMock();
+    final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription()
+      .withName('KillingTestApexJob')
+      .withProcessorName('JobExecutedTest.KillingTestApexJob')
+      .withMaxChunkSize(2)
+      .withMaxExecutionsPerMinute(100)
+      .build();
+    final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').withAttemptNumber(0).build();
+    final ApexJobResult jobResult = new ApexJobResult(ApexJobStatus.KILLED, new ApexJobResult.ApexJobError('Test killed', ''));
+    final JobExecuted sut = buildCompletedRun(mocks, attachDescription(jobDescription, new List<JobRequest__c>{ jobRequest }), jobResult);
+
+    // Act
+    sut.stageExecution();
+
+    // Assert
+    Assert.areEqual(jobDescription.LastExecutionDateTime__c.getTime() + ':1;', jobDescription.RateLog__c, 'Killed chunk should be logged');
   }
 
   @IsTest

@@ -4,6 +4,7 @@ private class JobCandidateTest {
   static void givenGetExecutableChunk_whenChunkSizeIsUnknown_thenReturnsExecutableWithOneItem() {
     // Arrange
     final ApexJobTestMock mocks = new ApexJobTestMock();
+    mocks.getMaxPossibleSpy.returns(1);
     final JobDescription__c jobDescription = ApexJobTestFixture.aJobDescription().withName('TestProcessor').withProcessorName('TestProcessor').withMaxChunkSize(-1).build();
     final JobRequest__c jobRequest = ApexJobTestFixture.aJobRequest().withName('Test').build();
     jobRequest.JobDescription__r = jobDescription;
@@ -15,6 +16,7 @@ private class JobCandidateTest {
     // Assert
     Assert.isNotNull(result, 'Should return executable when chunk size is unknown for first execution');
     Assert.areEqual(1, result.jobRequests.size(), 'Should return chunk of size 1');
+    Expect.that(mocks.getMaxPossibleSpy).hasBeenCalled();
   }
 
   @IsTest
