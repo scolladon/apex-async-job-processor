@@ -337,6 +337,16 @@
     </fieldPermissions>
     <fieldPermissions>
         <editable>true</editable>
+        <field>JobDescription__c.RateBlockedUntil__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
+        <field>JobDescription__c.RateLog__c</field>
+        <readable>true</readable>
+    </fieldPermissions>
+    <fieldPermissions>
+        <editable>true</editable>
         <field>JobDescription__c.SmallestFailingChunk__c</field>
         <readable>true</readable>
     </fieldPermissions>

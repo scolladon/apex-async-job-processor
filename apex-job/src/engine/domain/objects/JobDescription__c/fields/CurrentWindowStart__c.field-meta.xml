@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
     <fullName>CurrentWindowStart__c</fullName>
-    <description>Start timestamp of the current rate limit window. Managed by the engine.</description>
-    <label>Current Window Start</label>
+    <description>Deprecated: no longer written. The rate limit uses RateLog__c.</description>
+    <label>Current Window Start (Deprecated)</label>
     <required>false</required>
     <trackTrending>false</trackTrending>
     <type>DateTime</type>

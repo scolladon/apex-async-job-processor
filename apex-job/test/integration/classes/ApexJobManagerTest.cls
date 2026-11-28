@@ -67,6 +67,27 @@ private class ApexJobManagerTest {
   }
 
   @IsTest
+  static void givenRateLimitedDescription_whenResetConsumptionModel_thenRateLogAndHintCleared() {
+    // Arrange
+    final String processorName = 'Proc_RateLimited';
+    insert as system new JobDescription__c(
+      ProcessorName__c = processorName,
+      Enabled__c = true,
+      MaxExecutionsPerMinute__c = 10,
+      RateLog__c = (System.now().getTime() - 5000) + ':10;',
+      RateBlockedUntil__c = System.now().addSeconds(30)
+    );
+
+    // Act
+    ApexJobManager.resetConsumptionModel(processorName);
+
+    // Assert
+    final JobDescription__c jd = [SELECT RateLog__c, RateBlockedUntil__c FROM JobDescription__c WHERE ProcessorName__c = :processorName WITH SYSTEM_MODE LIMIT 1];
+    Assert.isNull(jd.RateLog__c, 'Reset must clear the rate log');
+    Assert.isNull(jd.RateBlockedUntil__c, 'Reset must clear the rate blocked hint');
+  }
+
+  @IsTest
   static void givenProcessorName_whenResetConsumptionModel_thenAllConsumptionsAAreReset() {
     // Arrange
     final String processorName = 'Proc_E';
