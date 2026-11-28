@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>RateBlockedUntil__c</fullName>
+    <description>Engine-managed. The rate limit stays reached until this time; the description is not selected before it. A hint: the log is the authority.</description>
+    <label>Rate Blocked Until</label>
+    <required>false</required>
+    <trackTrending>false</trackTrending>
+    <type>DateTime</type>
+</CustomField>

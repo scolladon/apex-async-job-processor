@@ -294,6 +294,16 @@ public class ApexJobTestFixture {
       return this;
     }
 
+    public JobDescriptionBuilder withRateLog(final String value) {
+      this.record.RateLog__c = value;
+      return this;
+    }
+
+    public JobDescriptionBuilder withRateBlockedUntil(final Datetime value) {
+      this.record.RateBlockedUntil__c = value;
+      return this;
+    }
+
     public JobDescriptionBuilder withAggregateQueriesConsumption(final Integer value) {
       this.record.AggregateQueriesBaseConsumption__c = value;
       return this;
