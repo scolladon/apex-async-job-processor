@@ -3,6 +3,7 @@ public class SlidingRateWindow {
   private static final String FIELD_SEPARATOR = ':';
   private static final Long MS_PER_SECOND = 1000L;
   private static final Integer LOG_MAX_LENGTH = 131072;
+  private static final Integer ENTRY_FIELD_COUNT = 2;
   private static final Integer MAX_END_MS_DIGITS = 18;
   private static final Integer MAX_ITEMS_DIGITS = 9;
   private final Integer maxItems;
@@ -14,26 +15,27 @@ public class SlidingRateWindow {
   }
 
   public static SlidingRateWindow parse(final Integer maxItems, final String log) {
-    final List<Entry> parsed = new List<Entry>();
-    if (String.isNotBlank(log)) {
-      for (String piece : log.split(ENTRY_SEPARATOR)) {
-        if (isWellFormed(piece)) {
-          parsed.add(entryFromText(piece));
-        }
-      }
+    if (String.isBlank(log)) {
+      return new SlidingRateWindow(maxItems, new List<Entry>());
     }
+    final List<Entry> parsed = wellFormedEntries(log);
     parsed.sort();
     return new SlidingRateWindow(maxItems, parsed);
   }
 
-  private static Entry entryFromText(final String raw) {
-    final List<String> parts = raw.split(FIELD_SEPARATOR);
-    return new Entry(Long.valueOf(parts[0]), Integer.valueOf(parts[1]));
+  private static List<Entry> wellFormedEntries(final String log) {
+    final List<Entry> parsed = new List<Entry>();
+    for (String piece : log.split(ENTRY_SEPARATOR)) {
+      final List<String> fields = piece.split(FIELD_SEPARATOR);
+      if (isWellFormed(fields)) {
+        parsed.add(new Entry(Long.valueOf(fields[0]), Long.valueOf(fields[1])));
+      }
+    }
+    return parsed;
   }
 
-  private static Boolean isWellFormed(final String raw) {
-    final List<String> parts = raw.split(FIELD_SEPARATOR);
-    return parts.size() == 2 && isNumber(parts[0], MAX_END_MS_DIGITS) && isNumber(parts[1], MAX_ITEMS_DIGITS) && Integer.valueOf(parts[1]) > 0;
+  private static Boolean isWellFormed(final List<String> fields) {
+    return fields.size() == ENTRY_FIELD_COUNT && isNumber(fields[0], MAX_END_MS_DIGITS) && isNumber(fields[1], MAX_ITEMS_DIGITS) && Long.valueOf(fields[1]) > 0;
   }
 
   private static Boolean isNumber(final String text, final Integer maxDigits) {
@@ -79,14 +81,13 @@ public class SlidingRateWindow {
   }
 
   public Integer remainingBudget(final Long nowMs) {
-    return Math.max(0, this.maxItems - this.itemsEndedAfter(nowMs - ApexJobConstant.RATE_WINDOW_MS));
+    return Math.max(0L, this.maxItems - this.itemsInWindowEndingAt(nowMs)).intValue();
   }
 
   public SlidingRateWindow record(final Long endMs, final Integer items) {
-    final Long threshold = endMs - ApexJobConstant.RATE_WINDOW_MS;
     final List<Entry> kept = new List<Entry>();
     for (Entry entry : this.entries) {
-      if (entry.endMs > threshold) {
+      if (entry.isInWindowEndingAt(endMs)) {
         kept.add(entry);
       }
     }
@@ -94,12 +95,16 @@ public class SlidingRateWindow {
     return new SlidingRateWindow(this.maxItems, kept);
   }
 
-  public Integer itemCount() {
-    return this.itemsEndedAfter(null);
+  public Long itemCount() {
+    Long total = 0L;
+    for (Entry entry : this.entries) {
+      total += entry.items;
+    }
+    return total;
   }
 
   public Datetime blockedUntil() {
-    Integer total = 0;
+    Long total = 0L;
     for (Integer i = this.entries.size() - 1; i >= 0; i--) {
       final Entry entry = this.entries[i];
       total += entry.items;
@@ -114,10 +119,10 @@ public class SlidingRateWindow {
     return Datetime.newInstance(((ms + MS_PER_SECOND - 1) / MS_PER_SECOND) * MS_PER_SECOND);
   }
 
-  private Integer itemsEndedAfter(final Long threshold) {
-    Integer total = 0;
+  private Long itemsInWindowEndingAt(final Long nowMs) {
+    Long total = 0L;
     for (Entry entry : this.entries) {
-      if (threshold == null || entry.endMs > threshold) {
+      if (entry.isInWindowEndingAt(nowMs)) {
         total += entry.items;
       }
     }
@@ -126,11 +131,16 @@ public class SlidingRateWindow {
 
   private class Entry implements Comparable {
     private final Long endMs;
-    private final Integer items;
+    private final Long items;
 
-    private Entry(final Long endMs, final Integer items) {
+    private Entry(final Long endMs, final Long items) {
       this.endMs = endMs;
       this.items = items;
+    }
+
+    // An entry ending after the reference can only come from an edit, never from a Finalizer: counting it would block the description forever
+    private Boolean isInWindowEndingAt(final Long referenceMs) {
+      return this.endMs > referenceMs - ApexJobConstant.RATE_WINDOW_MS && this.endMs <= referenceMs;
     }
 
     private Integer length() {
