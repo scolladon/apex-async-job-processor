@@ -67,11 +67,6 @@ public class ApexJobTestFixture {
       return this;
     }
 
-    public JobDescriptionBuilder withMaxChunkSizeLimit(final Integer value) {
-      this.record.MaxChunkSizeLimit__c = value;
-      return this;
-    }
-
     public JobDescriptionBuilder withConsecutiveFailures(final Integer value) {
       this.record.ConsecutiveFailures__c = value;
       return this;
@@ -137,6 +132,11 @@ public class ApexJobTestFixture {
       return this;
     }
 
+    public JobDescriptionBuilder withBaseConsumption(final Schema.SObjectField field, final Decimal value) {
+      this.record.put(field, value);
+      return this;
+    }
+
     public JobDescriptionBuilder withCpuTimeConsumption(final Integer value) {
       this.record.CpuTimeBaseConsumption__c = value;
       return this;
@@ -152,46 +152,6 @@ public class ApexJobTestFixture {
       return this;
     }
 
-    public JobDescriptionBuilder withCalloutTimeConsumption(final Integer value) {
-      this.record.CalloutTimeBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withDmlRowsConsumption(final Integer value) {
-      this.record.DmlRowsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withDmlStatementsConsumption(final Integer value) {
-      this.record.DmlStatementsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueryRowsConsumption(final Integer value) {
-      this.record.QueryRowsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueriesConsumption(final Integer value) {
-      this.record.QueriesBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withPublishImmediateDmlConsumption(final Integer value) {
-      this.record.PublishImmediateDmlBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withSoslQueriesConsumption(final Integer value) {
-      this.record.SoslQueriesBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withFutureCallsConsumption(final Integer value) {
-      this.record.FutureCallsBaseConsumption__c = value;
-      return this;
-    }
-
     public JobDescriptionBuilder withCpuTimePerItemConsumption(final Decimal value) {
       this.record.CpuTimePerItemConsumption__c = value;
       return this;
@@ -199,63 +159,6 @@ public class ApexJobTestFixture {
 
     public JobDescriptionBuilder withCpuTimeSafety(final Decimal value) {
       this.record.CpuTimeSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withHeapSizePerItemConsumption(final Decimal value) {
-      this.record.HeapSizePerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withHeapSizeSafety(final Decimal value) {
-      this.record.HeapSizeSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueryRowsPerItemConsumption(final Decimal value) {
-      this.record.QueryRowsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueryRowsSafety(final Decimal value) {
-      this.record.QueryRowsSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withDmlRowsPerItemConsumption(final Decimal value) {
-      this.record.DmlRowsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withDmlRowsSafety(final Decimal value) {
-      this.record.DmlRowsSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withCalloutPerItemConsumption(final Decimal value) {
-      this.record.CalloutPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withCalloutSafety(final Decimal value) {
-      this.record.CalloutSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withCalloutTimePerItemConsumption(final Decimal value) {
-      this.record.CalloutTimePerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withCalloutTimeSafety(final Decimal value) {
-      this.record.CalloutTimeSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withAllConsumptions(final Integer cpuTime, final Integer heapSize, final Integer queries) {
-      this.record.CpuTimeBaseConsumption__c = cpuTime;
-      this.record.HeapSizeBaseConsumption__c = heapSize;
-      this.record.QueriesBaseConsumption__c = queries;
       return this;
     }
 
@@ -291,111 +194,6 @@ public class ApexJobTestFixture {
 
     public JobDescriptionBuilder withRateBlockedUntil(final Datetime value) {
       this.record.RateBlockedUntil__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withAggregateQueriesConsumption(final Integer value) {
-      this.record.AggregateQueriesBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withAggregateQueriesPerItemConsumption(final Decimal value) {
-      this.record.AggregateQueriesPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withAggregateQueriesSafety(final Decimal value) {
-      this.record.AggregateQueriesSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withApexCursorRowsConsumption(final Integer value) {
-      this.record.ApexCursorRowsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withApexCursorRowsPerItemConsumption(final Decimal value) {
-      this.record.ApexCursorRowsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withApexCursorRowsSafety(final Decimal value) {
-      this.record.ApexCursorRowsSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withFetchCallsOnApexCursorConsumption(final Integer value) {
-      this.record.FetchCallsOnApexCursorBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withFetchCallsOnApexCursorPerItemConsumption(final Decimal value) {
-      this.record.FetchCallsOnApexCursorPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withFetchCallsOnApexCursorSafety(final Decimal value) {
-      this.record.FetchCallsOnApexCursorSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withEmailInvocationsConsumption(final Integer value) {
-      this.record.EmailInvocationsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withEmailInvocationsPerItemConsumption(final Decimal value) {
-      this.record.EmailInvocationsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withEmailInvocationsSafety(final Decimal value) {
-      this.record.EmailInvocationsSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withMobilePushApexCallsConsumption(final Integer value) {
-      this.record.MobilePushApexCallsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withMobilePushApexCallsPerItemConsumption(final Decimal value) {
-      this.record.MobilePushApexCallsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withMobilePushApexCallsSafety(final Decimal value) {
-      this.record.MobilePushApexCallsSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueryLocatorRowsConsumption(final Integer value) {
-      this.record.QueryLocatorRowsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueryLocatorRowsPerItemConsumption(final Decimal value) {
-      this.record.QueryLocatorRowsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueryLocatorRowsSafety(final Decimal value) {
-      this.record.QueryLocatorRowsSafety__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueueableJobsConsumption(final Integer value) {
-      this.record.QueueableJobsBaseConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueueableJobsPerItemConsumption(final Decimal value) {
-      this.record.QueueableJobsPerItemConsumption__c = value;
-      return this;
-    }
-
-    public JobDescriptionBuilder withQueueableJobsSafety(final Decimal value) {
-      this.record.QueueableJobsSafety__c = value;
       return this;
     }
 

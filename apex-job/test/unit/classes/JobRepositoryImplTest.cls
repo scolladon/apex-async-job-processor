@@ -208,14 +208,14 @@ private class JobRepositoryImplTest {
         .withCpuTimeConsumption(1000)
         .withHeapSizeConsumption(512000)
         .withCalloutConsumption(1)
-        .withCalloutTimeConsumption(5000)
-        .withPublishImmediateDmlConsumption(1)
-        .withDmlRowsConsumption(50)
-        .withDmlStatementsConsumption(200)
-        .withQueryRowsConsumption(100)
-        .withQueriesConsumption(5)
-        .withSoslQueriesConsumption(1)
-        .withFutureCallsConsumption(1)
+        .withBaseConsumption(JobDescription__c.CalloutTimeBaseConsumption__c, 5000)
+        .withBaseConsumption(JobDescription__c.PublishImmediateDmlBaseConsumption__c, 1)
+        .withBaseConsumption(JobDescription__c.DmlRowsBaseConsumption__c, 50)
+        .withBaseConsumption(JobDescription__c.DmlStatementsBaseConsumption__c, 200)
+        .withBaseConsumption(JobDescription__c.QueryRowsBaseConsumption__c, 100)
+        .withBaseConsumption(JobDescription__c.QueriesBaseConsumption__c, 5)
+        .withBaseConsumption(JobDescription__c.SoslQueriesBaseConsumption__c, 1)
+        .withBaseConsumption(JobDescription__c.FutureCallsBaseConsumption__c, 1)
         .build();
       testJobDescs.add(jobDesc);
     }
